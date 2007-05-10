@@ -44,7 +44,6 @@ public class NativeLibrary {
         if (handle == 0) {
             throw new UnsatisfiedLinkError("Cannot locate library " + libraryName);
         }
-        System.out.println("Loaded " + libraryName + " as " + this);
     }
     public static final NativeLibrary getInstance(String libraryName) {
         synchronized (libraries) {
