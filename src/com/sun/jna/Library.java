@@ -10,20 +10,9 @@
  */
 package com.sun.jna;
 
-import java.lang.ref.ReferenceQueue;
-import java.lang.ref.WeakReference;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
-import java.util.WeakHashMap;
-import com.sun.jna.ptr.ByReference;
-import java.nio.ByteBuffer;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
 
 /** Derive from this interface for all native library definitions.
  *
@@ -49,30 +38,15 @@ import java.util.List;
  * @author twall@users.sf.net
  */
 public interface Library {
-    /** Maximum number of allowable arguments in a mapped function. */
-    int MAX_NARGS = 32;
 
     static class Handler implements InvocationHandler {
 
-        static class CallbackReference extends WeakReference {
-            Pointer cbstruct;
-            public CallbackReference(Callback callback, Pointer cbstruct) {
-                super(callback);
-                this.cbstruct = cbstruct;
-            }
-            public Pointer getTrampoline() {
-                return cbstruct.getPointer(0);
-            }
-            protected void finalize() {
-                Function.freeCallback(cbstruct.peer);
-                cbstruct.peer = 0;
-            }
-        }
-        static final Map callbackMap = new WeakHashMap();
         static final BufferPool globalBufferPool = new MultiBufferPool(512, 128, true);
-        private String libname;
+        private final NativeLibrary nativeLibrary;
+        private final int callingConvention;
+
         private Class interfaceClass;
-        private Map functions = new HashMap();
+        
         // Map java names to native function names
         private Map functionMap;
         
@@ -103,195 +77,34 @@ public interface Library {
                 throw new IllegalArgumentException("Invalid interface class \""
                                                    + interfaceClass + "\"");
             }
-
-            this.libname = libname;
+            this.nativeLibrary = NativeLibrary.getInstance(libname);
             this.interfaceClass = interfaceClass;
             this.functionMap = functionMap;
+            if (AltCallingConvention.class.isAssignableFrom(interfaceClass)) {
+                callingConvention = Function.ALT_CONVENTION; 
+            } else {
+                callingConvention = Function.C_CONVENTION;
+            }
         }
 
         public String getLibraryName() {
-            return libname;
+            return nativeLibrary.getName();
         }
 
         public Class getInterfaceClass() {
             return interfaceClass;
         }
-        
-        private Pointer createCallback(Library library,  Callback obj) {
-            Method[] mlist = obj.getClass().getMethods();
-            for (int i=0;i < mlist.length;i++) {
-                if (Callback.METHOD_NAME.equals(mlist[i].getName())) {
-                    Method m = mlist[i];
-                    Class[] paramTypes = m.getParameterTypes();
-                    Class rtype = m.getReturnType();
-                    if (paramTypes.length > MAX_NARGS) {
-                        String msg = "Method signature exceeds the maximum "
-                            + "parameter count: " + m;
-                        throw new IllegalArgumentException(msg);
-                    }
-                    return Function.createCallback(library, obj, m, paramTypes, rtype);
-                }
-            }
-            String msg = "Callback must implement method named '"
-                + Callback.METHOD_NAME + "'";
-            throw new IllegalArgumentException(msg);
-        }
 
         public Object invoke(Object proxy, Method method, Object[] inArgs)
             throws Throwable {
-            Object result=null;
-
-            // Clone the argument array
-            Object[] args = { };
-            if (inArgs != null) {
-                args = new Object[inArgs.length];
-                System.arraycopy(inArgs, 0, args, 0, args.length);
-            }
-            
-            // Keep track of allocated ByteBuffers so they can be released again
-            ByteBuffer[] buffers = null;
-            
-            // String arguments are converted to native pointers here rather
-            // than in native code so that the values will be valid until
-            // this method returns.  At one point the conversion was in native
-            // code, which left the pointer values invalid before this method
-            // returned (so you couldn't do something like strstr).
-            for (int i=0; i < args.length; i++) {
-                Object arg = args[i];
-                if (arg == null 
-                    || (arg.getClass().isArray() 
-                        && arg.getClass().getComponentType().isPrimitive())) { 
-                    continue;
-                }
-                
-                // Convert Structures to native pointers 
-                if (arg instanceof Structure) {
-                    Structure struct = (Structure)arg;
-                    struct.write();
-                    args[i] = struct.getPointer();
-                }
-                // Convert reference class to pointer
-                else if (arg instanceof ByReference) {
-                    args[i] = ((ByReference)arg).getPointer();
-                }
-                // Convert Callback to Pointer
-                else if (arg instanceof Callback) {
-                    CallbackReference cbref;
-                    synchronized(callbackMap) {
-                        cbref = (CallbackReference)callbackMap.get(arg);
-                        if (cbref == null) {
-                            Pointer cbstruct = createCallback((Library)proxy, (Callback)arg);
-                            cbref = new CallbackReference((Callback)arg, cbstruct);
-                            callbackMap.put(arg, cbref);
-                        }
-                    }
-                    // Use pointer to trampoline (callback->insns, see dispatch.h)
-                    args[i] = cbref.getTrampoline();
-                }
-                // Convert String to native pointer (const)
-                else if (arg instanceof String) {
-                    String s = (String) arg;
-                    ByteBuffer buf = getBufferPool().get(s.length() + 1);
-                    buf.put(s.getBytes()).put((byte) 0).flip();
-                    args[i] = buf;
-                    if (buffers== null) {
-                        buffers = new ByteBuffer[inArgs.length];
-                    }
-                    buffers[i] = buf;
-                }
-                // Convert WString to native pointer (const)
-                else if (arg instanceof WString) {
-                    args[i] = new NativeString(arg.toString(), true).getPointer();
-                }
-                // Convert boolean to int
-                // NOTE: this is specifically for BOOL on w32; most other 
-                // platforms simply use an 'int' or 'char' argument.
-                else if (arg instanceof Boolean) {
-                    args[i] = new Integer(Boolean.TRUE.equals(arg) ? -1 : 0);
-                }
-                else if (arg.getClass().isArray()) {
-                    throw new IllegalArgumentException("Unsupported array type: " + arg.getClass());
-                }
-            }
-
             // Find the function to invoke
             String methodName = method.getName();
             if (functionMap.containsKey(methodName)) {
                 methodName = (String)functionMap.get(methodName);
             }
-            int callingConvention = Function.C_CONVENTION;
-            if (AltCallingConvention.class.isAssignableFrom(interfaceClass)) {
-                callingConvention = Function.ALT_CONVENTION;
-            }
-            Function function = NativeLibrary.getInstance(libname).getFunction(methodName, 
-                    callingConvention);
-            Class returnType = method.getReturnType();
-            if (returnType==Void.TYPE || returnType==Void.class) {
-                function.invoke(args);
-            }
-            else if (returnType==Boolean.TYPE || returnType==Boolean.class) {
-                result = new Boolean(function.invokeBoolean(args));
-            }
-            else if (returnType==Byte.TYPE || returnType==Byte.class) {
-                result = new Byte((byte)function.invokeInt(args));
-            }
-            else if (returnType==Short.TYPE || returnType==Short.class) {
-                result = new Short((short)function.invokeInt(args));
-            }
-            else if (returnType==Integer.TYPE || returnType==Integer.class) {
-                result = new Integer(function.invokeInt(args));
-            }
-            else if (returnType==Long.TYPE || returnType==Long.class) {
-                result = new Long(function.invokeLong(args));
-            }
-            else if (returnType==Float.TYPE || returnType==Float.class) {
-                result = new Float(function.invokeFloat(args));
-            }
-            else if (returnType==Double.TYPE || returnType==Double.class) {
-                result = new Double(function.invokeDouble(args));
-            }
-            else if (returnType==String.class) {
-                result = function.invokeString(args, false);
-            }
-            else if (returnType==WString.class) {
-                result = new WString(function.invokeString(args, true));
-            }
-            else if (Pointer.class.isAssignableFrom(returnType)) {
-                result = function.invokePointer(args);
-            }
-            else if (Structure.class.isAssignableFrom(returnType)) {
-                result = function.invokePointer(args);
-                Structure s = (Structure)returnType.newInstance();
-                s.useMemory((Pointer)result);
-                s.read();
-                result = s;
-            }
-            else {
-                throw new IllegalArgumentException("Unsupported return type "
-                                                   + returnType);
-            }
-
-            // Sync java fields in structures to native memory after invocation
-            if (inArgs != null) {
-                for (int i=0; i < inArgs.length; i++) {
-                    Object arg = inArgs[i];
-                    if (arg instanceof Structure) {
-                        ((Structure)arg).read();
-                    }
-                }
-            }
-
-			
-            // Return all the temporary buffers to the Buffer pool
-            if (buffers != null) {
-                BufferPool pool = getBufferPool();
-                for (int i = 0; i < inArgs.length; ++i) {
-                    if (buffers[i] != null) {
-                        pool.put(buffers[i]);
-                    }
-                }
-            }
-            return result;
+            
+            Function f = nativeLibrary.getFunction(methodName, callingConvention);
+            return f.invoke(method.getReturnType(), inArgs);
         }
     }
 }
