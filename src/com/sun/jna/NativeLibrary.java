@@ -14,8 +14,14 @@
 package com.sun.jna;
 
 import java.io.File;
+import java.io.FilenameFilter;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * @author Sheng Liang, originator (Function.java)
@@ -42,6 +48,13 @@ public class NativeLibrary {
         this.libraryName = libraryName;
         libraryPath = getAbsoluteLibraryPath(libraryName);
         handle = open(libraryPath);
+        // Failed to load the library normally - try to match libfoo.so.*
+        if (handle == 0 && isLinux()) {
+            libraryPath = matchLibrary(libraryName);
+            if (libraryPath != null) {
+                handle = open(libraryPath);
+            }
+        }
         if (handle == 0) {
             throw new UnsatisfiedLinkError("Cannot locate library " + libraryName);
         }
@@ -174,13 +187,47 @@ public class NativeLibrary {
         }
         return null;
     }
+    
+    /**
+     * matchLibrary is very Linux specific.  It is here to deal with the case 
+     * where there is no /usr/lib/libc.so, or it is not a valid symlink to 
+     * /lib/libc.so.6.
+     */ 
+    private static String matchLibrary(final String libName) {
+        List paths = new LinkedList();
+        String[] paths32 = { "/usr/lib", "/lib" };
+        String[] paths64 = { "/usr/lib64", "/lib64" };
+        
+        paths.addAll(Arrays.asList(Pointer.SIZE == 8 ? paths64 : paths32));
+        paths.addAll(Arrays.asList(sys_paths));
+        paths.addAll(Arrays.asList(usr_paths));
+        paths.addAll(Arrays.asList(jna_paths));
+        
+        
+        FilenameFilter filter = new FilenameFilter() {
+            Pattern p = Pattern.compile("lib" + libName + ".so.[0-9]+$");
+            public boolean accept(File dir, String name) {
+                return p.matcher(name).matches();
+            }
+        };
+        for (Iterator it = paths.iterator(); it.hasNext(); ) {
+            File[] matches = new File((String) it.next()).listFiles(filter);
+            if (matches.length > 0) {
+                return matches[0].getAbsolutePath();
+            }
+        }
+        return null;
+    }
+    private static boolean isLinux() {
+        return System.getProperty("os.name").startsWith("Linux");
+    }
     private static native long open(String name);
     private static native void close(long handle);
     private static native long findSymbol(long handle, String name);
     static {
         if (System.getProperty("os.name").startsWith("Linux")) {
             // Some versions of linux don't have libc.so
-            libraryNameMap.put("c", "libc.so.6");
+            //libraryNameMap.put("c", "libc.so.6");
         }
         sys_paths = initPaths("sun.boot.library.path");
         usr_paths = initPaths("java.library.path");
