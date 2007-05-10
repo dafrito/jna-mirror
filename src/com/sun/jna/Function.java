@@ -129,12 +129,25 @@ public class Function extends Pointer {
     public int getCallingConvention() {
         return callingConvention;
     }
-    //
-    // Use a thread-local SimpleBufferPool of 6 128 byte buffers to hold
-    // any String or ByReference arguments that need to be converted.
-    // If larger or more buffers are needed, then the local pool will chain
-    // to the global pool to satisfy the requests.
-    //
+    
+    /*
+     * The reason for using pools of ByteBuffer objects instead of allocating 
+     * on demand is: speed.
+     * 
+     * Direct ByteBuffers are _really_ slow to allocate - about 3 times slower 
+     * than a Memory object - but once allocated, are quite a bit faster to 
+     * read/write, as they can be accessed directly from java vs going through 
+     * JNI.
+     * 
+     * Having both a thread local and a global synchronized pool was to balance 
+     * between speed and memory usage - getting a buffer from the thread local 
+     * pool is at least twice as fast as doing the synchronize needed for the 
+     * global pool.
+     * 
+     * So a 1K per-thread pool is allocated which should handle 99% of cases 
+     * (most functions have less than 8 args, and most strings are less than 128 bytes), 
+     * but can fallback to a still fairly fast pool of larger/more buffers if needed.
+     */ 
     private static ThreadLocal localBufferPool = new ThreadLocal() {
         protected synchronized Object initialValue() {
             return new SimpleBufferPool(globalBufferPool, 128, 8);
