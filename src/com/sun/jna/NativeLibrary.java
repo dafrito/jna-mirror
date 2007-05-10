@@ -32,6 +32,7 @@ public class NativeLibrary {
     private static final Map libraries = new HashMap();
     private static final Map paths = new HashMap();
     private static final Map functions = new HashMap();
+    private static final Map libraryNameMap = new HashMap();
     private static String[] sys_paths;
     private static String[] usr_paths;
     private static String[] jna_paths;
@@ -136,6 +137,9 @@ public class NativeLibrary {
     
     /** Use standard library search paths to find the library. */
     private static String findLibrary(String libName) {
+        if (libraryNameMap.containsKey(libName)) {
+            return (String) libraryNameMap.get(libName);
+        }
         String name = mapLibraryName(libName);
         String path = findPath(sys_paths, name);
         if (path != null)
@@ -174,6 +178,10 @@ public class NativeLibrary {
     private static native void close(long handle);
     private static native long findSymbol(long handle, String name);
     static {
+        if (System.getProperty("os.name").startsWith("Linux")) {
+            // Some versions of linux don't have libc.so
+            libraryNameMap.put("c", "libc.so.6");
+        }
         sys_paths = initPaths("sun.boot.library.path");
         usr_paths = initPaths("java.library.path");
         jna_paths = initPaths("jna.library.path");
