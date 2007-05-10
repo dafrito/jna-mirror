@@ -428,6 +428,54 @@ Java_com_sun_jna_Function_freeCallback(JNIEnv *env, jobject obj,
 }
 
 /*
+ * Class:     com_sun_jna_NativeLibrary
+ * Method:    open
+ * Signature: (Ljava/lang/String;)J
+ */
+JNIEXPORT jlong JNICALL
+Java_com_sun_jna_NativeLibrary_open(JNIEnv *env, jclass cls, jstring lib){
+    void *handle;
+    char *libname = NULL;
+
+    if ((libname = newCString(env, lib)) != NULL) {
+	handle = (void *)LOAD_LIBRARY(libname);
+	free(libname);
+    }
+    return (jlong)A2L(handle);
+}
+
+/*
+ * Class:     com_sun_jna_NativeLibrary
+ * Method:    close
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL
+Java_com_sun_jna_NativeLibrary_close(JNIEnv *env, jclass cls, jlong handle)
+{
+    FREE_LIBRARY(L2A(handle));
+}
+
+/*
+ * Class:     com_sun_jna_NativeLibrary
+ * Method:    findSymbol
+ * Signature: (JLjava/lang/String;)J
+ */
+JNIEXPORT jlong JNICALL Java_com_sun_jna_NativeLibrary_findSymbol(JNIEnv *env,
+    jclass cls, jlong libHandle, jstring fun) {
+
+    void *handle = L2A(libHandle);
+    void *func = NULL;
+    char *funname = NULL;
+
+    if ((funname = newCString(env, fun)) != NULL) {
+	func = (void *)FIND_ENTRY(handle, funname);
+	free(funname);
+    }
+    return (jlong)A2L(func);
+
+}
+
+/*
  * Class:     Pointer
  * Method:    initIDs
  * Signature: (LPointer;)I

@@ -164,6 +164,7 @@
       <class name="com.sun.jna.Memory"/>
       <class name="com.sun.jna.Library$Handler"/>
       <class name="com.sun.jna.Native"/>
+      <class name="com.sun.jna.NativeLibrary"/>
     </javah>
   </target>
 

@@ -189,20 +189,12 @@ public interface Library {
             if (functionMap.containsKey(methodName)) {
                 methodName = (String)functionMap.get(methodName);
             }
-            Function function;
-            synchronized(functions) {
-                function = (Function)functions.get(methodName);
-                if (function == null) {
-                    if (AltCallingConvention.class.isAssignableFrom(interfaceClass)) {
-                        function = new Function(libname, methodName,
-                                                Function.ALT_CONVENTION);
-                    }
-                    else {
-                        function = new Function(libname, methodName);
-                    }
-                    functions.put(methodName, function);
-                }
+            int callingConvention = Function.C_CONVENTION;
+            if (AltCallingConvention.class.isAssignableFrom(interfaceClass)) {
+                callingConvention = Function.ALT_CONVENTION;
             }
+            Function function = NativeLibrary.getInstance(libname).getFunction(methodName, 
+                    callingConvention);
             Class returnType = method.getReturnType();
             if (returnType==Void.TYPE || returnType==Void.class) {
                 function.invoke(args);
