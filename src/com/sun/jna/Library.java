@@ -20,6 +20,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 import com.sun.jna.ptr.ByReference;
+import java.nio.ByteBuffer;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 
 /** Derive from this interface for all native library definitions.
  *
@@ -65,13 +69,29 @@ public interface Library {
             }
         }
         static final Map callbackMap = new WeakHashMap();
-        
+        static final BufferPool globalBufferPool = new MultiBufferPool(512, 128, true);
         private String libname;
         private Class interfaceClass;
         private Map functions = new HashMap();
         // Map java names to native function names
         private Map functionMap;
         
+        //
+        // Use a thread-local SimpleBufferPool of 8 128 byte buffers to hold
+        // any String or ByReference arguments that need to be converted.  
+        // If larger or more buffers are needed, then the local pool will chain 
+        // to the global pool to satisfy the requests.
+        //
+        private static ThreadLocal localBufferPool = new ThreadLocal() {
+            protected synchronized Object initialValue() {
+                return new SimpleBufferPool(globalBufferPool, 128, 8);
+            }
+        };
+        
+        private static BufferPool getBufferPool() {
+            return (BufferPool)localBufferPool.get();
+        }
+
         public Handler(String libname, Class interfaceClass, Map functionMap) {
 
             if (libname == null || libname.trim().length() == 0) {
@@ -127,7 +147,10 @@ public interface Library {
                 args = new Object[inArgs.length];
                 System.arraycopy(inArgs, 0, args, 0, args.length);
             }
-
+            
+            // Keep track of allocated ByteBuffers so they can be released again
+            ByteBuffer[] buffers = null;
+            
             // String arguments are converted to native pointers here rather
             // than in native code so that the values will be valid until
             // this method returns.  At one point the conversion was in native
@@ -167,7 +190,14 @@ public interface Library {
                 }
                 // Convert String to native pointer (const)
                 else if (arg instanceof String) {
-                    args[i] = new NativeString((String)arg, false).getPointer();
+                    String s = (String) arg;
+                    ByteBuffer buf = getBufferPool().get(s.length() + 1);
+                    buf.put(s.getBytes()).put((byte) 0).flip();
+                    args[i] = buf;
+                    if (buffers== null) {
+                        buffers = new ByteBuffer[inArgs.length];
+                    }
+                    buffers[i] = buf;
                 }
                 // Convert WString to native pointer (const)
                 else if (arg instanceof WString) {
@@ -250,7 +280,17 @@ public interface Library {
                     }
                 }
             }
+
 			
+            // Return all the temporary buffers to the Buffer pool
+            if (buffers != null) {
+                BufferPool pool = getBufferPool();
+                for (int i = 0; i < inArgs.length; ++i) {
+                    if (buffers[i] != null) {
+                        pool.put(buffers[i]);
+                    }
+                }
+            }
             return result;
         }
     }
