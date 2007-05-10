@@ -36,13 +36,10 @@ public class NativeLibrary {
     
     /* Static variables */
     private static final Map libraries = new HashMap();
-    private static final Map paths = new HashMap();
     private static final Map functions = new HashMap();
-    private static final Map libraryNameMap = new HashMap();
-    private static String[] sys_paths;
-    private static String[] usr_paths;
-    private static String[] jna_paths;
-    private static final Pointer NULL = Pointer.NULL; // Dummy to get it to load the jnidispatch library
+    private static final List librarySearchPath = new LinkedList();
+    // Dummy to force it to load the jnidispatch library
+    private static final Pointer NULL = Pointer.NULL;
     
     private NativeLibrary(String libraryName) {
         this.libraryName = libraryName;
@@ -136,32 +133,27 @@ public class NativeLibrary {
     }
     
     private synchronized static String getAbsoluteLibraryPath(String libName) {
-        String path = (String)paths.get(libName);
-        if (path == null) {
-            path = findLibrary(libName);
-            paths.put(libName, path);
-        }
-        return path;
+        return findLibrary(libName);
     }
     
-    private static String[] initPaths(String key) {
-        return System.getProperty(key, "").split(File.pathSeparator);
+    private static List initPaths(String key) {
+        String[] paths = System.getProperty(key, "").split(File.pathSeparator);
+        return Arrays.asList(paths);
     }
     
     /** Use standard library search paths to find the library. */
     private static String findLibrary(String libName) {
-        if (libraryNameMap.containsKey(libName)) {
-            return (String) libraryNameMap.get(libName);
-        }
         String name = mapLibraryName(libName);
-        String path = findPath(sys_paths, name);
-        if (path != null)
-            return path;
-        if ((path = findPath(usr_paths, name)) != null)
-            return path;
-        if ((path = findPath(jna_paths, name)) != null)
-            return path;
-        
+        for (Iterator it = librarySearchPath.iterator(); it.hasNext(); ) {
+            File file = new File(new File((String) it.next()), name);
+            if (file.exists()) {
+                return file.getAbsolutePath();
+            }
+        }
+        //
+        // Default to returning the original library name and letting the system
+        // search for it
+        //
         return libName;
     }
     private static String mapLibraryName(String libName) {
@@ -178,45 +170,45 @@ public class NativeLibrary {
         }
         return System.mapLibraryName(libName);
     }
-    private static String findPath(String[] paths, String name) {
-        for (int i=0;i < paths.length;i++) {
-            File file = new File(paths[i], name);
-            if (file.exists()) {
-                return file.getAbsolutePath();
-            }
-        }
-        return null;
-    }
     
     /**
-     * matchLibrary is very Linux specific.  It is here to deal with the case 
-     * where there is no /usr/lib/libc.so, or it is not a valid symlink to 
+     * matchLibrary is very Linux specific.  It is here to deal with the case
+     * where there is no /usr/lib/libc.so, or it is not a valid symlink to
      * /lib/libc.so.6.
-     */ 
+     */
     private static String matchLibrary(final String libName) {
-        List paths = new LinkedList();
-        String[] paths32 = { "/usr/lib", "/lib" };
-        String[] paths64 = { "/usr/lib64", "/lib64" };
-        
-        paths.addAll(Arrays.asList(Pointer.SIZE == 8 ? paths64 : paths32));
-        paths.addAll(Arrays.asList(sys_paths));
-        paths.addAll(Arrays.asList(usr_paths));
-        paths.addAll(Arrays.asList(jna_paths));
-        
         
         FilenameFilter filter = new FilenameFilter() {
+            int version = 0;
             Pattern p = Pattern.compile("lib" + libName + ".so.[0-9]+$");
             public boolean accept(File dir, String name) {
                 return p.matcher(name).matches();
             }
         };
-        for (Iterator it = paths.iterator(); it.hasNext(); ) {
-            File[] matches = new File((String) it.next()).listFiles(filter);
-            if (matches.length > 0) {
-                return matches[0].getAbsolutePath();
+        List matches = new LinkedList();
+        for (Iterator it = librarySearchPath.iterator(); it.hasNext(); ) {
+            File[] files = new File((String) it.next()).listFiles(filter);
+            if (files != null && files.length > 0) {
+                matches.addAll(Arrays.asList(files));
             }
         }
-        return null;
+        
+        //
+        // Search through the results and return the highest numbered version
+        // i.e. libc.so.6 is preferred over libc.so.5
+        //
+        int version = 0;
+        String bestMatch = null;
+        for (Iterator it = matches.iterator(); it.hasNext(); ) {
+            String path = ((File) it.next()).getAbsolutePath();
+            String num = path.substring(path.lastIndexOf('.') + 1);
+            try {
+                if (Integer.parseInt(num) >= version) {
+                    bestMatch = path;
+                }
+            } catch (NumberFormatException e) {} // Just skip if not a number
+        }
+        return bestMatch;
     }
     private static boolean isLinux() {
         return System.getProperty("os.name").startsWith("Linux");
@@ -225,12 +217,18 @@ public class NativeLibrary {
     private static native void close(long handle);
     private static native long findSymbol(long handle, String name);
     static {
-        if (System.getProperty("os.name").startsWith("Linux")) {
-            // Some versions of linux don't have libc.so
-            //libraryNameMap.put("c", "libc.so.6");
+        
+        librarySearchPath.addAll(initPaths("jna.library.path"));
+        librarySearchPath.addAll(initPaths("java.library.path"));
+        librarySearchPath.addAll(initPaths("sun.boot.library.path"));
+        if (isLinux()) {
+            //
+            // Explicitly add the system search path next, so fallback searching
+            // for libfoo.so.* works
+            //
+            String[] paths32 = { "/usr/lib", "/lib" };
+            String[] paths64 = { "/usr/lib64", "/lib64" };
+            librarySearchPath.addAll(Arrays.asList(Pointer.SIZE == 8 ? paths64 : paths32));
         }
-        sys_paths = initPaths("sun.boot.library.path");
-        usr_paths = initPaths("java.library.path");
-        jna_paths = initPaths("jna.library.path");
     }
 }
