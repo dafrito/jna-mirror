@@ -16,6 +16,7 @@ package com.sun.jna;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -37,17 +38,29 @@ public class NativeLibrary {
     /* Static variables */
     private static final Map libraries = new HashMap();
     private static final Map functions = new HashMap();
+    private static final Map searchPaths = Collections.synchronizedMap(new HashMap());
     private static final List librarySearchPath = new LinkedList();
     // Dummy to force it to load the jnidispatch library
     private static final Pointer NULL = Pointer.NULL;
     
     private NativeLibrary(String libraryName) {
         this.libraryName = libraryName;
-        libraryPath = getAbsoluteLibraryPath(libraryName);
+        List searchPath = new LinkedList(librarySearchPath);
+        
+        //
+        // Prepend any custom search paths specifically for this library
+        //
+        List customPaths = (List) searchPaths.get(libraryName);
+        if (customPaths != null) {
+            searchPath.addAll(0, customPaths);
+        }
+        libraryPath = findLibrary(libraryName, searchPath);
         handle = open(libraryPath);
+        //
         // Failed to load the library normally - try to match libfoo.so.*
+        //
         if (handle == 0 && isLinux()) {
-            libraryPath = matchLibrary(libraryName);
+            libraryPath = matchLibrary(libraryName, searchPath);
             if (libraryPath != null) {
                 handle = open(libraryPath);
             }
@@ -56,6 +69,17 @@ public class NativeLibrary {
             throw new UnsatisfiedLinkError("Cannot locate library " + libraryName);
         }
     }
+    
+    /**
+     * Returns an instance of NativeLibrary for the specified name.  
+     * The library is loaded if not already loaded.  If already loaded, the 
+     * existing instance is returned.
+     * 
+     * @param libraryName The library name to load.
+     *      This can be short form (e.g. "c"), 
+     *      an explicit version (e.g. "libc.so.6"), or
+     *      the full path to the library (e.g. "/lib/libc.so.6").
+     */
     public static final NativeLibrary getInstance(String libraryName) {
         synchronized (libraries) {
             Object val = libraries.get(libraryName);
@@ -69,6 +93,23 @@ public class NativeLibrary {
         }
     }
     
+    /**
+     * Add a path to search for the specified library, ahead of any system paths
+     * 
+     * @param libraryName The name of the library to use the path for
+     * @param path The path to use when trying to load the library
+     */  
+    public static final void addSearchPath(String libraryName, String path) {
+        synchronized (searchPaths) {
+            List customPaths = (List) searchPaths.get(libraryName);
+            if (customPaths == null) {
+                customPaths = Collections.synchronizedList(new LinkedList());
+                searchPaths.put(libraryName, customPaths);
+            }
+            
+            customPaths.add(path);
+        }
+    }
     /**
      * Create a new {@link Function} that is linked with a native
      * function that follows the standard "C" calling convention.
@@ -132,19 +173,15 @@ public class NativeLibrary {
         }
     }
     
-    private synchronized static String getAbsoluteLibraryPath(String libName) {
-        return findLibrary(libName);
-    }
-    
     private static List initPaths(String key) {
         String[] paths = System.getProperty(key, "").split(File.pathSeparator);
         return Arrays.asList(paths);
     }
     
     /** Use standard library search paths to find the library. */
-    private static String findLibrary(String libName) {
+    private static String findLibrary(String libName, List searchPath) {
         String name = mapLibraryName(libName);
-        for (Iterator it = librarySearchPath.iterator(); it.hasNext(); ) {
+        for (Iterator it = searchPath.iterator(); it.hasNext(); ) {
             File file = new File(new File((String) it.next()), name);
             if (file.exists()) {
                 return file.getAbsolutePath();
@@ -176,7 +213,7 @@ public class NativeLibrary {
      * where there is no /usr/lib/libc.so, or it is not a valid symlink to
      * /lib/libc.so.6.
      */
-    private static String matchLibrary(final String libName) {
+    private static String matchLibrary(final String libName, List searchPath) {
         
         FilenameFilter filter = new FilenameFilter() {
             int version = 0;
@@ -185,8 +222,9 @@ public class NativeLibrary {
                 return p.matcher(name).matches();
             }
         };
+        
         List matches = new LinkedList();
-        for (Iterator it = librarySearchPath.iterator(); it.hasNext(); ) {
+        for (Iterator it = searchPath.iterator(); it.hasNext(); ) {
             File[] files = new File((String) it.next()).listFiles(filter);
             if (files != null && files.length > 0) {
                 matches.addAll(Arrays.asList(files));
