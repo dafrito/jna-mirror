@@ -59,7 +59,7 @@ public class NativeLibrary {
         //
         // Failed to load the library normally - try to match libfoo.so.*
         //
-        if (handle == 0 && isLinux()) {
+        if (handle == 0 && OS.isLinux()) {
             libraryPath = matchLibrary(libraryName, searchPath);
             if (libraryPath != null) {
                 handle = open(libraryPath);
@@ -191,22 +191,30 @@ public class NativeLibrary {
         // Default to returning the original library name and letting the system
         // search for it
         //
-        return libName;
+        return name;
     }
     private static String mapLibraryName(String libName) {
         //
         // On MacOSX, System.mapLibraryName() returns the .jnilib extension for 
         // all libs but native libs that JNA needs to load are .dylib
         //
-        if (System.getProperty("os.name").startsWith("Mac")) {
+        if (OS.isMac()) {
+            //
+            // A specific version was requested - use as is for search
+            //
+            if (Pattern.matches("lib.*\\.(dylib|jnilib)$", libName)) {
+                return libName;
+            }
             String name = System.mapLibraryName(libName);
             if (name.endsWith(".jnilib")) {
                 return name.substring(0, name.lastIndexOf(".jnilib")) + ".dylib";
             }
             return name;
-        } else if (isLinux()) {
+        } else if (OS.isLinux()) {
+            //
             // A specific version was requested - use as is for search
-            if (Pattern.matches("lib.*\\.so\\.[0-9]+", libName)) {
+            //
+            if (Pattern.matches("lib.*\\.so\\.[0-9]+$", libName)) {
                 return libName;
             }
         }
@@ -254,9 +262,7 @@ public class NativeLibrary {
         }
         return bestMatch;
     }
-    private static boolean isLinux() {
-        return System.getProperty("os.name").startsWith("Linux");
-    }
+    
     private static native long open(String name);
     private static native void close(long handle);
     private static native long findSymbol(long handle, String name);
@@ -265,7 +271,7 @@ public class NativeLibrary {
         librarySearchPath.addAll(initPaths("jna.library.path"));
         librarySearchPath.addAll(initPaths("java.library.path"));
         librarySearchPath.addAll(initPaths("sun.boot.library.path"));
-        if (isLinux()) {
+        if (OS.isLinux()) {
             //
             // Explicitly add the system search path next, so fallback searching
             // for libfoo.so.* works
