@@ -21,16 +21,23 @@ final class OS {
     static final int MAC = 0;
     static final int LINUX = 1;
     static final int WINDOWS = 2;
+    static final int SOLARIS = 3;
     static final int osType;
     static {
         String osName = System.getProperty("os.name");
         if (osName.startsWith("Linux")) {
             osType = LINUX;
-        } else if (osName.startsWith("Mac")) {
+        } 
+        else if (osName.startsWith("Mac")) {
             osType = MAC;
-        } else if (osName.startsWith("Windows")) {
+        }
+        else if (osName.startsWith("Windows")) {
             osType = WINDOWS;
-        } else {
+        }
+        else if (osName.startsWith("Solaris") || osName.startsWith("SunOS")) {
+            osType = SOLARIS;
+        }
+        else {
             osType = ~0;
         }
     }
@@ -44,5 +51,8 @@ final class OS {
     }
     public final static boolean isWindows() {
         return osType == WINDOWS;
+    }
+    public final static boolean isSolaris() {
+        return osType == SOLARIS;
     }
 }

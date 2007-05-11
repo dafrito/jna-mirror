@@ -53,19 +53,21 @@ public class Pointer {
     
     private static String getNativeLibraryResourcePath() {
         String arch = System.getProperty("os.arch");
-        String os = System.getProperty("os.name");
-        String osPrefix = os;
-        if (os.startsWith("Windows")) {
+        String osPrefix;
+        if (OS.isWindows()) {
             osPrefix = "win32-" + arch;
         }
-        else if (os.startsWith("Mac")) {
+        else if (OS.isMac()) {
             osPrefix = "darwin-" + arch;
         }
-        else if (os.startsWith("Linux")) {
+        else if (OS.isLinux()) {
             osPrefix = "linux-" + arch;
         }
-        else if (os.startsWith("Solaris") || os.startsWith("SunOS")) {
+        else if (OS.isSolaris()) {
             osPrefix = "sunos-" + arch;
+        }
+        else {
+            osPrefix = System.getProperty("os.name");
         }
         return "/com/sun/jna/" + osPrefix;
     }
@@ -117,8 +119,8 @@ public class Pointer {
                 }
             }
         }
-        String os = System.getProperty("os.name");
-        if (os.startsWith("Windows")) {
+        
+        if (OS.isWindows()) {
             // Avoid dependent library link errors on w32 (this is handled
             // internal to the jnidispatch library for X11-based platforms)
             try { System.loadLibrary("awt"); } 
