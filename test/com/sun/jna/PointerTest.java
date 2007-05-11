@@ -92,4 +92,30 @@ public class PointerTest extends TestCase {
         assertEquals("Long not read from memory", MAGIC, 
                 buf.getLong(0));
     }
+    public void testGetNativeLong() {
+        Memory m = new Memory(8);
+        if (NativeLong.SIZE == 4) {
+            final int MAGIC = 0xABEDCF23;
+            m.setInt(0, MAGIC);
+            NativeLong l = m.getNativeLong(0);
+            assertEquals("Native long mismatch", MAGIC, l.intValue());
+        } else {
+            final long MAGIC = 0x1234567887654321L;
+            m.setLong(0, MAGIC);
+            NativeLong l = m.getNativeLong(0);
+            assertEquals("Native long mismatch", MAGIC, l.longValue());
+        }
+    }
+    public void testSetNativeLong() {
+        Memory m = new Memory(8);
+        if (NativeLong.SIZE == 4) {
+            final int MAGIC = 0xABEDCF23;
+            m.setNativeLong(0, new NativeLong(MAGIC));
+            assertEquals("Native long mismatch", MAGIC, m.getInt(0));
+        } else {
+            final long MAGIC = 0x1234567887654321L;
+            m.setNativeLong(0, new NativeLong(MAGIC));
+            assertEquals("Native long mismatch", MAGIC, m.getLong(0));
+        }
+    }
 }

@@ -41,6 +41,9 @@ public class ArgumentsMarshalTest extends TestCase {
         short returnInt16Argument(short arg);
         int returnInt32Argument(int i);
         long returnInt64Argument(long l);
+        NativeLong returnLongArgument(NativeLong l);
+        NativeLong returnLongMagic();
+        NativeLong returnLongZero();
         float returnFloatArgument(float f);
         double returnDoubleArgument(double d);
         String returnStringArgument(String s);
@@ -136,7 +139,20 @@ public class ArgumentsMarshalTest extends TestCase {
         assertEquals("Should return 64-bit argument", 
                      value, lib.returnInt64Argument(value));
     }
-
+    public void testNativeLongArgument() {
+        NativeLong value = new NativeLong(0);
+        assertEquals("Should return 0", 
+                     value, lib.returnLongArgument(value));
+        value = new NativeLong(1);
+        assertEquals("Should return 1", 
+                     value, lib.returnLongArgument(value));
+        value = new NativeLong(0x7FFFFFFF);
+        assertEquals("Should return 0x7FFFFFFF", 
+                     value, lib.returnLongArgument(value));
+        value = new NativeLong(0x80000000);
+        assertEquals("Should return 0x80000000", 
+                     value, lib.returnLongArgument(value));
+    }
     public void testPointerArgumentReturn() {
         assertEquals("Expect null pointer",
                      null, lib.returnPointerArgument(null));

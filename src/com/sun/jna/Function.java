@@ -219,6 +219,9 @@ public class Function extends Pointer {
             else if (arg instanceof WString) {
                 args[i] = new NativeString(arg.toString(), true).getPointer();
             }
+			else if (arg instanceof NativeLong) {
+                args[i] = ((NativeLong) arg).asNativeValue();
+            }
             // Convert boolean to int
             // NOTE: this is specifically for BOOL on w32; most other
             // platforms simply use an 'int' or 'char' argument.
@@ -245,6 +248,12 @@ public class Function extends Pointer {
             result = new Float(invokeFloat(callingConvention, args));
         } else if (returnType==Double.TYPE || returnType==Double.class) {
             result = new Double(invokeDouble(callingConvention, args));
+        } else if (returnType==NativeLong.class) {
+            if (NativeLong.SIZE == 4) {
+                result = new NativeLong(invokeInt(callingConvention, args)); 
+            } else {
+                result = new NativeLong(invokeLong(callingConvention, args)); 
+            }
         } else if (returnType==String.class) {
             Pointer ptr = invokePointer(callingConvention, args);
             result = ptr != null ? ptr.getString(0, false) : null;

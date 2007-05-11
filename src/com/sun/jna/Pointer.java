@@ -434,6 +434,21 @@ public class Pointer {
      */
     public native long getLong(int offset);
 
+    /**
+     * Indirect the native pointer as a pointer to <code>long</code>.  This is
+     * equivalent to the expression
+     * <code>*((long *)((char *)Pointer + offset))</code>.
+     *
+     * @param offset byte offset from pointer to perform the indirection
+     * @return the <code>long</code> value being pointed to
+     */
+    public NativeLong getNativeLong(int offset) {
+        if (SIZE == 8) {
+            return new NativeLong(getLong(offset));
+        } else {
+            return new NativeLong(getInt(offset));
+        }
+    }
 
     /**
      * Indirect the native pointer as a pointer to <code>float</code>.  This is
@@ -589,6 +604,22 @@ public class Pointer {
      */
     public native void setLong(int offset, long value);
 
+    /**
+     * Set <code>value</code> at location being pointed to. This is equivalent
+     * to the expression
+     * <code>*((long *)((char *)Pointer + offset)) = value</code>.
+     *
+     * @param offset byte offset from pointer at which <code>value</code>
+     *               must be set
+     * @param value <code>long</code> value to set
+     */
+    public void setNativeLong(int offset, NativeLong value) {
+        if (SIZE == 8) {
+            setLong(offset, value.longValue());
+        } else {
+            setInt(offset, value.intValue());
+        }
+    }
 
     /**
      * Set <code>value</code> at location being pointed to. This is equivalent
