@@ -195,8 +195,8 @@ public class NativeLibrary {
     }
     private static String mapLibraryName(String libName) {
         //
-        // On MacOSX, System.mapLibraryName() returns the .jnilib extension for all libs
-        // but native libs that JNA needs to load are .dylib
+        // On MacOSX, System.mapLibraryName() returns the .jnilib extension for 
+        // all libs but native libs that JNA needs to load are .dylib
         //
         if (System.getProperty("os.name").startsWith("Mac")) {
             String name = System.mapLibraryName(libName);
@@ -204,7 +204,13 @@ public class NativeLibrary {
                 return name.substring(0, name.lastIndexOf(".jnilib")) + ".dylib";
             }
             return name;
+        } else if (isLinux()) {
+            // A specific version was requested - use as is for search
+            if (Pattern.matches("lib.*\\.so\\.[0-9]+", libName)) {
+                return libName;
+            }
         }
+        
         return System.mapLibraryName(libName);
     }
     
@@ -217,7 +223,7 @@ public class NativeLibrary {
         
         FilenameFilter filter = new FilenameFilter() {
             int version = 0;
-            Pattern p = Pattern.compile("lib" + libName + ".so.[0-9]+$");
+            Pattern p = Pattern.compile("lib" + libName + "\\.so\\.[0-9]+$");
             public boolean accept(File dir, String name) {
                 return p.matcher(name).matches();
             }
