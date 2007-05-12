@@ -41,31 +41,14 @@ public interface Library {
 
     static class Handler implements InvocationHandler {
 
-        static final BufferPool globalBufferPool = new MultiBufferPool(512, 128, true);
         private final NativeLibrary nativeLibrary;
         private final int callingConvention;
 
         private Class interfaceClass;
         
         // Map java names to native function names
-        private Map functionMap;
+        private Map functionMap;     
         
-        //
-        // Use a thread-local SimpleBufferPool of 8 128 byte buffers to hold
-        // any String or ByReference arguments that need to be converted.  
-        // If larger or more buffers are needed, then the local pool will chain 
-        // to the global pool to satisfy the requests.
-        //
-        private static ThreadLocal localBufferPool = new ThreadLocal() {
-            protected synchronized Object initialValue() {
-                return new SimpleBufferPool(globalBufferPool, 128, 8);
-            }
-        };
-        
-        private static BufferPool getBufferPool() {
-            return (BufferPool)localBufferPool.get();
-        }
-
         public Handler(String libname, Class interfaceClass, Map functionMap) {
 
             if (libname == null || libname.trim().length() == 0) {
