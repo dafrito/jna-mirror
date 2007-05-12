@@ -52,7 +52,9 @@ public class NativeLibrary {
         //
         List customPaths = (List) searchPaths.get(libraryName);
         if (customPaths != null) {
-            searchPath.addAll(0, customPaths);
+            synchronized (customPaths) {
+                searchPath.addAll(0, customPaths);
+            }
         }
         libraryPath = findLibrary(libraryName, searchPath);
         handle = open(libraryPath);
@@ -180,7 +182,20 @@ public class NativeLibrary {
     
     /** Use standard library search paths to find the library. */
     private static String findLibrary(String libName, List searchPath) {
+        
+        //
+        // If a full path to the library was specified, don't search for it
+        //
+        if (new File(libName).isAbsolute()) {
+            return libName;
+        }
+        
+        //
+        // Get the system name for the library (e.g. libfoo.so)
+        //
         String name = mapLibraryName(libName);
+        
+        // Search in the JNA paths for it
         for (Iterator it = searchPath.iterator(); it.hasNext(); ) {
             File file = new File(new File((String) it.next()), name);
             if (file.exists()) {
@@ -188,7 +203,7 @@ public class NativeLibrary {
             }
         }
         //
-        // Default to returning the original library name and letting the system
+        // Default to returning the maped library name and letting the system
         // search for it
         //
         return name;
@@ -202,7 +217,7 @@ public class NativeLibrary {
             //
             // A specific version was requested - use as is for search
             //
-            if (Pattern.matches("lib.*\\.(dylib|jnilib)$", libName)) {
+            if (libName.matches("lib.*\\.(dylib|jnilib)$")) {
                 return libName;
             }
             String name = System.mapLibraryName(libName);
@@ -214,10 +229,10 @@ public class NativeLibrary {
             //
             // A specific version was requested - use as is for search
             //
-            if (Pattern.matches("lib.*\\.so\\.[0-9]+$", libName)) {
+            if (libName.matches("lib.*\\.so\\.[0-9]+$")) {
                 return libName;
             }
-        }
+        } 
         
         return System.mapLibraryName(libName);
     }
@@ -269,9 +284,7 @@ public class NativeLibrary {
     static {
         
         librarySearchPath.addAll(initPaths("jna.library.path"));
-        librarySearchPath.addAll(initPaths("java.library.path"));
-        librarySearchPath.addAll(initPaths("sun.boot.library.path"));
-        if (OS.isLinux()) {
+        if (OS.isLinux() || OS.isSolaris() || OS.isMac()) {
             //
             // Explicitly add the system search path next, so fallback searching
             // for libfoo.so.* works
@@ -280,5 +293,7 @@ public class NativeLibrary {
             String[] paths64 = { "/usr/lib64", "/lib64" };
             librarySearchPath.addAll(Arrays.asList(Pointer.SIZE == 8 ? paths64 : paths32));
         }
+        librarySearchPath.addAll(initPaths("java.library.path"));
+        librarySearchPath.addAll(initPaths("sun.boot.library.path"));
     }
 }
