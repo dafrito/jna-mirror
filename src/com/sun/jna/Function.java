@@ -36,6 +36,7 @@ public class Function extends Pointer {
     public static final int C_CONVENTION = 0;
     /** Alternate convention (currently used only for w32 stdcall). */
     public static final int ALT_CONVENTION = 1;
+    public static final int MAX_NARGS = 32;
     
     private int callingConvention;
     private String libraryName;
@@ -225,7 +226,7 @@ public class Function extends Pointer {
                 buf.put(s.getBytes()).put((byte) 0).flip();
                 args[i] = buf;
                 if (buffers==null) {
-                    buffers = new ByteBuffer[inArgs.length];
+                    buffers = new ByteBuffer[Function.MAX_NARGS];
                 }
                 buffers[i] = buf;
             }
@@ -241,6 +242,24 @@ public class Function extends Pointer {
             // platforms simply use an 'int' or 'char' argument.
             else if (arg instanceof Boolean) {
                 args[i] = new Integer(Boolean.TRUE.equals(arg) ? -1 : 0);
+            } 
+            //
+            // Convert Java 1.5+ varargs to C stdargs
+            //
+            else if (arg.getClass().isArray() && 
+                    Object.class.isAssignableFrom(arg.getClass().getComponentType()) &&
+                    i == inArgs.length - 1) {
+                Object[] varargs = (Object[]) arg;
+                Object[] newArgs = new Object[i + varargs.length + 1];
+                // Copy the original arg array (less the current arg)
+                System.arraycopy(args, 0, newArgs, 0, i);
+                
+                // Copy the varargs array onto the end of the main args array
+                System.arraycopy(varargs, 0, newArgs, i, varargs.length);
+                 // Make sure varargs are NULL terminated
+                newArgs[newArgs.length - 1] = null;
+                args = newArgs;
+                --i; // Jump back and process the first arg of the varargs
             } else if (arg.getClass().isArray()) {
                 throw new IllegalArgumentException("Unsupported array type: " + arg.getClass());
             }
@@ -305,7 +324,7 @@ public class Function extends Pointer {
         // Return all the temporary buffers to the Buffer pool
         if (buffers != null) {
             BufferPool pool = getBufferPool();
-            for (int i = 0; i < inArgs.length; ++i) {
+            for (int i = 0; i < args.length; ++i) {
                 if (buffers[i] != null) {
                     pool.put(buffers[i]);
                 }
