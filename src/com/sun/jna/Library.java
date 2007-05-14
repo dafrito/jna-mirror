@@ -47,9 +47,10 @@ public interface Library {
         private Class interfaceClass;
         
         // Map java names to native function names
-        private Map functionMap;     
+        private Map functionMap, argumentMap;     
         
-        public Handler(String libname, Class interfaceClass, Map functionMap) {
+        public Handler(String libname, Class interfaceClass, Map functionMap,
+                Map argumentMap) {
 
             if (libname == null || libname.trim().length() == 0) {
                 throw new IllegalArgumentException("Invalid library name \""
@@ -63,6 +64,7 @@ public interface Library {
             this.nativeLibrary = NativeLibrary.getInstance(libname);
             this.interfaceClass = interfaceClass;
             this.functionMap = functionMap;
+            this.argumentMap = argumentMap;
             if (AltCallingConvention.class.isAssignableFrom(interfaceClass)) {
                 callingConvention = Function.ALT_CONVENTION; 
             } else {
@@ -87,7 +89,7 @@ public interface Library {
             }
             
             Function f = nativeLibrary.getFunction(methodName, callingConvention);
-            return f.invoke(method.getReturnType(), inArgs);
+            return f.invoke(method.getReturnType(), inArgs, argumentMap);
         }
     }
 }

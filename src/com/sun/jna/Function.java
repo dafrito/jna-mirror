@@ -14,8 +14,10 @@ import com.sun.jna.ptr.ByReference;
 import com.sun.jna.win32.StdCallLibrary;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * An abstraction for a native function pointer.  An instance of 
@@ -40,8 +42,7 @@ public class Function extends Pointer {
     private String functionName;
     private NativeLibrary library;
     private static final BufferPool globalBufferPool = new MultiBufferPool(512, 128, true);
-    private static final Library cLibrary = new Library() {};
-    private static final Library altLibrary = new StdCallLibrary() {};
+   
     /**
      * Create a new {@link Function} that is linked with a native 
      * function that follows the standard "C" calling convention.
@@ -158,10 +159,15 @@ public class Function extends Pointer {
         return (BufferPool) localBufferPool.get();
     }
     public Object invoke(Class returnType, Object[] inArgs) {
-        return invoke(callingConvention, returnType, inArgs);
+        return invoke(callingConvention, returnType, inArgs, Collections.EMPTY_MAP);
     }
-    
-    private Object invoke(int callingConvention, Class returnType, Object[] inArgs) {
+    public Object invoke(int callingConvention, Class returnType, Object[] inArgs) {
+        return invoke(callingConvention, returnType, inArgs, Collections.EMPTY_MAP);
+    }
+    public Object invoke(Class returnType, Object[] inArgs, Map converters) {
+        return invoke(callingConvention, returnType, inArgs, converters);
+    }
+    private Object invoke(int callingConvention, Class returnType, Object[] inArgs, Map converters) {
         Object result=null;
         
         // Clone the argument array
@@ -181,12 +187,20 @@ public class Function extends Pointer {
         // returned (so you couldn't do something like strstr).
         for (int i=0; i < args.length; i++) {
             Object arg = args[i];
+            if (arg != null) {
+                ArgumentConverter converter = (ArgumentConverter)converters.get(arg.getClass());
+                if (converter != null) {
+                    args[i] = arg = converter.convert(arg);
+                }
+                //
+                // Let the converted argument be further converted to standard types
+                //
+            }
             if (arg == null
                     || (arg.getClass().isArray()
                     && arg.getClass().getComponentType().isPrimitive())) {
                 continue;
-            }
-            
+            }           
             // Convert Structures to native pointers
             if (arg instanceof Structure) {
                 Structure struct = (Structure)arg;
@@ -210,7 +224,7 @@ public class Function extends Pointer {
                 ByteBuffer buf = getBufferPool().get(s.length() + 1);
                 buf.put(s.getBytes()).put((byte) 0).flip();
                 args[i] = buf;
-                if (buffers== null) {
+                if (buffers==null) {
                     buffers = new ByteBuffer[inArgs.length];
                 }
                 buffers[i] = buf;
@@ -219,7 +233,7 @@ public class Function extends Pointer {
             else if (arg instanceof WString) {
                 args[i] = new NativeString(arg.toString(), true).getPointer();
             }
-			else if (arg instanceof NativeLong) {
+            else if (arg instanceof NativeLong) {
                 args[i] = ((NativeLong) arg).asNativeValue();
             }
             // Convert boolean to int

@@ -76,7 +76,6 @@ public class Native {
     public static Library loadLibrary(String name, Class interfaceClass) {
         return loadLibrary(name, interfaceClass, Collections.EMPTY_MAP);
     }
-
     /** Load a library interface from the given shared library, providing
      * the explicit interface class and a map from the interface method
      * names to the actual shared library function names.
@@ -88,11 +87,25 @@ public class Native {
     public static Library loadLibrary(String name, 
                                       Class interfaceClass,
                                       Map functionMap) {
+        return loadLibrary(name, interfaceClass, functionMap, Collections.EMPTY_MAP);
+    }
+    /** Load a library interface from the given shared library, providing
+     * the explicit interface class and a map from the interface method
+     * names to the actual shared library function names.
+     * @param name
+     * @param interfaceClass
+     * @param functionMap Map of java interface method names to shared library 
+     * function names
+     */
+    public static Library loadLibrary(String name, 
+                                      Class interfaceClass,
+                                      Map functionMap,
+                                      Map argumentMap) {
         if (!Library.class.isAssignableFrom(interfaceClass)) {
             throw new IllegalArgumentException("Not a valid native library interface: " + interfaceClass);
         }
         InvocationHandler handler = 
-            new Library.Handler(name, interfaceClass, functionMap);
+            new Library.Handler(name, interfaceClass, functionMap, argumentMap);
         ClassLoader loader = interfaceClass.getClassLoader();
         Library proxy = (Library)
             Proxy.newProxyInstance(loader, new Class[] {interfaceClass},
