@@ -19,10 +19,6 @@ import junit.framework.TestCase;
 import com.sun.jna.Memory;
 
 
-/**
- *
- * @author wmeissner@gmail.com
- */
 public class PointerTest extends TestCase {
     
     public PointerTest(String testName) {
