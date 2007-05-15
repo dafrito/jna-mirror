@@ -11,12 +11,9 @@
 package com.sun.jna;
 
 import com.sun.jna.ptr.ByReference;
-import com.sun.jna.win32.StdCallLibrary;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -180,7 +177,7 @@ public class Function extends Pointer {
         
         // Keep track of allocated ByteBuffers so they can be released again
         ByteBuffer[] buffers = null;
-        
+        int bufferCount = 0;
         // String arguments are converted to native pointers here rather
         // than in native code so that the values will be valid until
         // this method returns.  At one point the conversion was in native
@@ -228,7 +225,7 @@ public class Function extends Pointer {
                 if (buffers==null) {
                     buffers = new ByteBuffer[Function.MAX_NARGS];
                 }
-                buffers[i] = buf;
+                buffers[bufferCount++] = buf;
             }
             // Convert WString to native pointer (const)
             else if (arg instanceof WString) {
@@ -324,14 +321,13 @@ public class Function extends Pointer {
         // Return all the temporary buffers to the Buffer pool
         if (buffers != null) {
             BufferPool pool = getBufferPool();
-            for (int i = 0; i < args.length; ++i) {
-                if (buffers[i] != null) {
-                    pool.put(buffers[i]);
-                }
+            for (int i = 0; i < bufferCount; ++i) {
+                pool.put(buffers[i]);
             }
         }
         return result;
     }
+    
     /**
      * Call the native function being represented by this object
      *
