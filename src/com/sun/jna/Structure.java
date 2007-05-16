@@ -231,6 +231,9 @@ public abstract class Structure {
             Pointer p = memory.getPointer(offset);
             result = p != null ? new NativeString(p, true).toString() : null;
         }
+        else if (Callback.class.isAssignableFrom(fieldType)) {
+            // Just ignore - Callback members are write-only
+        }
         else if (fieldType.isArray()) {
             Class cls = fieldType.getComponentType();
             int length = 0;
@@ -413,6 +416,14 @@ public abstract class Structure {
             s.useMemory(memory, offset);
             s.write();
         }
+        else if (Callback.class.isAssignableFrom(fieldType)) {
+            if (value != null) {
+                CallbackReference cbref = CallbackReference.getInstance((Callback) value);
+                memory.setPointer(offset, cbref.getTrampoline());
+            } else {
+                memory.setPointer(offset, null);
+            }
+        }
         else {
             throw new IllegalArgumentException("Field \"" + structField.name
                                                + "\" was declared as an "
@@ -518,7 +529,8 @@ public abstract class Structure {
         }
         else if (Pointer.class.isAssignableFrom(type)
                  || WString.class.isAssignableFrom(type)
-                 || String.class.isAssignableFrom(type)) {
+                 || String.class.isAssignableFrom(type)
+                 || Callback.class.isAssignableFrom(type)) {
             alignment = Pointer.SIZE;
         }
         else if (Structure.class.isAssignableFrom(type)) {
@@ -565,7 +577,8 @@ public abstract class Structure {
         else if (byte.class == type || Byte.class == type) {
             return 1;
         }
-        else if (Pointer.class.isAssignableFrom(type)) {
+        else if (Pointer.class.isAssignableFrom(type)
+                || Callback.class.isAssignableFrom(type)) {
             return Pointer.SIZE;
         }
         else if (value instanceof Structure) {

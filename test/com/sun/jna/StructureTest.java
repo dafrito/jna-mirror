@@ -12,6 +12,7 @@
  */
 package com.sun.jna;
 
+import java.util.Map;
 import junit.framework.TestCase;
 
 /** TODO: need more alignment tests, especially platform-specific behavior
@@ -163,7 +164,35 @@ public class StructureTest extends TestCase {
             s.l = new NativeLong(MAGIC);
             int i = s.getPointer().getInt(4);
             assertEquals("NativeLong field mismatch", MAGIC, i);
-        }
+        }   
+    }
+    static class CbStruct extends Structure {
+        public Callback cb;
+        int i;
+    }
+    static interface CbTest extends Library {
+        CbTest INSTANCE = (CbTest)
+            Native.loadLibrary("testlib", CbTest.class);
+        public void callCallbackInStruct(CbStruct cbstruct);
+    }
+    public void testCallbackWrite() {
+        final int MAGIC = 0xABEDCF23;
+        final CbStruct s = new CbStruct();
+        s.cb = new Callback() {
+            public void callback() {
+                s.i = MAGIC;
+            }
+        };
+        s.i = 0;
+        s.write();
+        Pointer func = s.getPointer().getPointer(0);
+        assertNotNull("Callback trampoline not set", func);
+        Map refs = CallbackReference.callbackMap;
         
+        assertTrue("Callback not cached", refs.containsKey(s.cb));
+        CallbackReference ref = (CallbackReference)refs.get(s.cb);
+        assertEquals("Callback trampoline not set", ref.getTrampoline(), func);
+        CbTest.INSTANCE.callCallbackInStruct(s);
+        assertEquals("Callback not invoked", MAGIC, s.i);
     }
 }

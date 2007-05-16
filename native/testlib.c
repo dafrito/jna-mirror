@@ -320,6 +320,15 @@ callVoidCallback(void (*func)()) {
   (*func)();
 }
 
+struct cbstruct {
+  void (*func)();
+};
+
+EXPORT void
+callCallbackInStruct(struct cbstruct *cb) {
+  (*cb->func)();
+}
+
 EXPORT int32 
 callInt32Callback(int32 (*func)(int32 arg, int32 arg2),
                   int32 arg, int32 arg2) {
