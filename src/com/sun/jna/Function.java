@@ -176,7 +176,7 @@ public class Function extends Pointer {
         }
         
         // Keep track of allocated ByteBuffers so they can be released again
-        ByteBuffer[] buffers = null;
+        byte[] bufferIndexes = null;
         int bufferCount = 0;
         // String arguments are converted to native pointers here rather
         // than in native code so that the values will be valid until
@@ -207,7 +207,14 @@ public class Function extends Pointer {
             }
             // Convert reference class to pointer
             else if (arg instanceof ByReference) {
-                args[i] = ((ByReference)arg).getPointer();
+                ByteBuffer buf = getBufferPool().get(8);
+                ((ByReference)arg).writeTo(buf);
+                buf.flip();
+                args[i] = buf;
+                if (bufferIndexes == null) {
+                    bufferIndexes = new byte[Function.MAX_NARGS];
+                }
+                bufferIndexes[bufferCount++] = (byte) i;
             }
             // Convert Callback to Pointer
             else if (arg instanceof Callback) {
@@ -222,10 +229,10 @@ public class Function extends Pointer {
                 ByteBuffer buf = getBufferPool().get(s.length() + 1);
                 buf.put(s.getBytes()).put((byte) 0).flip();
                 args[i] = buf;
-                if (buffers==null) {
-                    buffers = new ByteBuffer[Function.MAX_NARGS];
+                if (bufferIndexes == null) {
+                    bufferIndexes = new byte[Function.MAX_NARGS];
                 }
-                buffers[bufferCount++] = buf;
+                bufferIndexes[bufferCount++] = (byte) i;
             }
             // Convert WString to native pointer (const)
             else if (arg instanceof WString) {
@@ -319,10 +326,15 @@ public class Function extends Pointer {
             }
         }
         // Return all the temporary buffers to the Buffer pool
-        if (buffers != null) {
+        if (bufferIndexes != null) {
             BufferPool pool = getBufferPool();
-            for (int i = 0; i < bufferCount; ++i) {
-                pool.put(buffers[i]);
+            for (int i = 0; i < bufferCount; i++) {
+                int idx = bufferIndexes[i];
+                ByteBuffer buf = (ByteBuffer)args[idx];
+                if (idx < inArgs.length && inArgs[i] instanceof ByReference) {
+                    ((ByReference)inArgs[idx]).readFrom(buf);
+                }
+                pool.put(buf);
             }
         }
         return result;

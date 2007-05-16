@@ -12,7 +12,11 @@
  */
 package com.sun.jna.ptr;
 
+import java.nio.ByteBuffer;
+
 public class LongByReference extends ByReference {
+    private long value;
+    
     public LongByReference() {
         this(0L);
     }
@@ -23,10 +27,16 @@ public class LongByReference extends ByReference {
     }
     
     public void setValue(long value) {
-        getPointer().setLong(0, value);
+        this.value = value;
     }
     
     public long getValue() {
-        return getPointer().getLong(0);
+        return value;
+    }
+    public void writeTo(ByteBuffer buf) {
+        buf.putLong(getValue());
+    }
+    public void readFrom(ByteBuffer buf) {
+        setValue(buf.getLong());
     }
 }

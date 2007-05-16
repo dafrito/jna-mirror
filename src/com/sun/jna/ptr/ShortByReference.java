@@ -12,7 +12,10 @@
  */
 package com.sun.jna.ptr;
 
+import java.nio.ByteBuffer;
+
 public class ShortByReference extends ByReference {
+    private short value;
     
     public ShortByReference() {
         this((short)0);
@@ -24,11 +27,16 @@ public class ShortByReference extends ByReference {
     }
     
     public void setValue(short value) {
-        getPointer().setShort(0, value);
+        this.value = value;
     }
     
     public short getValue() {
-        return getPointer().getShort(0);
+        return value;
     }
-    
+    public void writeTo(ByteBuffer buf) {
+        buf.putShort(getValue());
+    }
+    public void readFrom(ByteBuffer buf) {
+        setValue(buf.getShort());
+    }
 }

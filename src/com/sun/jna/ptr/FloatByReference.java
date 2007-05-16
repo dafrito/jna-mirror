@@ -8,11 +8,15 @@
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.  
+ * Lesser General Public License for more details.
  */
 package com.sun.jna.ptr;
 
+import java.nio.ByteBuffer;
+
 public class FloatByReference extends ByReference {
+    private float value;
+    
     public FloatByReference() {
         this(0f);
     }
@@ -23,11 +27,16 @@ public class FloatByReference extends ByReference {
     }
     
     public void setValue(float value) {
-        getPointer().setFloat(0, value);
+        this.value = value;
     }
     
     public float getValue() {
-        return getPointer().getFloat(0);
+        return value;
     }
-
+    public void writeTo(ByteBuffer buf) {
+        buf.putFloat(getValue());
+    }
+    public void readFrom(ByteBuffer buf) {
+        setValue(buf.getFloat());
+    }
 }

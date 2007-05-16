@@ -146,7 +146,7 @@ public class Pointer {
     Pointer() { }
     
     /** Create from native pointer. */
-    Pointer(long peer) {
+    public Pointer(long peer) {
         this.peer = peer;
     }
 
@@ -154,7 +154,9 @@ public class Pointer {
     Pointer share(int offset, int sz) {
         return new Pointer(peer + offset);
     }
-
+    public long getNativePeer() {
+        return peer;
+    }
     /** Zero memory for the given number of bytes. */
     void clear(int size) {
         byte[] buffer = new byte[size];

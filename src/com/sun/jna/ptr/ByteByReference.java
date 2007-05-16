@@ -8,11 +8,15 @@
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.  
+ * Lesser General Public License for more details.
  */
 package com.sun.jna.ptr;
 
+import java.nio.ByteBuffer;
+
 public class ByteByReference extends ByReference {
+    
+    private byte value;
     
     public ByteByReference() {
         this((byte)0);
@@ -22,13 +26,18 @@ public class ByteByReference extends ByReference {
         super(1);
         setValue(value);
     }
-
+    
     public void setValue(byte value) {
-        getPointer().setByte(0, value);
+        this.value = value;
     }
     
     public byte getValue() {
-        return getPointer().getByte(0);
+        return value;
     }
-
+    public void writeTo(ByteBuffer buf) {
+        buf.put((byte) getValue());
+    }
+    public void readFrom(ByteBuffer buf) {
+        setValue(buf.get());
+    }
 }

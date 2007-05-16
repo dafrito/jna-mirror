@@ -12,8 +12,11 @@
  */
 package com.sun.jna.ptr;
 
-public class IntByReference extends ByReference {
+import java.nio.ByteBuffer;
 
+public class IntByReference extends ByReference {
+    private int value;
+    
     public IntByReference() {
         this(0);
     }
@@ -24,10 +27,16 @@ public class IntByReference extends ByReference {
     }
     
     public void setValue(int value) {
-        getPointer().setInt(0, value);
+        this.value = value;
     }
     
     public int getValue() {
-        return getPointer().getInt(0);
+        return value;
+    }
+    public void writeTo(ByteBuffer buf) {
+        buf.putInt(getValue());
+    }
+    public void readFrom(ByteBuffer buf) {
+        setValue(buf.getInt());
     }
 }

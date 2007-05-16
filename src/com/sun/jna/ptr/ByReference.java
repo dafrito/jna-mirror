@@ -14,17 +14,22 @@ package com.sun.jna.ptr;
 
 import com.sun.jna.Memory;
 import com.sun.jna.Pointer;
+import java.nio.ByteBuffer;
 
 /** Provides generic "pointer to type" functionality. */
 public abstract class ByReference {
     
-    private Pointer pointer;
-    
+    protected final int dataSize;
     protected ByReference(int dataSize) {
-        pointer = new Memory(dataSize);
+        this.dataSize = dataSize;
     }
-    
+
     public Pointer getPointer() {
-        return pointer;
+        Pointer ptr = new Memory(dataSize);
+        writeTo(ptr.getByteBuffer(0, dataSize));
+        return ptr;
     }
+    public abstract void writeTo(ByteBuffer buf);
+    public abstract void readFrom(ByteBuffer buf);
+    
 }

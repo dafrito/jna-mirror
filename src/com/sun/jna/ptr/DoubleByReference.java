@@ -12,7 +12,11 @@
  */
 package com.sun.jna.ptr;
 
+import java.nio.ByteBuffer;
+
 public class DoubleByReference extends ByReference {
+    private double value;
+    
     public DoubleByReference() {
         this(0d);
     }
@@ -23,11 +27,16 @@ public class DoubleByReference extends ByReference {
     }
     
     public void setValue(double value) {
-        getPointer().setDouble(0, value);
+        this.value = value;
     }
     
     public double getValue() {
-        return getPointer().getDouble(0);
+        return value;
     }
-    
+    public void writeTo(ByteBuffer buf) {
+        buf.putDouble(getValue());
+    }
+    public void readFrom(ByteBuffer buf) {
+        setValue(buf.getDouble());
+    }
 }
