@@ -1360,7 +1360,7 @@ if test "$srcdir" = "."; then
 else
   multi_basedir="$srcdir/.."
 fi
-multi_basedir=.
+multi_basedir=$srcdir
 
 # Even if the default multilib is not a cross compilation,
 # it may be that some of the other multilibs are.

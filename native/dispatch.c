@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
+#include <ffi.h>
 #include <jni.h>
 
 // NOTE: while this is the canonical way to obtain a reference to a native
@@ -124,8 +125,14 @@ static void dispatch(JNIEnv *env, jobject self, jint callconv,
       jobject array;
       void *elems;
     } array_elements[MAX_NARGS];
+    ffi_cif cif;
+    ffi_type *ffi_return = &ffi_type_void;
+    ffi_type *ffi_args[MAX_NARGS];
+    ffi_abi abi;
+    void *ffi_values[MAX_NARGS];
     int array_count = 0;
-
+    
+    
     nargs = (*env)->GetArrayLength(env, arr);
     if (nargs > MAX_NARGS) {
       throwByName(env,"java/lang/IllegalArgumentException",
@@ -142,34 +149,48 @@ static void dispatch(JNIEnv *env, jobject self, jint callconv,
       if (arg == NULL) {
         arg_types[i] = TYPE_PTR;
         c_args[nwords].p = NULL;
-        nwords += sizeof(void *) / sizeof(word_t); 
+	ffi_args[i] = &ffi_type_pointer;
+	ffi_values[i] = &c_args[nwords];
+        nwords += sizeof(void *) / sizeof(word_t);
       }
       else if ((*env)->IsInstanceOf(env, arg, classByte)) {
         arg_types[i] = TYPE_INT32;
+	ffi_args[i] = &ffi_type_sint;
+	ffi_values[i] = &c_args[nwords];
         c_args[nwords++].i = (*env)->GetByteField(env, arg, FID_Byte_value);
       }
       else if ((*env)->IsInstanceOf(env, arg, classShort)) {
         arg_types[i] = TYPE_INT32;
+	ffi_args[i] = &ffi_type_sint;
+	ffi_values[i] = &c_args[nwords];
         c_args[nwords++].i = (*env)->GetShortField(env, arg, FID_Short_value);
       }
       else if ((*env)->IsInstanceOf(env, arg, classInteger)) {
         arg_types[i] = TYPE_INT32;
+	ffi_args[i] = &ffi_type_sint;
+	ffi_values[i] = &c_args[nwords];
         c_args[nwords++].i = (*env)->GetIntField(env, arg, FID_Integer_value);
       }
       else if ((*env)->IsInstanceOf(env, arg, classLong)) {
         arg_types[i] = TYPE_INT64;
         *(jlong *)(c_args + nwords) = 
           (*env)->GetLongField(env, arg, FID_Long_value);
+	ffi_args[i] = &ffi_type_sint64;
+	ffi_values[i] = &c_args[nwords];
         nwords += sizeof(jlong) / sizeof(word_t);
       }
       else if ((*env)->IsInstanceOf(env, arg, classFloat)) {
         arg_types[i] = TYPE_FP32;
+	ffi_args[i] = &ffi_type_float;
+	ffi_values[i] = &c_args[nwords];
         c_args[nwords++].f = (*env)->GetFloatField(env, arg, FID_Float_value);
       }
       else if ((*env)->IsInstanceOf(env, arg, classDouble)) {
         arg_types[i] = TYPE_FP64;
         *(jdouble *)(c_args + nwords) = 
           (*env)->GetDoubleField(env, arg, FID_Double_value);
+	ffi_args[i] = &ffi_type_double;
+	ffi_values[i] = &c_args[nwords];
         nwords += sizeof(jdouble) / sizeof(word_t);
       }
       else if ((array_pt = getArrayComponentType(env, arg)) != 0
@@ -193,6 +214,8 @@ static void dispatch(JNIEnv *env, jobject self, jint callconv,
           goto cleanup;
         }
         arg_types[i] = TYPE_PTR;
+	ffi_args[i] = &ffi_type_pointer;
+	ffi_values[i] = &c_args[nwords];
         c_args[nwords++].p = ptr;
         array_elements[array_count].type = array_pt;
         array_elements[array_count].array = arg;
@@ -201,6 +224,8 @@ static void dispatch(JNIEnv *env, jobject self, jint callconv,
       else if ((*env)->IsInstanceOf(env, arg, classPointer)) {
         arg_types[i] = TYPE_PTR;
         c_args[nwords].p = getNativeAddress(env, arg);
+	ffi_args[i] = &ffi_type_pointer;
+	ffi_values[i] = &c_args[nwords];
         nwords += sizeof(void *)/sizeof(word_t);
       }
       else if ((*env)->IsInstanceOf(env, arg, classByteBuffer)) {
@@ -212,6 +237,8 @@ static void dispatch(JNIEnv *env, jobject self, jint callconv,
                       "Non-direct ByteBuffer is not supported");
           goto cleanup;
         }
+	ffi_args[i] = &ffi_type_pointer;
+	ffi_values[i] = &c_args[nwords];
         nwords += sizeof(void *)/sizeof(word_t);
       }
       else {
@@ -221,21 +248,42 @@ static void dispatch(JNIEnv *env, jobject self, jint callconv,
       }
     }
 
-    switch (callconv) {
-    case CALLCONV_C:
-      asm_dispatch(func, nwords, c_args, rt, resP, arg_types);
-      break;
-      
-#if defined(_WIN32)
-    case CALLCONV_STDCALL:
-      asm_dispatch(func, nwords, c_args, rt, resP, NULL);
-      break;
-#endif // _WIN32
-      
-    default:
-      throwByName(env,"java/lang/IllegalArgumentException","Unrecognized call type");
+   
+    switch (rt) {
+    case TYPE_INT32:
+	ffi_return = &ffi_type_sint32;
+	break;
+    case TYPE_INT64:
+	ffi_return = &ffi_type_sint64;
+	break;
+    case TYPE_PTR:
+	ffi_return = &ffi_type_pointer;
+	break;
+    case TYPE_FP32:
+	ffi_return = &ffi_type_float;
+	break;
+    case TYPE_FP64:
+	ffi_return = &ffi_type_double;
+	break;
     }
 
+    switch (callconv) {
+    case CALLCONV_C:
+	abi = FFI_DEFAULT_ABI;
+	break;
+#if defined(_WIN32)
+    case CALLCONV_STDCALL:
+	abi = FFI_STDCALL;
+	break;
+#endif // _WIN32
+    default:
+      throwByName(env,"java/lang/IllegalArgumentException",
+	  "Unrecognized call type");
+      return;
+    }
+    ffi_prep_cif(&cif, abi, nargs, ffi_return, ffi_args);
+    ffi_call(&cif, FFI_FN(func), (ffi_arg *) resP, ffi_values);
+ 
  cleanup:
     // Release array elements
     for (i=0;i < array_count;i++) {

@@ -20,6 +20,7 @@ OS=$(shell uname | sed -e 's/CYGWIN.*/win32/g' \
 
 JAVA_INCLUDES=-I"$(JAVA_HOME)/include" \
               -I"$(JAVA_HOME)/include/$(OS)"
+SRCDIR=$(shell pwd)
 BUILD=../build/native
 JAVAH=$(BUILD)
 INSTALLDIR=../build/$(OS)
@@ -27,6 +28,8 @@ ASMDISPATCH_OBJS=$(BUILD)/dispatch_$(ARCH).o
 JNIDISPATCH_OBJS=$(BUILD)/dispatch.o \
                  $(BUILD)/callback.o \
                  $(ASMDISPATCH_OBJS)
+FFI_OBJS=$(BUILD)/libffi/.libs/libffi_convenience.a
+
 LIBRARY=$(BUILD)/$(LIBPFX)jnidispatch$(JNISFX)
 TESTLIB=$(BUILD)/$(LIBPFX)testlib$(LIBSFX)
 
@@ -47,7 +50,7 @@ ifeq ($(DEBUG),true)
 CDEBUG=-g
 endif
 COUT=-o $@
-CINCLUDES=$(JAVA_INCLUDES) -I"$(JAVAH)"
+CINCLUDES=$(JAVA_INCLUDES) -I"$(JAVAH)" -I$(BUILD)/libffi/include
 CDEFINES=-D_REENTRANT
 PCFLAGS=-W -Wall -Wno-unused -Wno-parentheses -Werror
 CFLAGS=$(PCFLAGS) $(COPT) $(CDEBUG) $(CDEFINES) $(CINCLUDES)
@@ -143,6 +146,7 @@ $(BUILD)/%.asm: %.c
 	@if [ -f $*.asm ]; then mv $*.asm $@; fi
 	@rm -f $*.obj ${@D}/$*.o
 
+
 all: $(LIBRARY) $(TESTLIB)
 
 install:
@@ -155,11 +159,20 @@ $(BUILD)/test_dispatch: test_dispatch.c $(BUILD)/dispatch.o $(BUILD)/dispatch_$(
 $(BUILD)/specs.new: 
 	gcc -dumpspecs | sed s%dllcrt2%/lib/mingw/dllcrt2%g > $@
 
-$(LIBRARY): $(JNIDISPATCH_OBJS) $(SPECS)
-	$(LD) $(LDFLAGS) $(JNIDISPATCH_OBJS) $(LIBS)
+$(LIBRARY): $(FFI_OBJS) $(JNIDISPATCH_OBJS) $(SPECS)
+	$(LD) $(LDFLAGS) $(JNIDISPATCH_OBJS) $(FFI_OBJS) $(LIBS)
 
 $(TESTLIB): $(BUILD)/testlib.o $(SPECS)
 	$(LD) $(LDFLAGS) $< $(TESTDEF) 
+
+$(FFI_OBJS):		
+	@mkdir -p $(BUILD)/libffi
+	@if [ ! -f $(BUILD)/libffi/Makefile ]; then \
+	    echo "Configuring libffi"; \
+	    cd $(BUILD)/libffi && \
+		$(SRCDIR)/libffi/configure --disable-static > /dev/null; \
+	fi
+	$(MAKE) -C $(BUILD)/libffi
 
 clean:
 	$(RM) -rf $(BUILD)
