@@ -24,10 +24,9 @@ SRCDIR=$(shell pwd)
 BUILD=../build/native
 JAVAH=$(BUILD)
 INSTALLDIR=../build/$(OS)
-ASMDISPATCH_OBJS=$(BUILD)/dispatch_$(ARCH).o
 JNIDISPATCH_OBJS=$(BUILD)/dispatch.o \
-                 $(BUILD)/callback.o \
-                 $(ASMDISPATCH_OBJS)
+                 $(BUILD)/callback.o
+
 FFI_OBJS=$(BUILD)/libffi/.libs/libffi_convenience.a
 
 LIBRARY=$(BUILD)/$(LIBPFX)jnidispatch$(JNISFX)
@@ -120,7 +119,6 @@ JNISFX=.jnilib
 ifneq ($(SDKROOT),)
 ifneq ($(UNIVERSAL),)
 ARCHFLAGS=-arch ppc -arch i386 -isysroot $(SDKROOT)
-ASMDISPATCH_OBJS=$(BUILD)/dispatch_i386.o $(BUILD)/dispatch_ppc.o
 else
 ARCHFLAGS=-arch $(ARCH) -isysroot $(SDKROOT)
 endif

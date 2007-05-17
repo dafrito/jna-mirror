@@ -101,11 +101,6 @@ typedef enum _callconv {
 #endif
 } callconv_t;
 
-/* A CPU-dependent assembly routine that passes the arguments to C
- * stack and invoke the function.
- */
-extern void asm_dispatch(void (*func)(), int nwords, word_t *c_args, 
-                         type_t rt, jvalue *resP, int* arg_types);
 static char getArrayComponentType(JNIEnv *, jobject);
 static void *getNativeAddress(JNIEnv *, jobject);
 static jboolean init_jawt(JNIEnv*);
@@ -117,8 +112,15 @@ static void dispatch(JNIEnv *env, jobject self, jint callconv,
 {
     int i, nargs, nwords;
     void *func;
-    word_t c_args[MAX_NARGS * 2];
-    int arg_types[MAX_NARGS];
+    union {
+	char c;
+        short s;
+        int i;
+        long long l;
+        float f;
+        double d;
+        void *p;
+    } c_args[MAX_NARGS];
     char array_pt;
     struct _array_elements {
       char type;
@@ -128,8 +130,8 @@ static void dispatch(JNIEnv *env, jobject self, jint callconv,
     ffi_cif cif;
     ffi_type *ffi_return = &ffi_type_void;
     ffi_type *ffi_args[MAX_NARGS];
-    ffi_abi abi;
     void *ffi_values[MAX_NARGS];
+    ffi_abi abi;
     int array_count = 0;
     
     
@@ -147,51 +149,39 @@ static void dispatch(JNIEnv *env, jobject self, jint callconv,
       jobject arg = (*env)->GetObjectArrayElement(env, arr, i);
       
       if (arg == NULL) {
-        arg_types[i] = TYPE_PTR;
-        c_args[nwords].p = NULL;
+        c_args[i].p = NULL;
 	ffi_args[i] = &ffi_type_pointer;
-	ffi_values[i] = &c_args[nwords];
-        nwords += sizeof(void *) / sizeof(word_t);
+	ffi_values[i] = &c_args[i];
       }
       else if ((*env)->IsInstanceOf(env, arg, classByte)) {
-        arg_types[i] = TYPE_INT32;
-	ffi_args[i] = &ffi_type_sint;
-	ffi_values[i] = &c_args[nwords];
-        c_args[nwords++].i = (*env)->GetByteField(env, arg, FID_Byte_value);
+	ffi_args[i] = &ffi_type_schar;
+	ffi_values[i] = &c_args[i];
+        c_args[i].c = (*env)->GetByteField(env, arg, FID_Byte_value);
       }
       else if ((*env)->IsInstanceOf(env, arg, classShort)) {
-        arg_types[i] = TYPE_INT32;
-	ffi_args[i] = &ffi_type_sint;
-	ffi_values[i] = &c_args[nwords];
-        c_args[nwords++].i = (*env)->GetShortField(env, arg, FID_Short_value);
+	ffi_args[i] = &ffi_type_sshort;
+	ffi_values[i] = &c_args[i];
+        c_args[i].s = (*env)->GetShortField(env, arg, FID_Short_value);
       }
       else if ((*env)->IsInstanceOf(env, arg, classInteger)) {
-        arg_types[i] = TYPE_INT32;
 	ffi_args[i] = &ffi_type_sint;
-	ffi_values[i] = &c_args[nwords];
-        c_args[nwords++].i = (*env)->GetIntField(env, arg, FID_Integer_value);
+	ffi_values[i] = &c_args[i];
+        c_args[i].i = (*env)->GetIntField(env, arg, FID_Integer_value);
       }
       else if ((*env)->IsInstanceOf(env, arg, classLong)) {
-        arg_types[i] = TYPE_INT64;
-        *(jlong *)(c_args + nwords) = 
-          (*env)->GetLongField(env, arg, FID_Long_value);
+        c_args[i].l = (*env)->GetLongField(env, arg, FID_Long_value);
 	ffi_args[i] = &ffi_type_sint64;
-	ffi_values[i] = &c_args[nwords];
-        nwords += sizeof(jlong) / sizeof(word_t);
+	ffi_values[i] = &c_args[i];
       }
       else if ((*env)->IsInstanceOf(env, arg, classFloat)) {
-        arg_types[i] = TYPE_FP32;
+        c_args[i].f = (*env)->GetFloatField(env, arg, FID_Float_value);
 	ffi_args[i] = &ffi_type_float;
-	ffi_values[i] = &c_args[nwords];
-        c_args[nwords++].f = (*env)->GetFloatField(env, arg, FID_Float_value);
+	ffi_values[i] = &c_args[i];
       }
       else if ((*env)->IsInstanceOf(env, arg, classDouble)) {
-        arg_types[i] = TYPE_FP64;
-        *(jdouble *)(c_args + nwords) = 
-          (*env)->GetDoubleField(env, arg, FID_Double_value);
+        c_args[i].d = (*env)->GetDoubleField(env, arg, FID_Double_value);
 	ffi_args[i] = &ffi_type_double;
-	ffi_values[i] = &c_args[nwords];
-        nwords += sizeof(jdouble) / sizeof(word_t);
+	ffi_values[i] = &c_args[i];
       }
       else if ((array_pt = getArrayComponentType(env, arg)) != 0
                && array_pt != 'L') {
@@ -213,33 +203,28 @@ static void dispatch(JNIEnv *env, jobject self, jint callconv,
                       "Could not obtain memory for primitive buffer");
           goto cleanup;
         }
-        arg_types[i] = TYPE_PTR;
 	ffi_args[i] = &ffi_type_pointer;
-	ffi_values[i] = &c_args[nwords];
-        c_args[nwords++].p = ptr;
+	ffi_values[i] = &c_args[i];
+        c_args[i].p = ptr;
         array_elements[array_count].type = array_pt;
         array_elements[array_count].array = arg;
         array_elements[array_count++].elems = ptr;
       }
       else if ((*env)->IsInstanceOf(env, arg, classPointer)) {
-        arg_types[i] = TYPE_PTR;
-        c_args[nwords].p = getNativeAddress(env, arg);
+        c_args[i].p = getNativeAddress(env, arg);
 	ffi_args[i] = &ffi_type_pointer;
-	ffi_values[i] = &c_args[nwords];
-        nwords += sizeof(void *)/sizeof(word_t);
+	ffi_values[i] = &c_args[i];
       }
       else if ((*env)->IsInstanceOf(env, arg, classByteBuffer)) {
-        arg_types[i] = TYPE_PTR;
-        c_args[nwords].p = (*env)->GetDirectBufferAddress(env, arg);
-        if (c_args[nwords].p == NULL) {
+        c_args[i].p = (*env)->GetDirectBufferAddress(env, arg);
+        if (c_args[i].p == NULL) {
           // TODO: treat as byte[]?
           throwByName(env,"java/lang/IllegalArgumentException",
                       "Non-direct ByteBuffer is not supported");
           goto cleanup;
         }
 	ffi_args[i] = &ffi_type_pointer;
-	ffi_values[i] = &c_args[nwords];
-        nwords += sizeof(void *)/sizeof(word_t);
+	ffi_values[i] = &c_args[i];
       }
       else {
         throwByName(env,"java/lang/IllegalArgumentException",
@@ -281,9 +266,20 @@ static void dispatch(JNIEnv *env, jobject self, jint callconv,
 	  "Unrecognized call type");
       return;
     }
-    ffi_prep_cif(&cif, abi, nargs, ffi_return, ffi_args);
-    ffi_call(&cif, FFI_FN(func), (ffi_arg *) resP, ffi_values);
- 
+    ffi_status status = ffi_prep_cif(&cif, abi, nargs, ffi_return, ffi_args);
+    switch (status) {
+    case FFI_BAD_ABI:
+        throwByName(env,"java/lang/IllegalArgumentException",
+            "Unrecognized call type");
+        break;
+    case FFI_OK:
+        ffi_call(&cif, FFI_FN(func), (ffi_arg *) resP, ffi_values);
+        break;
+    default:
+        throwByName(env,"java/lang/IllegalArgumentException",
+            "Unrecognized argument type");
+        return;
+    }
  cleanup:
     // Release array elements
     for (i=0;i < array_count;i++) {
