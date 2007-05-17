@@ -48,7 +48,7 @@ create_callback(JNIEnv* env, jobject lib, jobject obj, jobject method,
   {
     jclass cls = (*env)->FindClass(env, "com/sun/jna/win32/StdCall");
     if ((*env)->IsInstanceOf(env, obj, cls)) {
-      abi = FFI_SDTCALL;
+      abi = FFI_STDCALL;
     }
   }
 #endif // _WIN32
