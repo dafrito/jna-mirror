@@ -11,8 +11,7 @@
 extern "C" {
 #endif
 
-static type_t get_type(char type);
-static ffi_type *get_ffi_type(type_t type);
+static ffi_type *get_ffi_type(char jtype);
 static void callback_dispatch(ffi_cif*, void*, void**, void*);
 static ffi_closure* alloc_closure();
 static void free_closure(ffi_closure *closure);
@@ -21,6 +20,7 @@ callback*
 create_callback(JNIEnv* env, jobject lib, jobject obj, jobject method,
                 jobjectArray param_types, jclass return_type) {
   callback* cb;
+  ffi_abi abi = FFI_DEFAULT_ABI;
   int args_size = 0;
   jsize argc;
   JavaVM* vm;
@@ -36,19 +36,24 @@ create_callback(JNIEnv* env, jobject lib, jobject obj, jobject method,
   cb->ffi_closure = alloc_closure();
   cb->object = (*env)->NewWeakGlobalRef(env, obj);
   cb->methodID = (*env)->FromReflectedMethod(env, method);
-  cb->param_count = argc;
   cb->vm = vm;
   for (i=0;i < argc;i++) {
     jclass cls = (*env)->GetObjectArrayElement(env, param_types, i);
     char jtype = get_jtype(env, cls);
-    type_t type = get_type(jtype);
-    cb->param_jtypes[i] = jtype;
-    cb->ffi_args[i] = get_ffi_type(type);
+    cb->ffi_args[i] = get_ffi_type(jtype);
   }
   cb->return_jtype = get_jtype(env, return_type);
-  cb->return_type = get_type(cb->return_jtype);
-  ffi_prep_cif(&cb->ffi_cif, FFI_DEFAULT_ABI, argc,
-      get_ffi_type(cb->return_type),
+
+#ifdef _WIN32
+  {
+    jclass cls = (*env)->FindClass(env, "com/sun/jna/win32/StdCall");
+    if ((*env)->IsInstanceOf(env, obj, cls)) {
+      abi = FFI_SDTCALL;
+    }
+  }
+#endif // _WIN32
+
+  ffi_prep_cif(&cb->ffi_cif, abi, argc, get_ffi_type(cb->return_jtype),
       &cb->ffi_args[0]);
   ffi_prep_closure(cb->ffi_closure, &cb->ffi_cif, callback_dispatch, cb);
   return cb;
@@ -59,44 +64,28 @@ free_callback(JNIEnv* env, callback *cb) {
   free_closure(cb->ffi_closure);
   free(cb);
 }
+
 static ffi_type*
-get_ffi_type(type_t type) {
-  switch (type) {
-  case TYPE_INT32:
-    return &ffi_type_sint32;
-  case TYPE_INT64:
-    return &ffi_type_sint64;
-  case TYPE_FP32:
-    return &ffi_type_float;
-  case TYPE_FP64:
-    return &ffi_type_double;
-  case TYPE_PTR:
-    return &ffi_type_pointer;
-  }
-  return &ffi_type_void;
-}
-  
-static type_t
-get_type(char type) {
-  switch(type) {
+get_ffi_type(char jtype) {
+  switch (jtype) {
   case 'Z': 
   case 'B': 
   case 'C': 
   case 'S':
   case 'I':
-    return TYPE_INT32; 
+    return &ffi_type_sint32;
   case 'J':
-    return TYPE_INT64; 
+    return &ffi_type_sint64;
   case 'F':
-    return TYPE_FP32; 
+    return &ffi_type_float;
   case 'D':
-    return TYPE_FP64; 
+    return &ffi_type_double;
   case 'L':
   default:
-    return TYPE_PTR; 
+    return &ffi_type_pointer;
   }
 }
-
+  
 static void
 callback_dispatch(ffi_cif* cif, void* resp, void** cbargs, void* user_data) {
   callback* cb = (callback *) user_data;
@@ -106,7 +95,7 @@ callback_dispatch(ffi_cif* cif, void* resp, void** cbargs, void* user_data) {
   jvalue args[MAX_NARGS];
   JNIEnv* env;
   int attached;
-  int i;
+  unsigned int i;
 
   attached = (*jvm)->GetEnv(jvm, (void *)&env, JNI_VERSION_1_4) == JNI_OK;
   if (!attached) {
@@ -117,26 +106,22 @@ callback_dispatch(ffi_cif* cif, void* resp, void** cbargs, void* user_data) {
   }
 
   // NOTE: some targets may require alignment of stack items...
-  for (i=0;i < cb->param_count;i++) {
-    switch(cb->param_jtypes[i]) {
-    case 'L':
+  for (i=0;i < cif->nargs;i++) {
+    switch(cif->arg_types[i]->type) {
+    case FFI_TYPE_POINTER:
       // TODO: create a corresponding java structure type
       // based on the callback argument type
       args[i].l = newJavaPointer(env, *(void **) cbargs[i]);
       break;
-    case 'J':
+    case FFI_TYPE_SINT64:
+    case FFI_TYPE_UINT64:
       args[i].j = *(jlong *)cbargs[i];
       break;
-    case 'F':
+    case FFI_TYPE_FLOAT:
       args[i].f = *(float *)cbargs[i];
       break;
-    case 'D':
+    case FFI_TYPE_DOUBLE:
       args[i].d = *(double *)cbargs[i];
-      break;
-    case 'Z':
-    case 'B':
-    case 'S':
-    case 'I':
     default:
       args[i].i = *(int *)cbargs[i];
       break;
@@ -148,7 +133,7 @@ callback_dispatch(ffi_cif* cif, void* resp, void** cbargs, void* user_data) {
 
   // Avoid calling back to a GC'd object
   if ((*env)->IsSameObject(env, obj, NULL)) {
-    *(long long *)resp = 0;
+    memset(resp, 0, cif->rtype->size); // Just return 0?
   }
   else switch(cb->return_jtype) {
   case 'Z':

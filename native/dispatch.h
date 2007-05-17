@@ -39,9 +39,6 @@ typedef struct _callback {
   JavaVM* vm;
   jobject object;
   jmethodID methodID;
-  jsize param_count;
-  char param_jtypes[MAX_NARGS];
-  type_t return_type;
   char return_jtype;
 } callback;
 
