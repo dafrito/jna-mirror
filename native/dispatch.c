@@ -466,9 +466,7 @@ JNIEXPORT void JNICALL
 Java_com_sun_jna_Function_freeCallback(JNIEnv *env, jobject obj,
                                                    jlong ptr) {
   callback* cb = (callback*)L2A(ptr);
-  (*env)->DeleteWeakGlobalRef(env, cb->object);
-  free(cb->insns);
-  free(cb);
+  free_callback(env, cb);
 }
 
 /*

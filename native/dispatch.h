@@ -1,6 +1,8 @@
 #ifndef DISPATCH_H
 #define DISPATCH_H
 
+#include <ffi.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -31,7 +33,10 @@ typedef union _word {
 #define MAX_NARGS 32
 
 typedef struct _callback {
-  void *insns;
+  ffi_closure *ffi_closure;
+  ffi_cif ffi_cif;
+  ffi_type* ffi_args[MAX_NARGS];
+  JavaVM* vm;
   jobject object;
   jmethodID methodID;
   jsize param_count;
@@ -82,7 +87,7 @@ extern jobject newJavaPointer(JNIEnv *, void *);
 extern char get_jtype(JNIEnv*, jclass);
 extern callback* create_callback(JNIEnv*, jobject, jobject, jobject,
                                  jobjectArray, jclass);
-
+extern void free_callback(JNIEnv*, callback*);
 #ifdef __cplusplus
 }
 #endif
