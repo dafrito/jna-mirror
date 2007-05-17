@@ -331,7 +331,7 @@ public class Function extends Pointer {
             for (int i = 0; i < bufferCount; i++) {
                 int idx = bufferIndexes[i];
                 ByteBuffer buf = (ByteBuffer)args[idx];
-                if (idx < inArgs.length && inArgs[i] instanceof ByReference) {
+                if (idx < inArgs.length && inArgs[idx] instanceof ByReference) {
                     ((ByReference)inArgs[idx]).readFrom(buf);
                 }
                 pool.put(buf);
