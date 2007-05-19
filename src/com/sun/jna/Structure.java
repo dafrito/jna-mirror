@@ -545,7 +545,7 @@ public abstract class Structure {
         }
         if (alignType == ALIGN_MSVC)
             return Math.min(8, alignment);
-        return Math.min(4, alignment);
+        return Math.min(NativeLong.SIZE, alignment);
     }
 
     private int getNativeSize(Class type, Object value) {
