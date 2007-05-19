@@ -108,7 +108,7 @@ static jboolean init_jawt(JNIEnv*);
 /* invoke the real native function */
 static void dispatch(JNIEnv *env, jobject self, jint callconv, 
                      jobjectArray arr, 
-                     type_t rt, jvalue *resP)
+                     ffi_type *ffi_return, jvalue *resP)
 {
     int i, nargs, nwords;
     void *func;
@@ -128,7 +128,6 @@ static void dispatch(JNIEnv *env, jobject self, jint callconv,
       void *elems;
     } array_elements[MAX_NARGS];
     ffi_cif cif;
-    ffi_type *ffi_return = &ffi_type_void;
     ffi_type *ffi_args[MAX_NARGS];
     void *ffi_values[MAX_NARGS];
     ffi_abi abi;
@@ -154,17 +153,17 @@ static void dispatch(JNIEnv *env, jobject self, jint callconv,
 	ffi_values[i] = &c_args[i];
       }
       else if ((*env)->IsInstanceOf(env, arg, classByte)) {
-	ffi_args[i] = &ffi_type_schar;
+	ffi_args[i] = &ffi_type_sint8;
 	ffi_values[i] = &c_args[i];
         c_args[i].c = (*env)->GetByteField(env, arg, FID_Byte_value);
       }
       else if ((*env)->IsInstanceOf(env, arg, classShort)) {
-	ffi_args[i] = &ffi_type_sshort;
+	ffi_args[i] = &ffi_type_sint16;
 	ffi_values[i] = &c_args[i];
         c_args[i].s = (*env)->GetShortField(env, arg, FID_Short_value);
       }
       else if ((*env)->IsInstanceOf(env, arg, classInteger)) {
-	ffi_args[i] = &ffi_type_sint;
+	ffi_args[i] = &ffi_type_sint32;
 	ffi_values[i] = &c_args[i];
         c_args[i].i = (*env)->GetIntField(env, arg, FID_Integer_value);
       }
@@ -231,25 +230,6 @@ static void dispatch(JNIEnv *env, jobject self, jint callconv,
                     "Unrecognized argument type");
         goto cleanup;
       }
-    }
-
-   
-    switch (rt) {
-    case TYPE_INT32:
-	ffi_return = &ffi_type_sint32;
-	break;
-    case TYPE_INT64:
-	ffi_return = &ffi_type_sint64;
-	break;
-    case TYPE_PTR:
-	ffi_return = &ffi_type_pointer;
-	break;
-    case TYPE_FP32:
-	ffi_return = &ffi_type_float;
-	break;
-    case TYPE_FP64:
-	ffi_return = &ffi_type_double;
-	break;
     }
 
     switch (callconv) {
@@ -330,7 +310,7 @@ Java_com_sun_jna_Function_invokePointer(JNIEnv *env, jobject self,
                                         jint callconv, jobjectArray arr)
 {
     jvalue result;
-    dispatch(env, self, callconv, arr, TYPE_PTR, &result);
+    dispatch(env, self, callconv, arr, &ffi_type_pointer, &result);
     if ((*env)->ExceptionCheck(env)) {
         return NULL;
     }
@@ -347,7 +327,7 @@ Java_com_sun_jna_Function_invokeDouble(JNIEnv *env, jobject self,
                                        jint callconv, jobjectArray arr)
 {
     jvalue result;
-    dispatch(env, self, callconv, arr, TYPE_FP64, &result);
+    dispatch(env, self, callconv, arr, &ffi_type_double, &result);
     return result.d;
 }
 
@@ -361,7 +341,7 @@ Java_com_sun_jna_Function_invokeFloat(JNIEnv *env, jobject self,
                                       jint callconv, jobjectArray arr)
 {
     jvalue result;
-    dispatch(env, self, callconv, arr, TYPE_FP32, &result);
+    dispatch(env, self, callconv, arr, &ffi_type_float, &result);
     return result.f;
 }
 
@@ -375,7 +355,7 @@ Java_com_sun_jna_Function_invokeInt(JNIEnv *env, jobject self,
                                     jint callconv, jobjectArray arr)
 {
     jvalue result;
-    dispatch(env, self, callconv, arr, TYPE_INT32, &result);
+    dispatch(env, self, callconv, arr, &ffi_type_sint32, &result);
     return result.i;
 }
 
@@ -389,7 +369,7 @@ Java_com_sun_jna_Function_invokeLong(JNIEnv *env, jobject self,
                                      jint callconv, jobjectArray arr)
 {
     jvalue result;
-    dispatch(env, self, callconv, arr, TYPE_INT64, &result);
+    dispatch(env, self, callconv, arr, &ffi_type_sint64, &result);
     return result.j;
 }
 
@@ -403,7 +383,7 @@ Java_com_sun_jna_Function_invokeVoid(JNIEnv *env, jobject self,
                                      jint callconv, jobjectArray arr)
 {
     jvalue result;
-    dispatch(env, self, callconv, arr, TYPE_INT32, &result);
+    dispatch(env, self, callconv, arr, &ffi_type_void, &result);
 }
 
 /*
