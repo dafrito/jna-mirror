@@ -5,6 +5,9 @@
 #include <jni.h>
 #include <ffi.h>
 
+#ifdef __linux__
+#  include <sys/mman.h>
+#endif
 #include "dispatch.h"
 
 #ifdef __cplusplus
@@ -162,7 +165,7 @@ callback_dispatch(ffi_cif* cif, void* resp, void** cbargs, void* user_data) {
   }
 }
 
-#ifdef notyet
+#if defined(__linux__) && defined(__LP64__)
 static ffi_closure*
 alloc_closure()
 {
