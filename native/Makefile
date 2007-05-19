@@ -99,7 +99,7 @@ endif
 ifeq ($(OS),linux)
 ARCH=i386
 # Avoid 1.5/1.6 bug linking directly to -ljawt
-CDEFINES+=-DNEED_JAWT_HACK
+CDEFINES+=-DNEED_JAWT_HACK -fPIC
 LIBS=
 endif
 
@@ -107,7 +107,7 @@ endif
 ifeq ($(OS),sparc)
 ARCH=sparc
 # Avoid 1.5/1.6 bug linking directly to -ljawt
-CDEFINES+=-DNEED_JAWT_HACK
+CDEFINES+=-DNEED_JAWT_HACK -fPIC
 LIBS=
 endif
 
@@ -168,7 +168,7 @@ $(FFI_OBJS):
 	@if [ ! -f $(BUILD)/libffi/Makefile ]; then \
 	    echo "Configuring libffi"; \
 	    cd $(BUILD)/libffi && \
-		$(SRCDIR)/libffi/configure --disable-static > /dev/null; \
+		$(SRCDIR)/libffi/configure --disable-static --with-pic=yes > /dev/null; \
 	fi
 	$(MAKE) -C $(BUILD)/libffi
 
