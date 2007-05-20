@@ -293,7 +293,8 @@ public class NativeLibrary {
             String[] paths64 = { "/usr/lib64", "/lib64" };
             librarySearchPath.addAll(Arrays.asList(Pointer.SIZE == 8 ? paths64 : paths32));
         }
-        librarySearchPath.addAll(initPaths("java.library.path"));
-        librarySearchPath.addAll(initPaths("sun.boot.library.path"));
+        // Using these breaks Linux/64bit support, as it includes the 32bit paths
+        //librarySearchPath.addAll(initPaths("java.library.path"));
+        //librarySearchPath.addAll(initPaths("sun.boot.library.path"));
     }
 }
