@@ -56,20 +56,20 @@ extern "C"
 #endif
 
 /* Cached class, field and method IDs */
-static jclass classObject;
-static jclass classClass;
-static jclass classMethod;
-static jclass classBoolean, classPrimitiveBoolean;
-static jclass classByte, classPrimitiveByte;
-static jclass classCharacter, classPrimitiveCharacter;
-static jclass classShort, classPrimitiveShort;
-static jclass classInteger, classPrimitiveInteger;
-static jclass classLong, classPrimitiveLong;
-static jclass classFloat, classPrimitiveFloat;
-static jclass classDouble, classPrimitiveDouble;
-static jclass classString;
-static jclass classPointer;
-static jclass classByteBuffer;
+jclass classObject;
+jclass classClass;
+jclass classMethod;
+jclass classBoolean, classPrimitiveBoolean;
+jclass classByte, classPrimitiveByte;
+jclass classCharacter, classPrimitiveCharacter;
+jclass classShort, classPrimitiveShort;
+jclass classInteger, classPrimitiveInteger;
+jclass classLong, classPrimitiveLong;
+jclass classFloat, classPrimitiveFloat;
+jclass classDouble, classPrimitiveDouble;
+jclass classString;
+jclass classPointer;
+jclass classByteBuffer;
 
 static jmethodID MID_getClass;
 static jmethodID MID_Class_getComponentType;
@@ -80,26 +80,19 @@ static jmethodID MID_Pointer_init;
 static jmethodID MID_Method_getReturnType;
 static jmethodID MID_Method_getParameterTypes;
 
-static jfieldID FID_Byte_value;
-static jfieldID FID_Short_value;
-static jfieldID FID_Integer_value;
-static jfieldID FID_Long_value;
-static jfieldID FID_Float_value;
-static jfieldID FID_Double_value;
-static jfieldID FID_Pointer_peer;
+jfieldID FID_Byte_value;
+jfieldID FID_Short_value;
+jfieldID FID_Integer_value;
+jfieldID FID_Long_value;
+jfieldID FID_Float_value;
+jfieldID FID_Double_value;
+jfieldID FID_Boolean_value;
+jfieldID FID_Pointer_peer;
 
 /* Forward declarations */
 static char* newCString(JNIEnv *env, jstring jstr);
 static wchar_t* newWideCString(JNIEnv *env, jstring jstr);
 static jstring newJavaString(JNIEnv *env, const char *str, jboolean wide);
-
-/* These are the calling conventions an invocation can handle. */
-typedef enum _callconv {
-    CALLCONV_C = com_sun_jna_Function_C_CONVENTION,
-#if defined(_WIN32)
-    CALLCONV_STDCALL = com_sun_jna_Function_ALT_CONVENTION,
-#endif
-} callconv_t;
 
 static char getArrayComponentType(JNIEnv *, jobject);
 static void *getNativeAddress(JNIEnv *, jobject);
@@ -423,32 +416,6 @@ JNIEXPORT jlong JNICALL Java_com_sun_jna_Function_find
     return (jlong)A2L(func);
 }
 
-
-JNIEXPORT jobject JNICALL
-Java_com_sun_jna_Function_createCallback(JNIEnv *env,
-                                         jobject handler,
-                                         jobject library,
-                                         jobject obj,
-                                         jobject method,
-                                         jobjectArray param_types,
-                                         jclass return_type) {
-  callback* cb =
-    create_callback(env, library, obj, method, param_types, return_type);
-  if (cb == NULL) {
-    throwByName(env, "java/lang/UnsupportedOperationException",
-                "Callbacks not supported on this platform");
-    return NULL;
-  }
-  return newJavaPointer(env, cb);
-}
-
-JNIEXPORT void JNICALL
-Java_com_sun_jna_Function_freeCallback(JNIEnv *env, jobject obj,
-                                                   jlong ptr) {
-  callback* cb = (callback*)L2A(ptr);
-  free_callback(env, cb);
-}
-
 /*
  * Class:     com_sun_jna_NativeLibrary
  * Method:    open
@@ -560,6 +527,8 @@ Java_com_sun_jna_Pointer_initIDs(JNIEnv *env, jclass cls)
     if (!LOAD_FID(env, FID_Float_value, classFloat, "value", "F"))
       return 0;
     if (!LOAD_FID(env, FID_Double_value, classDouble, "value", "D"))
+      return 0;
+    if (!LOAD_FID(env, FID_Boolean_value, classBoolean, "value", "Z"))
       return 0;
     if (!LOAD_FID(env, FID_Pointer_peer, classPointer, "peer", "J"))
       return 0;

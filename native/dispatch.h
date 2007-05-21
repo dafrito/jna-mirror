@@ -2,7 +2,7 @@
 #define DISPATCH_H
 
 #include <ffi.h>
-
+#include "com_sun_jna_Function.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -22,6 +22,14 @@ typedef enum _vartype {
     TYPE_INT64,
 } type_t;
 
+/* These are the calling conventions an invocation can handle. */
+typedef enum _callconv {
+    CALLCONV_C = com_sun_jna_Function_C_CONVENTION,
+#if defined(_WIN32)
+    CALLCONV_STDCALL = com_sun_jna_Function_ALT_CONVENTION,
+#endif
+} callconv_t;
+
 /* Represents a machine word (one stack element). */
 typedef union _word {
     jint i;
@@ -39,8 +47,38 @@ typedef struct _callback {
   JavaVM* vm;
   jobject object;
   jmethodID methodID;
+  jclass return_type;
   char return_jtype;
+  char param_jtypes[MAX_NARGS];
+  jclass param_classes[MAX_NARGS];
+  jmethodID param_constructors[MAX_NARGS];
+  int is_proxy;
 } callback;
+
+extern jclass classObject;
+extern jclass classClass;
+extern jclass classMethod;
+extern jclass classBoolean, classPrimitiveBoolean;
+extern jclass classByte, classPrimitiveByte;
+extern jclass classCharacter, classPrimitiveCharacter;
+extern jclass classShort, classPrimitiveShort;
+extern jclass classInteger, classPrimitiveInteger;
+extern jclass classLong, classPrimitiveLong;
+extern jclass classFloat, classPrimitiveFloat;
+extern jclass classDouble, classPrimitiveDouble;
+extern jclass classVoid, classPrimitiveVoid;
+extern jclass classString;
+extern jclass classPointer;
+extern jclass classByteBuffer;
+
+extern jfieldID FID_Byte_value;
+extern jfieldID FID_Short_value;
+extern jfieldID FID_Integer_value;
+extern jfieldID FID_Long_value;
+extern jfieldID FID_Float_value;
+extern jfieldID FID_Double_value;
+extern jfieldID FID_Boolean_value;
+extern jfieldID FID_Pointer_peer;
 
 #if defined(SOLARIS2) || defined(__GNUC__)
 #define L2A(X) ((void *)(unsigned long)(X))
@@ -82,9 +120,7 @@ typedef struct _callback {
 extern void throwByName(JNIEnv *env, const char *name, const char *msg);
 extern jobject newJavaPointer(JNIEnv *, void *);
 extern char get_jtype(JNIEnv*, jclass);
-extern callback* create_callback(JNIEnv*, jobject, jobject, jobject,
-                                 jobjectArray, jclass);
-extern void free_callback(JNIEnv*, callback*);
+
 #ifdef __cplusplus
 }
 #endif

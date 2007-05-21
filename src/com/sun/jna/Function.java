@@ -512,14 +512,6 @@ public class Function extends Pointer {
      */
     public native long find(String libraryPath, String fname);
     
-    /** Create a callback function pointer. */
-    static native Pointer createCallback(Library library,
-                                         Callback callback, Method method, 
-                                         Class[] parameterTypes, 
-                                         Class returnType);
-    /** Free the given callback function pointer. */
-    static native void freeCallback(long ptr);
-    
     public String toString() {
         return functionName + "(" + libraryName + ")";
     }

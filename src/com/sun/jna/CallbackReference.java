@@ -38,13 +38,13 @@ class CallbackReference extends WeakReference {
     public Pointer getTrampoline() {
         return cbstruct.getPointer(0);
     }
-    public static CallbackReference getInstance(Library lib, Callback cb) {
+    public static CallbackReference getInstance(int callingConvention, Callback cb) {
         CallbackReference cbref;
-        Map map = lib instanceof StdCallLibrary ? altCallbackMap : callbackMap;
+        Map map = callingConvention == Function.ALT_CONVENTION ? altCallbackMap : callbackMap;
         synchronized (map) {
             cbref = (CallbackReference) map.get(cb);
             if (cbref == null) {
-                Pointer cbstruct = createCallback(lib, cb);
+                Pointer cbstruct = createCallback(callingConvention, cb);
                 cbref = new CallbackReference(cb, cbstruct);
                 map.put(cb, cbref);
             }
@@ -52,25 +52,34 @@ class CallbackReference extends WeakReference {
         }
     }
     public static CallbackReference getInstance(Callback cb) {
-        return getInstance(cLibrary, cb);
+        return getInstance(Function.C_CONVENTION, cb);
     }
-    public static CallbackReference getInstance(int callingConvention, Callback cb) {
-        Library lib = callingConvention == Function.ALT_CONVENTION ? altLibrary : cLibrary;
-        return getInstance(lib, cb);
+    public static CallbackReference getInstance(Library lib, Callback cb) {
+        int callingConvention = lib instanceof StdCallLibrary 
+                ? Function.ALT_CONVENTION : Function.C_CONVENTION;
+        return getInstance(callingConvention, cb);
     }
-    private static Pointer createCallback(Library library,  Callback obj) {
+    private static Pointer createCallback(int callingConvention, Callback obj) {
         Method[] mlist = obj.getClass().getMethods();
         for (int i=0;i < mlist.length;i++) {
             if (Callback.METHOD_NAME.equals(mlist[i].getName())) {
                 Method m = mlist[i];
-                Class[] paramTypes = m.getParameterTypes();
-                Class rtype = m.getReturnType();
+                Class[] paramTypes;
+                Class rtype;
+                if (obj instanceof CallbackProxy) {
+                    CallbackProxy proxy = (CallbackProxy)obj;
+                    paramTypes = proxy.getParameterTypes();
+                    rtype = proxy.getReturnType();
+                } else {
+                    paramTypes = m.getParameterTypes();
+                    rtype = m.getReturnType();
+                }
                 if (paramTypes.length > MAX_NARGS) {
                     String msg = "Method signature exceeds the maximum "
                             + "parameter count: " + m;
                     throw new IllegalArgumentException(msg);
                 }
-                return Function.createCallback(library, obj, m, paramTypes, rtype);
+                return createNativeCallback(obj, m, paramTypes, rtype, callingConvention);
             }
         }
         String msg = "Callback must implement method named '"
@@ -78,7 +87,10 @@ class CallbackReference extends WeakReference {
         throw new IllegalArgumentException(msg);
     }
     protected void finalize() {
-        Function.freeCallback(cbstruct.peer);
+        freeNativeCallback(cbstruct.peer);
         cbstruct.peer = 0;
     }
+    private static native Pointer createNativeCallback(Callback obj, Method m, Class[] paramTypes, 
+            Class returnType, int callingConvention);
+    private static native void freeNativeCallback(long peer);
 }
