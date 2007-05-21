@@ -168,9 +168,14 @@ public class Function extends Pointer {
     private Object invoke(int callingConvention, Class returnType, Object[] inArgs, Map converters) {
         Object result=null;
         
-        // Clone the argument array
+        // This will be set to the full set of arguments if a varargs
+        // argument is encountered
+        Object[] fullArgs = null;
         Object[] args = { };
         if (inArgs != null) {
+            if (inArgs.length > MAX_NARGS) {
+                throw new UnsupportedOperationException("Maximum argument count is " + MAX_NARGS);
+            }            
             args = new Object[inArgs.length];
             System.arraycopy(inArgs, 0, args, 0, args.length);
         }
@@ -252,18 +257,39 @@ public class Function extends Pointer {
             //
             else if (arg.getClass().isArray() && 
                     Object.class.isAssignableFrom(arg.getClass().getComponentType()) &&
-                    i == inArgs.length - 1) {
+                    i == inArgs.length - 1 && fullArgs == null) {
                 Object[] varargs = (Object[]) arg;
-                Object[] newArgs = new Object[i + varargs.length + 1];
+                int fixedCount = inArgs.length - 1;
+                int argCount = fixedCount + varargs.length + 1; // +1 for NULL
+                if (argCount > MAX_NARGS) {
+                    throw new UnsupportedOperationException("Maximum argument count is " + MAX_NARGS);
+                }
+                Object[] newArgs = new Object[argCount];
+                //
+                // Make sure varargs are NULL terminated.  This is important for
+                // some varargs functions which assume the list is NULL terminated.
+                //
+                newArgs[newArgs.length - 1] = null;
+
                 // Copy the original arg array (less the current arg)
-                System.arraycopy(args, 0, newArgs, 0, i);
+                System.arraycopy(args, 0, newArgs, 0, fixedCount);
                 
                 // Copy the varargs array onto the end of the main args array
-                System.arraycopy(varargs, 0, newArgs, i, varargs.length);
-                 // Make sure varargs are NULL terminated
-                newArgs[newArgs.length - 1] = null;
+                System.arraycopy(varargs, 0, newArgs, fixedCount, varargs.length);                                
                 args = newArgs;
-                --i; // Jump back and process the first arg of the varargs
+
+                // 
+                // Make a copy of the original argument array with the varargs appended
+                // This is to handle Structure & ByReference reloading, as the 
+                // values in args[] will have been replaced by Pointer objects
+                //
+                fullArgs = new Object[newArgs.length];
+                System.arraycopy(inArgs, 0, fullArgs, 0, fixedCount);
+                System.arraycopy(varargs, 0, fullArgs, fixedCount, varargs.length);
+                inArgs = fullArgs;
+
+                // Jump back and process the first arg of the varargs
+                --i; 
             } else if (arg.getClass().isArray()) {
                 throw new IllegalArgumentException("Unsupported array type: " + arg.getClass());
             }
@@ -315,7 +341,7 @@ public class Function extends Pointer {
             throw new IllegalArgumentException("Unsupported return type "
                     + returnType);
         }
-        
+
         // Sync java fields in structures to native memory after invocation
         if (inArgs != null) {
             for (int i=0; i < inArgs.length; i++) {

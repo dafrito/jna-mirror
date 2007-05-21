@@ -18,11 +18,15 @@ package com.sun.jna;
  * @author wmeissner@gmail.com
  */
 public class NativeLong extends Number {
-    public static final int SIZE = Pointer.SIZE;
+    public static final int SIZE = Pointer.LONG_SIZE;
     private final Number value;
     public NativeLong(long value) {
-        if (SIZE == Integer.SIZE) {
-            this.value = new Integer((int) (value & 0xffffffff));
+        if (SIZE == 4) {
+            long masked = value & 0xFFFFFFFF80000000L;
+            if (masked != 0 && masked != 0xFFFFFFFF80000000L) {
+                throw new IllegalArgumentException("Argument exceeds native long capacity");
+            }
+            this.value = new Integer((int) (value & 0xFFFFFFFF));
         } else {
             this.value = new Long(value);
         }

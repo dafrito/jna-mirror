@@ -38,7 +38,7 @@ public class Pointer {
 
     /** The size of a native pointer on the current platform */
     public static final int SIZE;
-    
+    public static final int LONG_SIZE;
     /** Convenience constant, same as <code>null</code>. */
     public static final Pointer NULL = null;
     /** Convenience constant, equivalent to <code>(void*)-1</code>. */
@@ -50,6 +50,7 @@ public class Pointer {
             System.loadLibrary("jnidispatch");
         }
         SIZE = initIDs();
+        LONG_SIZE = longSize();
     }
     
     private static String getNativeLibraryResourcePath() {
@@ -139,6 +140,9 @@ public class Pointer {
      **/
     private static native int initIDs();
     
+    /** Return the size of a native <code>long</code>. */
+    private static native int longSize();
+
     /** Pointer value of the real native pointer. Use long to be 64-bit safe. 
      */
     long peer;

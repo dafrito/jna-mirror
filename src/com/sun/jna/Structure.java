@@ -232,7 +232,9 @@ public abstract class Structure {
             result = p != null ? new NativeString(p, true).toString() : null;
         }
         else if (Callback.class.isAssignableFrom(fieldType)) {
-            // Just ignore - Callback members are write-only
+            // ignore; Callback members are write-only (don't try to convert
+            // a native function pointer to a Java Callback)
+            return;
         }
         else if (fieldType.isArray()) {
             Class cls = fieldType.getComponentType();
