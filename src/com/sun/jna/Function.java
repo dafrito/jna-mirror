@@ -181,8 +181,8 @@ public class Function extends Pointer {
         }
         
         // Keep track of allocated ByteBuffers so they can be released again
-        byte[] bufferIndexes = null;
-        int bufferCount = 0;
+        int bufferMask = 0;
+
         // String arguments are converted to native pointers here rather
         // than in native code so that the values will be valid until
         // this method returns.  At one point the conversion was in native
@@ -216,10 +216,7 @@ public class Function extends Pointer {
                 ((ByReference)arg).writeTo(buf);
                 buf.flip();
                 args[i] = buf;
-                if (bufferIndexes == null) {
-                    bufferIndexes = new byte[Function.MAX_NARGS];
-                }
-                bufferIndexes[bufferCount++] = (byte) i;
+                bufferMask |= (1 << i);
             }
             // Convert Callback to Pointer
             else if (arg instanceof Callback) {
@@ -234,10 +231,7 @@ public class Function extends Pointer {
                 ByteBuffer buf = getBufferPool().get(s.length() + 1);
                 buf.put(s.getBytes()).put((byte) 0).flip();
                 args[i] = buf;
-                if (bufferIndexes == null) {
-                    bufferIndexes = new byte[Function.MAX_NARGS];
-                }
-                bufferIndexes[bufferCount++] = (byte) i;
+                bufferMask |= (1 << i);
             }
             // Convert WString to native pointer (const)
             else if (arg instanceof WString) {
@@ -252,7 +246,7 @@ public class Function extends Pointer {
             else if (arg instanceof Boolean) {
                 args[i] = new Integer(Boolean.TRUE.equals(arg) ? -1 : 0);
             }
-			else if (isStructureArray(argClass)) {
+            else if (isStructureArray(argClass)) {
                 // Initialize uninitialized arrays of Structure to point
                 // to a single block of memory
                 Structure[] ss = (Structure[])arg;
@@ -401,7 +395,7 @@ public class Function extends Pointer {
                 if (arg instanceof Structure) {
                     ((Structure)arg).read();
                 }
-				else if (arg != null && isStructureArray(arg.getClass())) {
+                else if (arg != null && isStructureArray(arg.getClass())) {
                     Structure[] ss = (Structure[])arg;
                     for (int si=0;si < ss.length;si++) {
                         ss[si].read();
@@ -410,15 +404,17 @@ public class Function extends Pointer {
             }
         }
         // Return all the temporary buffers to the Buffer pool
-        if (bufferIndexes != null) {
+        if (bufferMask != 0) {
             BufferPool pool = getBufferPool();
-            for (int i = 0; i < bufferCount; i++) {
-                int idx = bufferIndexes[i];
-                ByteBuffer buf = (ByteBuffer)args[idx];
-                if (idx < inArgs.length && inArgs[idx] instanceof ByReference) {
-                    ((ByReference)inArgs[idx]).readFrom(buf);
+            for (int i = 0; i < MAX_NARGS && bufferMask != 0; i++) {
+                if ((bufferMask & 1) != 0) {
+                    ByteBuffer buf = (ByteBuffer)args[i];
+                    if (inArgs[i] instanceof ByReference) {
+                        ((ByReference)inArgs[i]).readFrom(buf);
+                    }
+                    pool.put(buf);
                 }
-                pool.put(buf);
+                bufferMask >>= 1;
             }
         }
                         
