@@ -14,6 +14,7 @@ package com.sun.jna.examples.unix;
 
 import com.sun.jna.Library;
 import com.sun.jna.Native;
+import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
 import com.sun.jna.ptr.IntByReference;
@@ -72,7 +73,7 @@ public interface X11 extends Library {
     int BadImplementation = 17;
     
     public static class XWMHints extends Structure {
-        public int flags;
+        public NativeLong flags;
         public int input;
         public int initial_state;
         public int icon_pixmap;
@@ -86,11 +87,11 @@ public interface X11 extends Library {
         public String value;
         public int encoding;
         public int format;
-        public int nitems;
+        public NativeLong nitems;
     }
 
     public static class XSizeHints extends Structure {
-        public int flags;
+        public NativeLong flags;
         public int x, y;
         public int width, height;
         public int min_width, min_height;
@@ -117,15 +118,15 @@ public interface X11 extends Library {
         public int bit_gravity;
         public int win_gravity;
         public int backing_store;
-        public int backing_planes;
-        public int backing_pixel;
+        public NativeLong backing_planes;
+        public NativeLong backing_pixel;
         public int save_under;
         public int colormap;
         public int map_installed;
         public int map_state;
-        public int all_event_masks;
-        public int your_event_mask;
-        public int do_not_propagate_mask;
+        public NativeLong all_event_masks;
+        public NativeLong your_event_mask;
+        public NativeLong do_not_propagate_mask;
         public int override_redirect;
         public Pointer screen;
     }
@@ -147,17 +148,17 @@ public interface X11 extends Library {
     int CWCursor = (1<<14);
     public static class XSetWindowAttributes extends Structure {
         public int background_pixmap;
-        public int background_pixel;
+        public NativeLong background_pixel;
         public int border_pixmap;
-        public int border_pixel;
+        public NativeLong border_pixel;
         public int bit_gravity;
         public int win_gravity;
         public int backing_store;
-        public int backing_planes;
-        public int backing_pixel;
+        public NativeLong backing_planes;
+        public NativeLong backing_pixel;
         public int save_under; // boolean
-        public int event_mask;
-        public int do_not_propagate_mask;
+        public NativeLong event_mask;
+        public NativeLong do_not_propagate_mask;
         public int override_redirect; // boolean
         public int colormap;
         public int cursor;
@@ -205,9 +206,9 @@ public interface X11 extends Library {
         public int screen;
         public int depth;
         public int clazz;
-        public int red_mask;
-        public int green_mask;
-        public int blue_mask;
+        public NativeLong red_mask;
+        public NativeLong green_mask;
+        public NativeLong blue_mask;
         public int colormap_size;
         public int bits_per_rgb;
     }
@@ -257,7 +258,7 @@ public interface X11 extends Library {
     int XFree(Pointer data);
     int XCreateSimpleWindow(Pointer display, int parent, int x, int y, 
                             int width, int height, int border_width,
-                            int border, int background);
+                            NativeLong border, NativeLong background);
     int XCreateBitmapFromData(Pointer display, int window, Pointer data, 
                               int width, int height);
     int XMapWindow(Pointer display, int window);
@@ -269,7 +270,7 @@ public interface X11 extends Library {
     int XClearArea(Pointer display, int window, int x, int y, int w, int h, int exposures);
     int XCreatePixmap(Pointer display, int drawable, int width, int height, int depth);
     int XFreePixmap(Pointer display, int pixmap);
-    Pointer XCreateGC(Pointer display, int drawable, int mask, Pointer values);
+    Pointer XCreateGC(Pointer display, int drawable, NativeLong mask, Pointer values);
     int XFreeGC(Pointer display, Pointer gc);
     int XFillRectangle(Pointer display, int drawable, Pointer gc, 
                        int x, int y, int width, int height);
@@ -289,7 +290,7 @@ public interface X11 extends Library {
                           IntByReference win_y_return,
                           IntByReference mask_return);
     int XGetWindowAttributes(Pointer display, int window, XWindowAttributes attributes);
-    int XChangeWindowAttributes(Pointer display, int window, int valuemask, XSetWindowAttributes attributes);
+    int XChangeWindowAttributes(Pointer display, int window, NativeLong valuemask, XSetWindowAttributes attributes);
     
     int NoEventMask = 0;
     int KeyPressMask = (1<<0);
