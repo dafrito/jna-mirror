@@ -47,6 +47,7 @@ import javax.swing.PopupFactory;
 import javax.swing.RootPaneContainer;
 import javax.swing.SwingUtilities;
 import com.sun.jna.Native;
+import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
 import com.sun.jna.examples.unix.X11;
 import com.sun.jna.examples.unix.X11.XVisualInfo;
@@ -776,7 +777,7 @@ public class WindowUtils {
             if (raster == null) {
                 int pm = x11.XCreatePixmap(dpy, win, w.getWidth(),
                                            w.getHeight(), 1);
-                Pointer gc = x11.XCreateGC(dpy, pm, 0, null);
+                Pointer gc = x11.XCreateGC(dpy, pm, new NativeLong(0), null);
                 if (gc == null) {
                     return 0;
                 }
@@ -789,7 +790,7 @@ public class WindowUtils {
             int width = bounds.x + bounds.width;
             int height = bounds.y + bounds.height;
             int pm = x11.XCreatePixmap(dpy, win, width, height, 1);
-            Pointer gc = x11.XCreateGC(dpy, pm, 0, null);
+            Pointer gc = x11.XCreateGC(dpy, pm, new NativeLong(0), null);
             if (gc == null) {
                 return 0;
             }

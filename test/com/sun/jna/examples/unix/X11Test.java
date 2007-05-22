@@ -26,6 +26,7 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import junit.framework.TestCase;
 import com.sun.jna.Native;
+import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.PointerByReference;
@@ -83,7 +84,7 @@ public class X11Test extends TestCase {
         if (pm == 0) {
             fail("Can't create pixmap");
         }
-        Pointer gc = x11.XCreateGC(dpy, pm, 0, null);
+        Pointer gc = x11.XCreateGC(dpy, pm, new NativeLong(0), null);
         if (gc == null) {
             fail("Can't create GC");
         }

@@ -52,6 +52,7 @@ import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.event.MouseInputAdapter;
 import com.sun.jna.Native;
+import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
 import com.sun.jna.examples.unix.X11;
 import com.sun.jna.examples.unix.X11.XSetWindowAttributes;
@@ -121,10 +122,11 @@ public class AlphaMaskDemo implements Runnable {
                     alphaWindow.setVisible(true);
                 win = (int)Native.getWindowID(alphaWindow);
                 XSetWindowAttributes xswa = new XSetWindowAttributes();
-                xswa.background_pixel = 0x0;
+                xswa.background_pixel = new NativeLong(0x0);
                 Pointer visual = x11.XDefaultVisual(dpy, x11.XDefaultScreen(dpy));
                 xswa.colormap = x11.XCreateColormap(dpy, win, visual, X11.AllocNone);
-                x11.XChangeWindowAttributes(dpy, win, X11.CWBackPixel|X11.CWColormap, xswa);
+                x11.XChangeWindowAttributes(dpy, win, new NativeLong(X11.CWBackPixel|X11.CWColormap), 
+                        xswa);
                 Window parent = alphaWindow.getOwner();
                 Point where = parent.getLocationOnScreen();
                 where.translate(parent.getWidth(), 0);
@@ -144,7 +146,7 @@ public class AlphaMaskDemo implements Runnable {
                 Graphics g = buf.getGraphics();
                 g.drawImage(image, 0, 0, w, h, null);
                 
-                Pointer gc = x11.XCreateGC(dpy, win, 0, null);
+                Pointer gc = x11.XCreateGC(dpy, win, new NativeLong(0), null);
                 int pixmap = x11.XCreatePixmap(dpy, win, w, h, 32);
                 try {
                     x11.XSetForeground(dpy, gc, 0);
