@@ -9,6 +9,7 @@
 #  include <sys/mman.h>
 #endif
 #include "dispatch.h"
+#include "com_sun_jna_CallbackReference.h"
 
 #ifdef __cplusplus
 extern "C" {
