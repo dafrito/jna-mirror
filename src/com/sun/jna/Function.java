@@ -246,6 +246,14 @@ public class Function extends Pointer {
             else if (arg instanceof Boolean) {
                 args[i] = new Integer(Boolean.TRUE.equals(arg) ? -1 : 0);
             }
+            else if (arg instanceof ByteBuffer && !((ByteBuffer)arg).isDirect()) {
+                ByteBuffer buf = (ByteBuffer)arg;
+                if (!buf.hasArray()) {
+                    // AFAIK, This cannot happen, but check for it anyway
+                    throw new IllegalArgumentException("Unsupported non-direct ByteBuffer without array");
+                }
+                args[i] = buf.array();
+            }
             else if (isStructureArray(argClass)) {
                 // Initialize uninitialized arrays of Structure to point
                 // to a single block of memory
@@ -327,7 +335,8 @@ public class Function extends Pointer {
 
                 // Jump back and process the first arg of the varargs
                 --i; 
-            } else if (arg.getClass().isArray()) {
+            } 
+            else if (arg.getClass().isArray()) {
                 throw new IllegalArgumentException("Unsupported array type: " + arg.getClass());
             }
         }
