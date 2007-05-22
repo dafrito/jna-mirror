@@ -83,22 +83,23 @@ public class ReturnTypesTest extends TestCase {
                      "123456789abcdef0", 
                      Long.toHexString(lib.returnInt64Magic()));
     }
-
+    
     public void testInvokeNativeLong() {
         if (NativeLong.SIZE == 4) {
             assertEquals("Expect 32-bit zero", new NativeLong(0), lib.returnLongZero());
             assertEquals("Expect 32-bit magic", 
                          "12345678", 
                          Integer.toHexString(lib.returnLongMagic().intValue()));
+                         
         } else {
             assertEquals("Expect 64-bit zero", new NativeLong(0L), 
-                    lib.returnLongZero());
+                         lib.returnLongZero());
             assertEquals("Expect 64-bit magic", 
-                     "123456789abcdef0", 
-                     Long.toHexString(lib.returnLongMagic().longValue()));
+                         "123456789abcdef0", 
+                         Long.toHexString(lib.returnLongMagic().longValue()));
         }
     }
-    
+
     public void testInvokeFloat() {
         assertEquals("Expect float zero", 0f, lib.returnFloatZero(), 0d);
         assertEquals("Expect float magic", 

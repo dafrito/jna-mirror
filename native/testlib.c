@@ -7,7 +7,7 @@ extern "C" {
 #include <wchar.h>
 #include <stdio.h>
 #include <stdarg.h>
-  
+
 #ifdef _WIN32
 #define EXPORT __declspec(dllexport)
 #else
@@ -54,11 +54,18 @@ struct CheckFieldAlignment {
   double doubleField;
 };
 
+static int _callCount;
+
 static void nonleaf() {
   static int dummy = 1;
   dummy = dummy ^ 0x12345678;
   if (dummy == 0x12345678) 
     printf("%c", 0);
+}
+
+EXPORT int
+callCount() {
+  return ++_callCount;
 }
 
 EXPORT int  
@@ -296,7 +303,8 @@ checkDoubleArgumentAlignment(float f, double d, float f2, double d2) {
   return NOP(f) + NOP(d) + NOP(f2) + NOP(d2);
 }
 
-EXPORT int 
+// TODO: not yet supported
+EXPORT int32 
 testSimpleStructureArgument(struct CheckFieldAlignment arg) {
   nonleaf();
   if (arg.int32Field != (int32)1) {
@@ -320,17 +328,20 @@ testSimpleStructurePointerArgument(struct CheckFieldAlignment* arg) {
 }
 
 EXPORT void
-callVoidCallback(void (*func)()) {
-  (*func)();
+modifyStructureArray(struct CheckFieldAlignment arg[], int length) {
+  int i;
+  for (i=0;i < length;i++) {
+    arg[i].int32Field = i;
+    arg[i].int64Field = i+1;
+    arg[i].floatField = (float)i+2;
+    arg[i].doubleField = (double)i+3;
+  }
 }
 
-struct cbstruct {
-  void (*func)();
-};
 
 EXPORT void
-callCallbackInStruct(struct cbstruct *cb) {
-  (*cb->func)();
+callVoidCallback(void (*func)()) {
+  (*func)();
 }
 
 EXPORT int32 
@@ -359,6 +370,15 @@ callDoubleCallback(double (*func)(double arg, double arg2),
                    double arg, double arg2) {
   nonleaf();
   return (*func)(NOP(arg), NOP(arg2));
+}
+
+struct cbstruct {
+  void (*func)();
+};
+
+EXPORT void
+callCallbackInStruct(struct cbstruct *cb) {
+  (*cb->func)();
 }
 
 EXPORT int32 
@@ -396,7 +416,7 @@ fillInt64Buffer(int64 *buf, int len, int64 value) {
   }
   return len;
 }
-  
+
 EXPORT int32
 addInt32VarArgs(const char *fmt, ...) {
   va_list ap;
@@ -424,14 +444,15 @@ addInt32VarArgs(const char *fmt, ...) {
 
 EXPORT char *
 returnStringVarArgs(const char *fmt, ...) {
+  char* cp;
   va_list ap;
   int32 sum = 0;
   va_start(ap, fmt);
-  char *cp = va_arg(ap, char *);
+  cp = va_arg(ap, char *);
   va_end(ap);
   return cp;
 }
-  
+
 #ifdef _WIN32
 ///////////////////////////////////////////////////////////////////////
 // stdcall tests

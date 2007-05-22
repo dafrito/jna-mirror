@@ -11,7 +11,6 @@
 package com.sun.jna;
 
 import com.sun.jna.ptr.ByReference;
-import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.Map;
@@ -28,17 +27,18 @@ import java.util.Map;
  * @see Pointer
  */
 public class Function extends Pointer {
+    /** Maximum number of arguments supported by a JNA function call. */
+    public static final int MAX_NARGS = 32;
 
     /** Standard C calling convention. */
     public static final int C_CONVENTION = 0;
     /** Alternate convention (currently used only for w32 stdcall). */
     public static final int ALT_CONVENTION = 1;
-    public static final int MAX_NARGS = 32;
-    
-    private int callingConvention;
-    private String libraryName;
-    private String functionName;
+
     private NativeLibrary library;
+    private String functionName;
+    private int callingConvention;
+
     private static final BufferPool globalBufferPool = new MultiBufferPool(512, 128, true);
    
     /**
@@ -87,18 +87,16 @@ public class Function extends Pointer {
      * function from the supplied library, called with the named calling 
      * convention.
      *
-     * @param	library
-     *			Library in which to find the function
-     * @param	functionName
-     *			Name of the native function to be linked with
-     * @param	callingConvention
-     *			Calling convention used by the native function
+     * @param  library
+     *                 {@link NativeLibrary} in which to find the function
+     * @param  functionName
+     *                 Name of the native function to be linked with
+     * @param  callingConvention
+     *                 Calling convention used by the native function
      */
-    Function(NativeLibrary library, String functionName, 
-                    int callingConvention) {
+    Function(NativeLibrary library, String functionName, int callingConvention) {
         checkCallingConvention(callingConvention);
         this.library = library;
-        this.libraryName = library.getName();
         this.functionName = functionName;
         this.callingConvention = callingConvention;
         peer = library.getFunctionAddress(functionName);
@@ -117,7 +115,7 @@ public class Function extends Pointer {
     }
 
     public String getLibraryName() {
-        return libraryName;
+        return library.getName();
     }
 
     public String getName() {
@@ -166,16 +164,18 @@ public class Function extends Pointer {
         return invoke(callingConvention, returnType, inArgs, converters);
     }
     private Object invoke(int callingConvention, Class returnType, Object[] inArgs, Map converters) {
-        Object result=null;
         
         // This will be set to the full set of arguments if a varargs
         // argument is encountered
         Object[] fullArgs = null;
+        Object result = null;
+
+        // Clone the argument array
         Object[] args = { };
         if (inArgs != null) {
             if (inArgs.length > MAX_NARGS) {
                 throw new UnsupportedOperationException("Maximum argument count is " + MAX_NARGS);
-            }            
+            }
             args = new Object[inArgs.length];
             System.arraycopy(inArgs, 0, args, 0, args.length);
         }
@@ -199,12 +199,12 @@ public class Function extends Pointer {
                 // Let the converted argument be further converted to standard types
                 //
             }
-            if (arg == null
-                    || (arg.getClass().isArray()
-                    && arg.getClass().getComponentType().isPrimitive())) {
+            if (arg == null || isPrimitiveArray(arg.getClass())) {
                 continue;
-            }           
-            // Convert Structures to native pointers
+            }
+            
+            Class argClass = arg.getClass();
+            // Convert Structures to native pointers 
             if (arg instanceof Structure) {
                 Structure struct = (Structure)arg;
                 struct.write();
@@ -224,7 +224,7 @@ public class Function extends Pointer {
             // Convert Callback to Pointer
             else if (arg instanceof Callback) {
                 CallbackReference cbref = 
-                        CallbackReference.getInstance(callingConvention, (Callback) arg);
+                        CallbackReference.getInstance((Callback) arg, callingConvention);
                 // Use pointer to trampoline (callback->insns, see dispatch.h)
                 args[i] = cbref.getTrampoline();
             }
@@ -244,20 +244,63 @@ public class Function extends Pointer {
                 args[i] = new NativeString(arg.toString(), true).getPointer();
             }
             else if (arg instanceof NativeLong) {
-                args[i] = ((NativeLong) arg).asNativeValue();
+                args[i] = ((NativeLong)arg).asNativeValue();
             }
             // Convert boolean to int
-            // NOTE: this is specifically for BOOL on w32; most other
+            // NOTE: this is specifically for BOOL on w32; most other 
             // platforms simply use an 'int' or 'char' argument.
             else if (arg instanceof Boolean) {
                 args[i] = new Integer(Boolean.TRUE.equals(arg) ? -1 : 0);
-            } 
+            }
+			else if (isStructureArray(argClass)) {
+                // Initialize uninitialized arrays of Structure to point
+                // to a single block of memory
+                Structure[] ss = (Structure[])arg;
+                if (ss.length == 0) {
+                    args[i] = null;
+                }
+                else if (ss[0] == null) {
+                    Class type = argClass.getComponentType();
+                    try {
+                        Structure struct = (Structure)type.newInstance(); 
+                        int size = struct.size();
+                        Memory m = new Memory(size * ss.length);
+                        struct.useMemory(m);
+                        Structure[] tmp = struct.toArray(ss.length);
+                        for (int si=0;si < ss.length;si++) {
+                            ss[si] = tmp[si];
+                        }
+                    }
+                    catch(Exception e) {
+                        throw new IllegalArgumentException("Can't instantiate "
+                                                           + type + ": " + e);
+                    }
+                    args[i] = ss[0].getPointer();
+                }
+                else {
+                    Pointer base = ss[0].getPointer();
+                    int size = ss[0].size();
+                    for (int si=1;si < ss.length;si++) {
+                        try {
+                            Pointer p = base.share(size*si, size);
+                            if (ss[si].getPointer().peer != p.peer) {
+                                throw new RuntimeException();
+                            }
+                        }
+                        catch(RuntimeException e) {
+                            String msg = "Structure array elements must use"
+                                + " contiguous memory: " + si;     
+                            throw new IllegalArgumentException(msg);
+                        }
+                    }
+                    args[i] = base;
+                }
+            }
             //
             // Convert Java 1.5+ varargs to C stdargs
             //
-            else if (arg.getClass().isArray() && 
-                    Object.class.isAssignableFrom(arg.getClass().getComponentType()) &&
-                    i == inArgs.length - 1 && fullArgs == null) {
+            else if (argClass.isArray() && i == inArgs.length - 1 &&
+					 fullArgs == null) {
                 Object[] varargs = (Object[]) arg;
                 int fixedCount = inArgs.length - 1;
                 int argCount = fixedCount + varargs.length + 1; // +1 for NULL
@@ -294,52 +337,61 @@ public class Function extends Pointer {
                 throw new IllegalArgumentException("Unsupported array type: " + arg.getClass());
             }
         }
-        
+
         if (returnType==Void.TYPE || returnType==Void.class) {
             invokeVoid(callingConvention, args);
-        } else if (returnType==Boolean.TYPE || returnType==Boolean.class) {
+        }
+        else if (returnType==Boolean.TYPE || returnType==Boolean.class) {
             result = new Boolean(invokeInt(callingConvention, args) != 0);
-        } else if (returnType==Byte.TYPE || returnType==Byte.class) {
+        }
+        else if (returnType==Byte.TYPE || returnType==Byte.class) {
             result = new Byte((byte)invokeInt(callingConvention, args));
-        } else if (returnType==Short.TYPE || returnType==Short.class) {
+        }
+        else if (returnType==Short.TYPE || returnType==Short.class) {
             result = new Short((short)invokeInt(callingConvention, args));
-        } else if (returnType==Integer.TYPE || returnType==Integer.class) {
+        }
+        else if (returnType==Integer.TYPE || returnType==Integer.class) {
             result = new Integer(invokeInt(callingConvention, args));
-        } else if (returnType==Long.TYPE || returnType==Long.class) {
+        }
+        else if (returnType==Long.TYPE || returnType==Long.class) {
             result = new Long(invokeLong(callingConvention, args));
-        } else if (returnType==Float.TYPE || returnType==Float.class) {
+        }
+        else if (returnType==NativeLong.class) {
+            result = new NativeLong(NativeLong.SIZE == 8
+                                    ? invokeLong(callingConvention, args)
+                                    : invokeInt(callingConvention, args));
+        }
+        else if (returnType==Float.TYPE || returnType==Float.class) {
             result = new Float(invokeFloat(callingConvention, args));
-        } else if (returnType==Double.TYPE || returnType==Double.class) {
+        }
+        else if (returnType==Double.TYPE || returnType==Double.class) {
             result = new Double(invokeDouble(callingConvention, args));
-        } else if (returnType==NativeLong.class) {
-            if (NativeLong.SIZE == 4) {
-                result = new NativeLong(invokeInt(callingConvention, args)); 
-            } else {
-                result = new NativeLong(invokeLong(callingConvention, args)); 
-            }
-        } else if (returnType==String.class) {
-            Pointer ptr = invokePointer(callingConvention, args);
-            result = ptr != null ? ptr.getString(0, false) : null;
-        } else if (returnType==WString.class) {
-            Pointer ptr = invokePointer(callingConvention, args);
-            result = ptr != null ? new WString(ptr.getString(0, true)) : null;
-        } else if (Pointer.class.isAssignableFrom(returnType)) {
+        }
+        else if (returnType==String.class) {
+            result = invokeString(args, false);
+        }
+        else if (returnType==WString.class) {
+            result = new WString(invokeString(args, true));
+        }
+        else if (Pointer.class.isAssignableFrom(returnType)) {
             result = invokePointer(callingConvention, args);
-        } else if (Structure.class.isAssignableFrom(returnType)) {
+        }
+        else if (Structure.class.isAssignableFrom(returnType)) {
             result = invokePointer(callingConvention, args);
             try {
-            Structure s = (Structure)returnType.newInstance();
-            s.useMemory((Pointer)result);
-            s.read();
-            result = s;
-            } catch (InstantiationException e) {
-                throw new RuntimeException(e);
-            } catch (IllegalAccessException e) {
-                throw new RuntimeException(e);
+                Structure s = (Structure)returnType.newInstance();
+                s.useMemory((Pointer)result);
+                s.read();
+                result = s;
             }
-        } else {
+            catch(Exception e) {
+                throw new IllegalArgumentException("Can't instantiate "
+                                                   + returnType + ": " + e);
+            }
+        }
+        else {
             throw new IllegalArgumentException("Unsupported return type "
-                    + returnType);
+                                               + returnType);
         }
 
         // Sync java fields in structures to native memory after invocation
@@ -349,6 +401,12 @@ public class Function extends Pointer {
                 if (arg instanceof Structure) {
                     ((Structure)arg).read();
                 }
+				else if (arg != null && isStructureArray(arg.getClass())) {
+                    Structure[] ss = (Structure[])arg;
+                    for (int si=0;si < ss.length;si++) {
+                        ss[si].read();
+                    }
+                }				
             }
         }
         // Return all the temporary buffers to the Buffer pool
@@ -363,7 +421,20 @@ public class Function extends Pointer {
                 pool.put(buf);
             }
         }
+                        
         return result;
+    }
+
+
+    private boolean isStructureArray(Class argClass) {
+        return argClass.isArray()
+            && Structure.class.isAssignableFrom(argClass.getComponentType());
+    }
+
+
+    private boolean isPrimitiveArray(Class argClass) {
+        return argClass.isArray() 
+            && argClass.getComponentType().isPrimitive();
     }
     
     /**
@@ -374,7 +445,7 @@ public class Function extends Pointer {
      * @return	The value returned by the target function
      */
     public int invokeInt(Object[] args) {
-        return ((Integer) invoke(Integer.class, args)).intValue();
+        return ((Integer)invoke(Integer.class, args)).intValue();
     }
 
 
@@ -395,7 +466,7 @@ public class Function extends Pointer {
      * @return	The value returned by the target function
      */
     public long invokeLong(Object[] args) {
-        return ((Long) invoke(Long.class, args)).longValue();
+        return ((Long)invoke(Long.class, args)).longValue();
     }
 
 
@@ -416,7 +487,7 @@ public class Function extends Pointer {
      * @return	The value returned by the target function
      */
     public boolean invokeBoolean(Object[] args) {
-        return invokeInt(args) != 0;
+        return Boolean.TRUE.equals(invoke(Boolean.class, args));
     }
 
 
@@ -447,7 +518,7 @@ public class Function extends Pointer {
      * @return	The value returned by the target native function
      */
     public float invokeFloat(Object[] args) {
-        return ((Float) invoke(Float.class, args)).floatValue();
+        return ((Float)invoke(Float.class, args)).floatValue();
     }
 
 
@@ -468,7 +539,7 @@ public class Function extends Pointer {
      * @return	The value returned by the target native function
      */
     public double invokeDouble(Object[] args) {
-        return ((Double) invoke(Double.class, args)).doubleValue();
+        return ((Double)invoke(Double.class, args)).doubleValue();
     }
 
 
@@ -516,7 +587,7 @@ public class Function extends Pointer {
      * @return	The native pointer returned by the target native function
      */
     public Pointer invokePointer(Object[] args) {
-        return (Pointer) invoke(Pointer.class, args);
+        return (Pointer)invoke(Pointer.class, args);
     }
 
 
@@ -529,16 +600,7 @@ public class Function extends Pointer {
      */
     public native Pointer invokePointer(int callingConvention, Object[] args);
 
-    /**
-     * Find named function in the named library.  Note, this may also be useful
-     * to obtain the pointer to a function and pass it back into native code.
-     * The library name argument should be the full path to the library file,
-     * otherwise the library lookup will use a search algorithm dependent on 
-     * the native shared library loading implementation.
-     */
-    public native long find(String libraryPath, String fname);
-    
     public String toString() {
-        return functionName + "(" + libraryName + ")";
+        return "Function: " + functionName + "(" + library.getName() + ")";
     }
 }

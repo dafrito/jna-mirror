@@ -42,7 +42,6 @@ public abstract class Structure {
     protected static final int CALCULATE_SIZE = -1;
 
     private Pointer memory;
-    private boolean freed;
     private int size = -1;
     private int alignType;
     private int structAlignment;
@@ -51,7 +50,9 @@ public abstract class Structure {
     private Map nativeStrings = new HashMap();
 
     public static int defaultAlignment() {
-        return OS.isWindows() ? ALIGN_MSVC : ALIGN_GNUC;
+        if (OS.isWindows())
+            return ALIGN_MSVC;
+        return ALIGN_GNUC;
     }
 
     protected Structure() {
@@ -86,11 +87,7 @@ public abstract class Structure {
      * memory.
      */
     protected void useMemory(Pointer m, int offset) {
-        if (memory instanceof Memory) {
-            ((Memory)memory).free();
-        }
         this.memory = m.share(offset, size());
-        this.freed = false;
     }
     
     protected Pointer getMemory() {
@@ -110,17 +107,9 @@ public abstract class Structure {
         }
         
         if (size > 0) {
-            if (memory instanceof Memory) {
-                ((Memory)memory).free();
-            }
             memory = new Memory(size);
             this.size = size;
-            this.freed = false;
         }
-    }
-
-    protected void finalize() {
-        free();
     }
 
     public int size() {
@@ -132,20 +121,6 @@ public abstract class Structure {
 
     public void clear() {
         memory.clear(size);
-    }
-
-    /**
-     * Free the memory for the struct. Note, this method is not threadsafe! 
-     */
-    public void free() {
-
-        if (memory instanceof Memory) {
-            ((Memory)memory).free();
-        }
-        // The memory used by the native strings will be reclaimed as
-        // the objects are GC'd
-        nativeStrings.clear();
-        freed = true;
     }
 
     /** Return a {@link Pointer} object to this structure. */
@@ -163,10 +138,6 @@ public abstract class Structure {
      * Reads the fields of the struct from native memory
      */
     public void read() {
-        if (freed) {
-            throw new IllegalStateException("No structure memory is available");
-        }
-
         // Read all fields
         for (Iterator i=structFields.values().iterator();i.hasNext();) {
             StructField f = (StructField)i.next();
@@ -284,7 +255,7 @@ public abstract class Structure {
 
         // Set the value on the field
         try {
-            structField.field.set(this,result);
+            structField.field.set(this, result);
         }
         catch (Exception e) {
             throw new RuntimeException("Exception setting field \""
@@ -297,9 +268,6 @@ public abstract class Structure {
      * Writes the fields of the struct to native memory
      */
     public void write() {
-        if (freed) {
-            throw new IllegalStateException("Memory has been freed");
-        }
         // convenience: allocate memory if it hasn't been already; this
         // allows structures to inline arrays of primitive types and not have
         // to explicitly call allocateMemory in the ctor
@@ -361,7 +329,7 @@ public abstract class Structure {
             memory.setLong(offset, ((Long)value).longValue());
         }
         else if (fieldType == NativeLong.class) {
-            memory.setNativeLong(offset, (NativeLong) value);
+            memory.setNativeLong(offset, ((NativeLong)value));
         }
         else if (fieldType == Float.TYPE || fieldType == Float.class) {
             memory.setFloat(offset, ((Float)value).floatValue());
@@ -419,12 +387,12 @@ public abstract class Structure {
             s.write();
         }
         else if (Callback.class.isAssignableFrom(fieldType)) {
+            Pointer p = null;
             if (value != null) {
-                CallbackReference cbref = CallbackReference.getInstance((Callback) value);
-                memory.setPointer(offset, cbref.getTrampoline());
-            } else {
-                memory.setPointer(offset, null);
+                CallbackReference cbref = CallbackReference.getInstance((Callback)value);
+                p = cbref.getTrampoline();
             }
+            memory.setPointer(offset, p);
         }
         else {
             throw new IllegalArgumentException("Field \"" + structField.name
@@ -530,9 +498,9 @@ public abstract class Structure {
             alignment = size;
         }
         else if (Pointer.class.isAssignableFrom(type)
+                 || Callback.class.isAssignableFrom(type)
                  || WString.class.isAssignableFrom(type)
-                 || String.class.isAssignableFrom(type)
-                 || Callback.class.isAssignableFrom(type)) {
+                 || String.class.isAssignableFrom(type)) {
             alignment = Pointer.SIZE;
         }
         else if (Structure.class.isAssignableFrom(type)) {
@@ -580,7 +548,7 @@ public abstract class Structure {
             return 1;
         }
         else if (Pointer.class.isAssignableFrom(type)
-                || Callback.class.isAssignableFrom(type)) {
+                 || Callback.class.isAssignableFrom(type)) {
             return Pointer.SIZE;
         }
         else if (value instanceof Structure) {
@@ -618,6 +586,7 @@ public abstract class Structure {
             try {
                 array[i] = (Structure)getClass().newInstance();
                 array[i].useMemory(getPointer().share(i*size, size));
+                array[i].read();
             }
             catch (InstantiationException e) {
                 throw new IllegalArgumentException("Error instantiating "

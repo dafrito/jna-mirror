@@ -97,34 +97,12 @@ public class StructureTest extends TestCase {
                      3, s.buffer[0]);
     }
     
-    public static class TestStructure extends Structure {
-        public int value;
-    }
-    public void testToArray() {
-        TestStructure s = new TestStructure();
-        TestStructure[] array = (TestStructure[])s.toArray(new TestStructure[1]);
-        assertEquals("Array should consist of a single element",
-                     1, array.length);
-        assertEquals("First element should be original", s, array[0]);
-        try {
-            s.toArray(2);
-            fail("Should throw exception on attempts to exceed allocated bounds");
-        }
-        catch(IndexOutOfBoundsException e) {
-        }
-    }
-    
     public void testNativeLongSize() throws Exception {
         class TestStructure extends Structure {
             public NativeLong l;
         }
         Structure s = new TestStructure();
-        if (NativeLong.SIZE == 8) {
-            assertEquals("Wrong size", 8, s.size());
-        }
-        else {
-            assertEquals("Wrong size", 4, s.size());
-        }
+        assertEquals("Wrong size", NativeLong.SIZE, s.size());
     }
     
     public void testNativeLongRead() throws Exception {
@@ -164,11 +142,28 @@ public class StructureTest extends TestCase {
             s.l = new NativeLong(MAGIC);
             int i = s.getPointer().getInt(4);
             assertEquals("NativeLong field mismatch", MAGIC, i);
-        }   
+        }
     }
+    
+    public static class TestStructure extends Structure {
+        public int value;
+    }
+    public void testToArray() {
+        TestStructure s = new TestStructure();
+        TestStructure[] array = (TestStructure[])s.toArray(new TestStructure[1]);
+        assertEquals("Array should consist of a single element",
+                     1, array.length);
+        assertEquals("First element should be original", s, array[0]);
+        try {
+            s.toArray(2);
+            fail("Should throw exception on attempts to exceed allocated bounds");
+        }
+        catch(IndexOutOfBoundsException e) {
+        }
+    }
+    
     static class CbStruct extends Structure {
         public Callback cb;
-        int i;
     }
     static interface CbTest extends Library {
         CbTest INSTANCE = (CbTest)
@@ -176,23 +171,29 @@ public class StructureTest extends TestCase {
         public void callCallbackInStruct(CbStruct cbstruct);
     }
     public void testCallbackWrite() {
-        final int MAGIC = 0xABEDCF23;
         final CbStruct s = new CbStruct();
         s.cb = new Callback() {
             public void callback() {
-                s.i = MAGIC;
             }
         };
-        s.i = 0;
         s.write();
         Pointer func = s.getPointer().getPointer(0);
         assertNotNull("Callback trampoline not set", func);
         Map refs = CallbackReference.callbackMap;
-        
         assertTrue("Callback not cached", refs.containsKey(s.cb));
         CallbackReference ref = (CallbackReference)refs.get(s.cb);
-        assertEquals("Callback trampoline not set", ref.getTrampoline(), func);
+        assertEquals("Wrong trampoline", ref.getTrampoline(), func);
+    }
+    
+    public void testCallCallbackInStructure() {
+        final boolean[] flag = {false};
+        final CbStruct s = new CbStruct();
+        s.cb = new Callback() {
+            public void callback() {
+                flag[0] = true;
+            }
+        };
         CbTest.INSTANCE.callCallbackInStruct(s);
-        assertEquals("Callback not invoked", MAGIC, s.i);
+        assertTrue("Callback not invoked", flag[0]);
     }
 }

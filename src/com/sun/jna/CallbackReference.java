@@ -38,7 +38,7 @@ class CallbackReference extends WeakReference {
     public Pointer getTrampoline() {
         return cbstruct.getPointer(0);
     }
-    public static CallbackReference getInstance(int callingConvention, Callback cb) {
+    public static CallbackReference getInstance(Callback cb, int callingConvention) {
         CallbackReference cbref;
         Map map = callingConvention == Function.ALT_CONVENTION ? altCallbackMap : callbackMap;
         synchronized (map) {
@@ -52,13 +52,11 @@ class CallbackReference extends WeakReference {
         }
     }
     public static CallbackReference getInstance(Callback cb) {
-        return getInstance(Function.C_CONVENTION, cb);
-    }
-    public static CallbackReference getInstance(Library lib, Callback cb) {
-        int callingConvention = lib instanceof StdCallLibrary 
+        int callingConvention = cb instanceof AltCallingConvention
                 ? Function.ALT_CONVENTION : Function.C_CONVENTION;
-        return getInstance(callingConvention, cb);
+        return getInstance(cb, callingConvention);
     }
+    
     private static Pointer createCallback(int callingConvention, Callback obj) {
         Method[] mlist = obj.getClass().getMethods();
         for (int i=0;i < mlist.length;i++) {

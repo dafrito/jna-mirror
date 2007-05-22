@@ -36,6 +36,7 @@ public class CallbacksTest extends TestCase {
             int callback(int arg, int arg2);
         }
         int callInt32Callback(Int32Callback c, int arg, int arg2);
+        int callInt32Callback(Callback c, int arg, int arg2);
         interface Int64Callback extends Callback {
             long callback(long arg, long arg2);
         }
@@ -166,6 +167,32 @@ public class CallbacksTest extends TestCase {
         assertEquals("Wrong callback return", -3d, value, 0);
     }
     
+    public void testInt32CallbackProxy() {
+        final int MAGIC = 0x11111111;
+        final boolean[] called = { false };
+        Callback cb = new CallbackProxy() {
+            public Object callback(Object[] args) {
+                called[0] = true;
+                Integer arg = (Integer) args[0];
+                Integer arg2 = (Integer) args[1];
+                return Integer.valueOf(arg.intValue() + arg2.intValue());
+            }
+            public Class[] getParameterTypes() {
+                return new Class[] { Integer.class, Integer.class };
+            }
+            public Class getReturnType() {
+                return Integer.class;
+            }
+        };
+        final int EXPECTED = MAGIC*3;
+        int value = lib.callInt32Callback(cb, MAGIC, MAGIC*2);
+        assertTrue("Callback not called", called[0]);
+        assertEquals("Wrong callback value", Integer.toHexString(EXPECTED), 
+                     Integer.toHexString(value));
+        
+        value = lib.callInt32Callback(cb, -1, -2);
+        assertEquals("Wrong callback return", -3, value);
+    }
     public static void main(java.lang.String[] argList) {
         junit.textui.TestRunner.run(CallbacksTest.class);
     }

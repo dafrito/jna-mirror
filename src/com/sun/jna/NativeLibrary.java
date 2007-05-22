@@ -15,6 +15,7 @@ package com.sun.jna;
 
 import java.io.File;
 import java.io.FilenameFilter;
+import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -30,19 +31,19 @@ import java.util.regex.Pattern;
  * @author Wayne Meissner, split library loading from Funcion.java
  */
 public class NativeLibrary {
-    /* Instance variables */
+
     private long handle;
     private String libraryName;
     private String libraryPath;
+    private final Map functions = new HashMap();
     
-    /* Static variables */
     private static final Map libraries = new HashMap();
-    private static final Map functions = new HashMap();
     private static final Map searchPaths = Collections.synchronizedMap(new HashMap());
     private static final List librarySearchPath = new LinkedList();
-    // Dummy to force it to load the jnidispatch library
+
+    // Dummy to force load of the jnidispatch library
     private static final Pointer NULL = Pointer.NULL;
-    
+
     private NativeLibrary(String libraryName) {
         this.libraryName = libraryName;
         List searchPath = new LinkedList(librarySearchPath);
@@ -56,7 +57,7 @@ public class NativeLibrary {
                 searchPath.addAll(0, customPaths);
             }
         }
-        libraryPath = findLibrary(libraryName, searchPath);
+        libraryPath = findLibraryPath(libraryName, searchPath);
         handle = open(libraryPath);
         //
         // Failed to load the library normally - try to match libfoo.so.*
@@ -75,7 +76,9 @@ public class NativeLibrary {
     /**
      * Returns an instance of NativeLibrary for the specified name.  
      * The library is loaded if not already loaded.  If already loaded, the 
-     * existing instance is returned.
+     * existing instance is returned.<p>
+     * More than one name may map to the same NativeLibrary instance; only
+     * a single instance will be provided for any given unique file path.
      * 
      * @param libraryName The library name to load.
      *      This can be short form (e.g. "c"), 
@@ -84,14 +87,16 @@ public class NativeLibrary {
      */
     public static final NativeLibrary getInstance(String libraryName) {
         synchronized (libraries) {
-            Object val = libraries.get(libraryName);
-            if (val != null) {
-                return (NativeLibrary) val;
+            WeakReference ref = (WeakReference)libraries.get(libraryName);
+            NativeLibrary library = ref != null ? (NativeLibrary)ref.get() : null;
+            if (library == null) {
+                library = new NativeLibrary(libraryName);
+                ref = new WeakReference(library);
+                libraries.put(library.getName(), ref);
+                libraries.put(library.getFile().getAbsolutePath(), ref);
+                libraries.put(library.getFile().getName(), ref);
             }
-            
-            NativeLibrary lib = new NativeLibrary(libraryName);
-            libraries.put(libraryName, lib);
-            return lib;
+            return library;
         }
     }
     
@@ -163,9 +168,17 @@ public class NativeLibrary {
     public String toString() {
         return "Native Library <" + libraryPath + "@" + handle + ">";
     }
+    /** Returns the simple name of this library. */
     public String getName() {
         return libraryName;
     }
+
+    /** Returns the file on disk corresponding to this NativeLibrary instacne. 
+     */
+    public File getFile() {
+        return new File(libraryPath);
+    }
+	
     // Close the library when it is no longer referenced
     protected void finalize() throws Throwable {
         try {
@@ -181,7 +194,7 @@ public class NativeLibrary {
     }
     
     /** Use standard library search paths to find the library. */
-    private static String findLibrary(String libName, List searchPath) {
+    private static String findLibraryPath(String libName, List searchPath) {
         
         //
         // If a full path to the library was specified, don't search for it
@@ -203,16 +216,12 @@ public class NativeLibrary {
             }
         }
         //
-        // Default to returning the maped library name and letting the system
+        // Default to returning the mapped library name and letting the system
         // search for it
         //
         return name;
     }
-    private static String mapLibraryName(String libName) {
-        //
-        // On MacOSX, System.mapLibraryName() returns the .jnilib extension for 
-        // all libs but native libs that JNA needs to load are .dylib
-        //
+    private static String mapLibraryName(String libName) {        
         if (OS.isMac()) {
             //
             // A specific version was requested - use as is for search
@@ -221,6 +230,9 @@ public class NativeLibrary {
                 return libName;
             }
             String name = System.mapLibraryName(libName);
+            // On MacOSX, System.mapLibraryName() returns the .jnilib extension
+            // (the suffix for JNI libraries); ordinarily shared libraries have 
+            // a .dylib suffix
             if (name.endsWith(".jnilib")) {
                 return name.substring(0, name.lastIndexOf(".jnilib")) + ".dylib";
             }
@@ -245,7 +257,6 @@ public class NativeLibrary {
     private static String matchLibrary(final String libName, List searchPath) {
         
         FilenameFilter filter = new FilenameFilter() {
-            int version = 0;
             Pattern p = Pattern.compile("lib" + libName + "\\.so\\.[0-9]+$");
             public boolean accept(File dir, String name) {
                 return p.matcher(name).matches();

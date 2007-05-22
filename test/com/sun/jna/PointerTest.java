@@ -21,17 +21,6 @@ import com.sun.jna.Memory;
 
 public class PointerTest extends TestCase {
     
-    public PointerTest(String testName) {
-        super(testName);
-    }
-
-    protected void setUp() throws Exception {
-        super.setUp();
-    }
-
-    protected void tearDown() throws Exception {
-        super.tearDown();
-    }
     public void testByteBufferPutString() {
         final String MAGIC = "magic";
         Memory m = new Memory(1024);

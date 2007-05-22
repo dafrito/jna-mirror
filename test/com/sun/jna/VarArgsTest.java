@@ -23,23 +23,12 @@ public class VarArgsTest extends TestCase {
         public int addInt32VarArgs(String fmt, Object[] args);
         public String returnStringVarArgs(String fmt, Object[] args);
     }
-    public VarArgsTest(String testName) {
-        super(testName);
-    }
-    
-    protected void setUp() throws Exception {
-        super.setUp();
-    }
-    
-    protected void tearDown() throws Exception {
-        super.tearDown();
-    }
     public void testIntVarArgs() {
         Integer[] args = new Integer[2];
         int arg1 = 1;
         int arg2 = 2;
-        args[0] = Integer.valueOf(arg1);
-        args[1] = Integer.valueOf(arg2);
+        args[0] = new Integer(arg1);
+        args[1] = new Integer(arg2);
         assertEquals("VarArgs not added correctly", arg1 + arg2,
                 TestLibrary.INSTANCE.addInt32VarArgs("dd", args));
     }
@@ -47,12 +36,12 @@ public class VarArgsTest extends TestCase {
         Object[] args = new Short[2];
         short arg1 = 1;
         short arg2 = 2;
-        args[0] = Short.valueOf(arg1);
-        args[1] = Short.valueOf(arg2);
+        args[0] = new Short(arg1);
+        args[1] = new Short(arg2);
         assertEquals("VarArgs not added correctly", arg1 + arg2,
                 TestLibrary.INSTANCE.addInt32VarArgs("dd", args));
     }
-    public void testLongtVarArgs() {
+    public void testLongVarArgs() {
         Object[] args = new Object[2];
         short arg1 = 1;
         short arg2 = 2;

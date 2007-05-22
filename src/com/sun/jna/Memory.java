@@ -10,6 +10,8 @@
  */
 package com.sun.jna;
 
+import java.nio.ByteBuffer;
+
 
 /**
  * A <code>Pointer</code> to memory obtained from the native heap via a 
@@ -37,15 +39,14 @@ public class Memory extends Pointer {
 
     protected int size; // Size of the malloc'ed space
 
-    // TODO: keep track of passed-out references and invalidate them
-    // when memory is freed
+    /** Provide a view into the original memory. */
     private class SharedMemory extends Memory {
         public SharedMemory(int offset) {
             this.size = Memory.this.size - offset;
             this.peer = Memory.this.peer + offset;
         }
-        /** Have to free the master, not the view. */
-        public void free() { }
+        /** No need to free memory. */
+        protected void finalize() { } 
     }
     
     /**
@@ -53,7 +54,6 @@ public class Memory extends Pointer {
      *
      * @param size number of <em>bytes</em> of space to allocate
      */
-    // TODO: any reason to have this be public at all?
     public Memory(int size) {
         this.size = size;
         peer = malloc(size);
@@ -63,22 +63,16 @@ public class Memory extends Pointer {
 
     protected Memory() { }
 
-    /** Provide a view onto this structure from the given offset. */
+    /** Provide a view onto this structure from the given offset. 
+     * @throws IndexOutOfBoundsException if the requested memory is outside
+     * the allocated bounds. 
+     */
     Pointer share(int offset, int sz) {
         boundsCheck(offset, sz);
         return new SharedMemory(offset);
     }
     
     protected void finalize() {
-        free();
-    }
-
-
-    /**
-     * De-allocate space obtained via an earlier call to <code>malloc</code>.
-     */
-    // TODO: any reason for this to be public?
-    public void free() {
         if (peer != 0) {
             free(peer);
             peer = 0;
@@ -440,6 +434,17 @@ public class Memory extends Pointer {
         return super.getPointer(offset);
     }
 
+    /**
+     * Get a ByteBuffer mapped to a portion of this memory.
+     *
+     * @param offset byte offset from pointer to start the buffer
+     * @param length Length of ByteBuffer
+     * @return a direct ByteBuffer that accesses the memory being pointed to, 
+     */
+    public ByteBuffer getByteBuffer(int offset, int length) {
+        boundsCheck(offset, length);
+        return super.getByteBuffer(offset, length);
+    }
 
     /**
      * Indirect the native pointer to <code>malloc</code> space, a la
