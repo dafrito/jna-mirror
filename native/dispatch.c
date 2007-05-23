@@ -56,20 +56,20 @@ extern "C"
 #endif
 
 /* Cached class, field and method IDs */
-jclass classObject;
-jclass classClass;
-jclass classMethod;
-jclass classBoolean, classPrimitiveBoolean;
-jclass classByte, classPrimitiveByte;
-jclass classCharacter, classPrimitiveCharacter;
-jclass classShort, classPrimitiveShort;
-jclass classInteger, classPrimitiveInteger;
-jclass classLong, classPrimitiveLong;
-jclass classFloat, classPrimitiveFloat;
-jclass classDouble, classPrimitiveDouble;
-jclass classString;
-jclass classPointer;
-jclass classByteBuffer;
+jclass classObject = 0;
+jclass classClass = 0;
+jclass classMethod = 0;
+jclass classBoolean = 0, classPrimitiveBoolean = 0;
+jclass classByte = 0, classPrimitiveByte = 0;
+jclass classCharacter = 0, classPrimitiveCharacter = 0;
+jclass classShort = 0, classPrimitiveShort = 0;
+jclass classInteger = 0, classPrimitiveInteger = 0;
+jclass classLong = 0, classPrimitiveLong = 0;
+jclass classFloat = 0, classPrimitiveFloat = 0;
+jclass classDouble = 0, classPrimitiveDouble = 0;
+jclass classString = 0;
+jclass classPointer = 0;
+jclass classByteBuffer = 0;
 
 static jmethodID MID_getClass;
 static jmethodID MID_Class_getComponentType;
@@ -80,14 +80,14 @@ static jmethodID MID_Pointer_init;
 static jmethodID MID_Method_getReturnType;
 static jmethodID MID_Method_getParameterTypes;
 
-jfieldID FID_Byte_value;
-jfieldID FID_Short_value;
-jfieldID FID_Integer_value;
-jfieldID FID_Long_value;
-jfieldID FID_Float_value;
-jfieldID FID_Double_value;
-jfieldID FID_Boolean_value;
-jfieldID FID_Pointer_peer;
+jfieldID FID_Byte_value = 0;
+jfieldID FID_Short_value = 0;
+jfieldID FID_Integer_value = 0;
+jfieldID FID_Long_value = 0;
+jfieldID FID_Float_value = 0;
+jfieldID FID_Double_value = 0;
+jfieldID FID_Boolean_value = 0;
+jfieldID FID_Pointer_peer = 0;
 
 /* Forward declarations */
 static char* newCString(JNIEnv *env, jstring jstr);
