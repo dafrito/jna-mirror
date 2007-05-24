@@ -56,20 +56,20 @@ extern "C"
 #endif
 
 /* Cached class, field and method IDs */
-jclass classObject = 0;
-jclass classClass = 0;
-jclass classMethod = 0;
-jclass classBoolean = 0, classPrimitiveBoolean = 0;
-jclass classByte = 0, classPrimitiveByte = 0;
-jclass classCharacter = 0, classPrimitiveCharacter = 0;
-jclass classShort = 0, classPrimitiveShort = 0;
-jclass classInteger = 0, classPrimitiveInteger = 0;
-jclass classLong = 0, classPrimitiveLong = 0;
-jclass classFloat = 0, classPrimitiveFloat = 0;
-jclass classDouble = 0, classPrimitiveDouble = 0;
-jclass classString = 0;
-jclass classPointer = 0;
-jclass classByteBuffer = 0;
+static jclass classObject;
+static jclass classClass;
+static jclass classMethod;
+static jclass classBoolean, classPrimitiveBoolean;
+static jclass classByte, classPrimitiveByte;
+static jclass classCharacter, classPrimitiveCharacter;
+static jclass classShort, classPrimitiveShort;
+static jclass classInteger, classPrimitiveInteger;
+static jclass classLong, classPrimitiveLong;
+static jclass classFloat, classPrimitiveFloat;
+static jclass classDouble, classPrimitiveDouble;
+static jclass classString;
+static jclass classPointer;
+static jclass classByteBuffer;
 
 static jmethodID MID_getClass;
 static jmethodID MID_Class_getComponentType;
@@ -80,14 +80,14 @@ static jmethodID MID_Pointer_init;
 static jmethodID MID_Method_getReturnType;
 static jmethodID MID_Method_getParameterTypes;
 
-jfieldID FID_Byte_value = 0;
-jfieldID FID_Short_value = 0;
-jfieldID FID_Integer_value = 0;
-jfieldID FID_Long_value = 0;
-jfieldID FID_Float_value = 0;
-jfieldID FID_Double_value = 0;
-jfieldID FID_Boolean_value = 0;
-jfieldID FID_Pointer_peer = 0;
+static jfieldID FID_Byte_value;
+static jfieldID FID_Short_value;
+static jfieldID FID_Integer_value;
+static jfieldID FID_Long_value;
+static jfieldID FID_Float_value;
+static jfieldID FID_Double_value;
+static jfieldID FID_Boolean_value;
+static jfieldID FID_Pointer_peer;
 
 /* Forward declarations */
 static char* newCString(JNIEnv *env, jstring jstr);
@@ -473,66 +473,6 @@ JNIEXPORT jlong JNICALL Java_com_sun_jna_NativeLibrary_findSymbol(JNIEnv *env,
 JNIEXPORT jint JNICALL 
 Java_com_sun_jna_Pointer_initIDs(JNIEnv *env, jclass cls)
 {
-    if (!LOAD_CREF(env, Object, "java/lang/Object")) return 0;
-    if (!LOAD_CREF(env, Class, "java/lang/Class")) return 0;
-    if (!LOAD_CREF(env, Method, "java/lang/reflect/Method")) return 0;
-    if (!LOAD_CREF(env, String, "java/lang/String")) return 0;
-    if (!LOAD_CREF(env, ByteBuffer, "java/nio/ByteBuffer")) return 0;
-
-    classPointer = cls;
-    if (!LOAD_REF(env, classPointer)) return 0;
-
-    if (!LOAD_PCREF(env, Boolean, "java/lang/Boolean")) return 0;
-    if (!LOAD_PCREF(env, Byte, "java/lang/Byte")) return 0;
-    if (!LOAD_PCREF(env, Character, "java/lang/Character")) return 0;
-    if (!LOAD_PCREF(env, Short, "java/lang/Short")) return 0;
-    if (!LOAD_PCREF(env, Integer, "java/lang/Integer")) return 0;
-    if (!LOAD_PCREF(env, Long, "java/lang/Long")) return 0;
-    if (!LOAD_PCREF(env, Float, "java/lang/Float")) return 0;
-    if (!LOAD_PCREF(env, Double, "java/lang/Double")) return 0;
-
-    if (!LOAD_MID(env, MID_Pointer_init, classPointer,
-                  "<init>", "(J)V"))
-      return 0;
-    if (!LOAD_MID(env, MID_getClass, classObject,
-                  "getClass", "()Ljava/lang/Class;"))
-      return 0;
-    if (!LOAD_MID(env, MID_Class_getComponentType, classClass,
-                  "getComponentType", "()Ljava/lang/Class;"))
-      return 0;
-    if (!LOAD_MID(env, MID_String_getBytes, classString,
-                  "getBytes", "()[B"))
-      return 0;
-    if (!LOAD_MID(env, MID_String_toCharArray, classString,
-                  "toCharArray", "()[C"))
-      return 0;
-    if (!LOAD_MID(env, MID_String_init_bytes, classString,
-                  "<init>", "([B)V"))
-      return 0;
-    if (!LOAD_MID(env, MID_Method_getParameterTypes, classMethod,
-                  "getParameterTypes", "()[Ljava/lang/Class;"))
-      return 0;
-    if (!LOAD_MID(env, MID_Method_getReturnType, classMethod,
-                  "getReturnType", "()Ljava/lang/Class;"))
-      return 0;
-
-    if (!LOAD_FID(env, FID_Byte_value, classByte, "value", "B"))
-      return 0;
-    if (!LOAD_FID(env, FID_Short_value, classShort, "value", "S"))
-      return 0;
-    if (!LOAD_FID(env, FID_Integer_value, classInteger, "value", "I"))
-      return 0;
-    if (!LOAD_FID(env, FID_Long_value, classLong, "value", "J"))
-      return 0;
-    if (!LOAD_FID(env, FID_Float_value, classFloat, "value", "F"))
-      return 0;
-    if (!LOAD_FID(env, FID_Double_value, classDouble, "value", "D"))
-      return 0;
-    if (!LOAD_FID(env, FID_Boolean_value, classBoolean, "value", "Z"))
-      return 0;
-    if (!LOAD_FID(env, FID_Pointer_peer, classPointer, "peer", "J"))
-      return 0;
-
     return sizeof(void *);
 }
 
@@ -1325,6 +1265,90 @@ init_jawt(JNIEnv* env) {
 #endif // NEED_JAWT_HACK
 
   return JNI_TRUE;
+}
+
+static int 
+jnidispatch_init(JavaVM* jvm) {
+    int attached;
+    JNIEnv* env;
+    attached = (*jvm)->GetEnv(jvm, (void *)&env, JNI_VERSION_1_4) == JNI_OK;
+    if (!attached) {
+        if ((*jvm)->AttachCurrentThread(jvm, (void *)&env, NULL) != JNI_OK) {
+          fprintf(stderr, "Can't attach to current thread\n");
+          return 0;
+        }
+    }
+    
+    if (!LOAD_CREF(env, Object, "java/lang/Object")) return 0;
+    if (!LOAD_CREF(env, Class, "java/lang/Class")) return 0;
+    if (!LOAD_CREF(env, Method, "java/lang/reflect/Method")) return 0;
+    if (!LOAD_CREF(env, String, "java/lang/String")) return 0;
+    if (!LOAD_CREF(env, ByteBuffer, "java/nio/ByteBuffer")) return 0;
+
+    if (!LOAD_CREF(env, Pointer, "com/sun/jna/Pointer")) return 0;
+
+    if (!LOAD_PCREF(env, Boolean, "java/lang/Boolean")) return 0;
+    if (!LOAD_PCREF(env, Byte, "java/lang/Byte")) return 0;
+    if (!LOAD_PCREF(env, Character, "java/lang/Character")) return 0;
+    if (!LOAD_PCREF(env, Short, "java/lang/Short")) return 0;
+    if (!LOAD_PCREF(env, Integer, "java/lang/Integer")) return 0;
+    if (!LOAD_PCREF(env, Long, "java/lang/Long")) return 0;
+    if (!LOAD_PCREF(env, Float, "java/lang/Float")) return 0;
+    if (!LOAD_PCREF(env, Double, "java/lang/Double")) return 0;
+
+    if (!LOAD_MID(env, MID_Pointer_init, classPointer,
+                  "<init>", "(J)V"))
+      return 0;
+    if (!LOAD_MID(env, MID_getClass, classObject,
+                  "getClass", "()Ljava/lang/Class;"))
+      return 0;
+    if (!LOAD_MID(env, MID_Class_getComponentType, classClass,
+                  "getComponentType", "()Ljava/lang/Class;"))
+      return 0;
+    if (!LOAD_MID(env, MID_String_getBytes, classString,
+                  "getBytes", "()[B"))
+      return 0;
+    if (!LOAD_MID(env, MID_String_toCharArray, classString,
+                  "toCharArray", "()[C"))
+      return 0;
+    if (!LOAD_MID(env, MID_String_init_bytes, classString,
+                  "<init>", "([B)V"))
+      return 0;
+    if (!LOAD_MID(env, MID_Method_getParameterTypes, classMethod,
+                  "getParameterTypes", "()[Ljava/lang/Class;"))
+      return 0;
+    if (!LOAD_MID(env, MID_Method_getReturnType, classMethod,
+                  "getReturnType", "()Ljava/lang/Class;"))
+      return 0;
+
+    if (!LOAD_FID(env, FID_Byte_value, classByte, "value", "B"))
+      return 0;
+    if (!LOAD_FID(env, FID_Short_value, classShort, "value", "S"))
+      return 0;
+    if (!LOAD_FID(env, FID_Integer_value, classInteger, "value", "I"))
+      return 0;
+    if (!LOAD_FID(env, FID_Long_value, classLong, "value", "J"))
+      return 0;
+    if (!LOAD_FID(env, FID_Float_value, classFloat, "value", "F"))
+      return 0;
+    if (!LOAD_FID(env, FID_Double_value, classDouble, "value", "D"))
+      return 0;
+    if (!LOAD_FID(env, FID_Boolean_value, classBoolean, "value", "Z"))
+      return 0;
+    if (!LOAD_FID(env, FID_Pointer_peer, classPointer, "peer", "J"))
+      return 0;
+
+    if (!attached) {
+        (*jvm)->DetachCurrentThread(jvm);
+    }
+    return JNI_TRUE;
+}
+
+jint 
+JNI_OnLoad(JavaVM *vm, void *reserved) {
+  jnidispatch_init(vm);
+  jnidispatch_callback_init(vm);
+  return JNI_VERSION_1_4;
 }
 
 #ifdef __cplusplus

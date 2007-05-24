@@ -55,31 +55,6 @@ typedef struct _callback {
   int is_proxy;
 } callback;
 
-extern jclass classObject;
-extern jclass classClass;
-extern jclass classMethod;
-extern jclass classBoolean, classPrimitiveBoolean;
-extern jclass classByte, classPrimitiveByte;
-extern jclass classCharacter, classPrimitiveCharacter;
-extern jclass classShort, classPrimitiveShort;
-extern jclass classInteger, classPrimitiveInteger;
-extern jclass classLong, classPrimitiveLong;
-extern jclass classFloat, classPrimitiveFloat;
-extern jclass classDouble, classPrimitiveDouble;
-extern jclass classVoid, classPrimitiveVoid;
-extern jclass classString;
-extern jclass classPointer;
-extern jclass classByteBuffer;
-
-extern jfieldID FID_Byte_value;
-extern jfieldID FID_Short_value;
-extern jfieldID FID_Integer_value;
-extern jfieldID FID_Long_value;
-extern jfieldID FID_Float_value;
-extern jfieldID FID_Double_value;
-extern jfieldID FID_Boolean_value;
-extern jfieldID FID_Pointer_peer;
-
 #if defined(SOLARIS2) || defined(__GNUC__)
 #define L2A(X) ((void *)(unsigned long)(X))
 #define A2L(X) ((jlong)(unsigned long)(X))
@@ -120,6 +95,7 @@ extern jfieldID FID_Pointer_peer;
 extern void throwByName(JNIEnv *env, const char *name, const char *msg);
 extern jobject newJavaPointer(JNIEnv *, void *);
 extern char get_jtype(JNIEnv*, jclass);
+extern int jnidispatch_callback_init(JavaVM *);
 
 #ifdef __cplusplus
 }

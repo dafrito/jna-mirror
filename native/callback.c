@@ -23,6 +23,49 @@ static void free_closure(ffi_closure *closure);
 static callback* create_callback(JNIEnv*, jobject, jobject,
                                  jobjectArray, jclass, jint);
 static void free_callback(JNIEnv*, callback*);
+
+static jclass classObject;
+static jclass classClass;
+static jclass classMethod;
+static jclass classBoolean, classPrimitiveBoolean;
+static jclass classByte, classPrimitiveByte;
+static jclass classCharacter, classPrimitiveCharacter;
+static jclass classShort, classPrimitiveShort;
+static jclass classInteger, classPrimitiveInteger;
+static jclass classLong, classPrimitiveLong;
+static jclass classFloat, classPrimitiveFloat;
+static jclass classDouble, classPrimitiveDouble;
+static jclass classString;
+static jclass classPointer;
+static jclass classByteBuffer;
+static jclass classCallbackProxy;
+
+static jmethodID MID_getClass;
+static jmethodID MID_Class_getComponentType;
+static jmethodID MID_String_getBytes;
+static jmethodID MID_String_toCharArray;
+static jmethodID MID_String_init_bytes;
+static jmethodID MID_Pointer_init;
+static jmethodID MID_Method_getReturnType;
+static jmethodID MID_Method_getParameterTypes;
+static jmethodID MID_Boolean_init;
+static jmethodID MID_Byte_init;
+static jmethodID MID_Character_init;
+static jmethodID MID_Short_init;
+static jmethodID MID_Integer_init;
+static jmethodID MID_Long_init;
+static jmethodID MID_Float_init;
+static jmethodID MID_Double_init;
+
+static jfieldID FID_Byte_value;
+static jfieldID FID_Short_value;
+static jfieldID FID_Integer_value;
+static jfieldID FID_Long_value;
+static jfieldID FID_Float_value;
+static jfieldID FID_Double_value;
+static jfieldID FID_Boolean_value;
+static jfieldID FID_Pointer_peer;
+
 /*
  * Class:     com_sun_jna_CallbackReference
  * Method:    createNativeCallback
@@ -75,8 +118,7 @@ create_callback(JNIEnv* env, jobject obj, jobject method,
   cb->vm = vm;
   cb->return_type = return_type;
   cb->return_jtype = get_jtype(env, return_type);
-  jclass cls = (*env)->FindClass(env, "com/sun/jna/CallbackProxy");
-  cb->is_proxy = (*env)->IsInstanceOf(env, obj, cls);
+  cb->is_proxy = (*env)->IsInstanceOf(env, obj, classCallbackProxy);
  
   for (i=0;i < argc;i++) {
     jclass cls = (*env)->GetObjectArrayElement(env, param_types, i);
@@ -90,39 +132,39 @@ create_callback(JNIEnv* env, jobject obj, jobject method,
         switch(cb->param_jtypes[i]) {
         case 'Z':
           cb->param_classes[i] = classBoolean;
-          cb->param_constructors[i] = (*env)->GetMethodID(env, cb->param_classes[i], "<init>", "(Z)V");
+          cb->param_constructors[i] = MID_Boolean_init;
           break;
         case 'B':
           cb->param_classes[i] = classByte;
-          cb->param_constructors[i] = (*env)->GetMethodID(env, cb->param_classes[i], "<init>", "(B)V");
+          cb->param_constructors[i] = MID_Byte_init;
           break;
         case 'C':
-          cb->param_classes[i] = (*env)->FindClass(env, "java/lang/Char");
-          cb->param_constructors[i] = (*env)->GetMethodID(env, cb->param_classes[i], "<init>", "(C)V");
+          cb->param_classes[i] = classCharacter;
+          cb->param_constructors[i] = MID_Character_init;
           break;
         case 'S':
           cb->param_classes[i] = classShort;
-          cb->param_constructors[i] = (*env)->GetMethodID(env, cb->param_classes[i], "<init>", "(S)V");
+          cb->param_constructors[i] = MID_Short_init;
           break;
         case 'I':
           cb->param_classes[i] = classInteger;
-          cb->param_constructors[i] = (*env)->GetMethodID(env, cb->param_classes[i], "<init>", "(I)V");
+          cb->param_constructors[i] = MID_Integer_init;
           break;
         case 'J':
           cb->param_classes[i] = classLong;
-          cb->param_constructors[i] = (*env)->GetMethodID(env, cb->param_classes[i], "<init>", "(J)V");
+          cb->param_constructors[i] = MID_Long_init;
           break;
         case 'F':
           cb->param_classes[i] = classFloat;
-          cb->param_constructors[i] = (*env)->GetMethodID(env, cb->param_classes[i], "<init>", "(F)V");
+          cb->param_constructors[i] = MID_Float_init;
           break;
         case 'D':
           cb->param_classes[i] = classDouble;
-          cb->param_constructors[i] = (*env)->GetMethodID(env, cb->param_classes[i], "<init>", "(D)V");
+          cb->param_constructors[i] = MID_Double_init;
           break;
         case 'L':
           cb->param_classes[i] = classPointer;
-          cb->param_constructors[i] = (*env)->GetMethodID(env, cb->param_classes[i], "<init>", "(J)V");
+          cb->param_constructors[i] = MID_Pointer_init;
           break;
         }
     }
@@ -270,8 +312,7 @@ callback_proxy_dispatch(ffi_cif* cif, void* resp, void** cbargs, void* user_data
         }
     }
 
-    jclass cls = (*env)->FindClass(env, "java/lang/Object");
-    jobjectArray array = (*env)->NewObjectArray(env, cif->nargs, cls, NULL);
+    jobjectArray array = (*env)->NewObjectArray(env, cif->nargs, classObject, NULL);
     for (i=0;i < cif->nargs;i++) {
       jobject obj = 0;
       jvalue jarg;
@@ -357,6 +398,92 @@ callback_proxy_dispatch(ffi_cif* cif, void* resp, void** cbargs, void* user_data
     }
 }
 
+int 
+jnidispatch_callback_init(JavaVM* jvm) {
+    int attached;
+    JNIEnv* env;
+    attached = (*jvm)->GetEnv(jvm, (void *)&env, JNI_VERSION_1_4) == JNI_OK;
+    if (!attached) {
+        if ((*jvm)->AttachCurrentThread(jvm, (void *)&env, NULL) != JNI_OK) {
+          fprintf(stderr, "Can't attach to current thread\n");
+          return 0;
+        }
+    }
+
+    if (!LOAD_CREF(env, Object, "java/lang/Object")) return 0;
+    if (!LOAD_CREF(env, Class, "java/lang/Class")) return 0;
+    if (!LOAD_CREF(env, Method, "java/lang/reflect/Method")) return 0;
+    if (!LOAD_CREF(env, String, "java/lang/String")) return 0;
+    if (!LOAD_CREF(env, ByteBuffer, "java/nio/ByteBuffer")) return 0;
+
+    if (!LOAD_CREF(env, Pointer, "com/sun/jna/Pointer")) return 0;
+    if (!LOAD_CREF(env, CallbackProxy, "com/sun/jna/CallbackProxy")) return 0;
+
+    if (!LOAD_PCREF(env, Boolean, "java/lang/Boolean")) return 0;
+    if (!LOAD_PCREF(env, Byte, "java/lang/Byte")) return 0;
+    if (!LOAD_PCREF(env, Character, "java/lang/Character")) return 0;
+    if (!LOAD_PCREF(env, Short, "java/lang/Short")) return 0;
+    if (!LOAD_PCREF(env, Integer, "java/lang/Integer")) return 0;
+    if (!LOAD_PCREF(env, Long, "java/lang/Long")) return 0;
+    if (!LOAD_PCREF(env, Float, "java/lang/Float")) return 0;
+    if (!LOAD_PCREF(env, Double, "java/lang/Double")) return 0;
+
+    if (!LOAD_MID(env, MID_Pointer_init, classPointer,
+                  "<init>", "(J)V"))
+      return 0;
+    if (!LOAD_MID(env, MID_getClass, classObject,
+                  "getClass", "()Ljava/lang/Class;"))
+      return 0;
+    if (!LOAD_MID(env, MID_Class_getComponentType, classClass,
+                  "getComponentType", "()Ljava/lang/Class;"))
+      return 0;
+    if (!LOAD_MID(env, MID_String_getBytes, classString,
+                  "getBytes", "()[B"))
+      return 0;
+    if (!LOAD_MID(env, MID_String_toCharArray, classString,
+                  "toCharArray", "()[C"))
+      return 0;
+    if (!LOAD_MID(env, MID_String_init_bytes, classString,
+                  "<init>", "([B)V"))
+      return 0;
+    if (!LOAD_MID(env, MID_Method_getParameterTypes, classMethod,
+                  "getParameterTypes", "()[Ljava/lang/Class;"))
+      return 0;
+    if (!LOAD_MID(env, MID_Method_getReturnType, classMethod,
+                  "getReturnType", "()Ljava/lang/Class;"))
+      return 0;
+
+    if (!LOAD_MID(env, MID_Boolean_init, classBoolean, "<init>", "(Z)V")) return 0;
+    if (!LOAD_MID(env, MID_Byte_init, classByte, "<init>", "(B)V")) return 0;
+    if (!LOAD_MID(env, MID_Character_init, classCharacter, "<init>", "(C)V")) return 0;
+    if (!LOAD_MID(env, MID_Short_init, classShort, "<init>", "(S)V")) return 0;
+    if (!LOAD_MID(env, MID_Integer_init, classInteger, "<init>", "(I)V")) return 0;
+    if (!LOAD_MID(env, MID_Long_init, classLong, "<init>", "(J)V")) return 0;
+    if (!LOAD_MID(env, MID_Float_init, classFloat, "<init>", "(F)V")) return 0;
+    if (!LOAD_MID(env, MID_Double_init, classDouble, "<init>", "(D)V")) return 0;
+    
+    if (!LOAD_FID(env, FID_Byte_value, classByte, "value", "B"))
+      return 0;
+    if (!LOAD_FID(env, FID_Short_value, classShort, "value", "S"))
+      return 0;
+    if (!LOAD_FID(env, FID_Integer_value, classInteger, "value", "I"))
+      return 0;
+    if (!LOAD_FID(env, FID_Long_value, classLong, "value", "J"))
+      return 0;
+    if (!LOAD_FID(env, FID_Float_value, classFloat, "value", "F"))
+      return 0;
+    if (!LOAD_FID(env, FID_Double_value, classDouble, "value", "D"))
+      return 0;
+    if (!LOAD_FID(env, FID_Boolean_value, classBoolean, "value", "Z"))
+      return 0;
+    if (!LOAD_FID(env, FID_Pointer_peer, classPointer, "peer", "J"))
+      return 0;
+
+    if (!attached) {
+        (*jvm)->DetachCurrentThread(jvm);
+    }
+    return JNI_TRUE;
+}
 #if defined(__linux__) && defined(__LP64__)
 static ffi_closure*
 alloc_closure()
