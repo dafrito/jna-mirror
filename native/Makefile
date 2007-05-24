@@ -14,7 +14,7 @@
 #   to target i386 on OSX/PPC, do 
 #     make ARCH=i386
 OS=$(shell uname | sed -e 's/CYGWIN.*/win32/g' \
-                        -e 's/SunOS.*/sparc/g' \
+                        -e 's/SunOS.*/solaris/g' \
                         -e 's/Darwin.*/darwin/g' \
                         -e 's/Linux.*/linux/g')
 
@@ -104,7 +104,7 @@ LIBS=
 endif
 
 # FIXME untested
-ifeq ($(OS),sparc)
+ifeq ($(OS),solaris)
 ARCH=sparc
 # Avoid 1.5/1.6 bug linking directly to -ljawt
 CDEFINES+=-DNEED_JAWT_HACK -fPIC
