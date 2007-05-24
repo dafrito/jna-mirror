@@ -108,6 +108,7 @@ ifeq ($(OS),solaris)
 ARCH=sparc
 # Avoid 1.5/1.6 bug linking directly to -ljawt
 CDEFINES+=-DNEED_JAWT_HACK -fPIC
+LDFLAGS=-o $@ -G -Wl,-soname,$@ 
 LIBS=
 endif
 
