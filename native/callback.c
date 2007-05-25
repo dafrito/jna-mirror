@@ -5,8 +5,14 @@
 #include <jni.h>
 #include <ffi.h>
 
-#ifdef __linux__
+#if defined(__linux__)
+#  include <sys/types.h>
+#  include <sys/param.h>
+#  include <sys/user.h> /* for PAGE_SIZE */
 #  include <sys/mman.h>
+#  include <sys/queue.h>
+#  include <pthread.h>
+#  define MMAP_CLOSURE
 #endif
 #include "dispatch.h"
 #include "com_sun_jna_CallbackReference.h"
@@ -18,8 +24,8 @@ extern "C" {
 static ffi_type *get_ffi_type(char jtype);
 static void callback_dispatch(ffi_cif*, void*, void**, void*);
 static void callback_proxy_dispatch(ffi_cif*, void*, void**, void*);
-static ffi_closure* alloc_closure();
-static void free_closure(ffi_closure *closure);
+static ffi_closure* alloc_closure(JNIEnv *env);
+static void free_closure(JNIEnv* env, ffi_closure *closure);
 static callback* create_callback(JNIEnv*, jobject, jobject,
                                  jobjectArray, jclass, jint);
 static void free_callback(JNIEnv*, callback*);
@@ -66,6 +72,10 @@ static jfieldID FID_Double_value;
 static jfieldID FID_Boolean_value;
 static jfieldID FID_Pointer_peer;
 
+#ifdef MMAP_CLOSURE
+static pthread_mutex_t closure_lock;
+static LIST_HEAD(closure_list, closure) closure_list;
+#endif
 /*
  * Class:     com_sun_jna_CallbackReference
  * Method:    createNativeCallback
@@ -112,7 +122,7 @@ create_callback(JNIEnv* env, jobject obj, jobject method,
   }
   argc = (*env)->GetArrayLength(env, param_types);
   cb = (callback *)malloc(sizeof(callback));
-  cb->ffi_closure = alloc_closure();
+  cb->ffi_closure = alloc_closure(env);
   cb->object = (*env)->NewWeakGlobalRef(env, obj);
   cb->methodID = (*env)->FromReflectedMethod(env, method);
   cb->vm = vm;
@@ -186,7 +196,7 @@ create_callback(JNIEnv* env, jobject obj, jobject method,
 void 
 free_callback(JNIEnv* env, callback *cb) {
   (*env)->DeleteWeakGlobalRef(env, cb->object);
-  free_closure(cb->ffi_closure);
+  free_closure(env, cb->ffi_closure);
   free(cb);
 }
 
@@ -479,33 +489,69 @@ jnidispatch_callback_init(JavaVM* jvm) {
     if (!LOAD_FID(env, FID_Pointer_peer, classPointer, "peer", "J"))
       return 0;
 
+#ifdef MMAP_CLOSURE
+    /*
+     * Create the lock for the mmap arena
+     */
+    pthread_mutex_init(&closure_lock, NULL);
+    LIST_INIT(&closure_list);
+#endif
     if (!attached) {
         (*jvm)->DetachCurrentThread(jvm);
     }
     return JNI_TRUE;
 }
-#if defined(__linux__) && defined(__LP64__)
+
+#ifdef MMAP_CLOSURE
+typedef struct closure {
+    LIST_ENTRY(closure) list;
+} closure;
+
 static ffi_closure*
-alloc_closure()
+alloc_closure(JNIEnv* env)
 {
-    void* mem = mmap(0, sizeof(ffi_closure),
-        PROT_EXEC | PROT_READ | PROT_WRITE,
-	MAP_ANON | MAP_PRIVATE, -1, 0);
-    return (ffi_closure*)mem;
+    closure* closure = NULL;
+    pthread_mutex_lock(&closure_lock);
+    closure = closure_list.lh_first;
+    if (closure != NULL) {
+        LIST_REMOVE(closure, list);
+    } else {
+        /*
+         * Get a new page from the kernel and divvy that up
+         */
+        int clsize = roundup(sizeof(ffi_closure), sizeof(void *));
+        int i;
+        caddr_t ptr = mmap(0, PAGE_SIZE,
+            PROT_EXEC | PROT_READ | PROT_WRITE,
+            MAP_ANON | MAP_PRIVATE, -1, 0);
+            
+        for (i = 0; ptr != NULL && i <= (PAGE_SIZE - clsize); i += clsize) {
+            closure = (struct closure *)(ptr + i);
+            LIST_INSERT_HEAD(&closure_list, closure, list);            
+        }
+        closure = closure_list.lh_first;
+        LIST_REMOVE(closure, list);
+    }
+    pthread_mutex_unlock(&closure_lock);
+    return (ffi_closure *)closure;
 }
+
 static void
-free_closure(ffi_closure *closure) 
+free_closure(JNIEnv* env, ffi_closure *ffi_closure) 
 {
-    munmap(closure, sizeof(ffi_closure));
+    pthread_mutex_lock(&closure_lock);    
+    LIST_INSERT_HEAD(&closure_list, (closure*)ffi_closure, list);
+    pthread_mutex_unlock(&closure_lock);
+    
 }
 #else
 static ffi_closure*
-alloc_closure()
+alloc_closure(JNIEnv* env)
 {
   return (ffi_closure *)calloc(1, sizeof(ffi_closure));
 }
 static void
-free_closure(ffi_closure *closure) 
+free_closure(JNIEnv* env, ffi_closure *closure) 
 {
   free(closure);
 }
