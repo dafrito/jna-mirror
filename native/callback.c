@@ -287,15 +287,9 @@ callback_dispatch(ffi_cif* cif, void* resp, void** cbargs, void* user_data) {
     *(double*)resp = (*env)->CallDoubleMethodA(env, obj, mid, args); break;
   case 'L':
   default:
-    ret = (*env)->CallObjectMethodA(env, obj, mid, args);
-    if (ret != 0 && (*env)->IsSameObject(env, classPointer, cb->return_type)) {
-      *(long long *)resp = (*env)->GetLongField(env, ret, FID_Pointer_peer);
-    } 
-    else {
-      *(jobject*)resp = 0;
-    }
-
-    *(void **)resp = ret;
+    (*env)->CallObjectMethodA(env, obj, mid, args);
+    *(void **)resp = 0;
+    break;
   }
 
   if (!attached) {
@@ -512,26 +506,27 @@ alloc_closure(JNIEnv* env)
 {
     closure* closure = NULL;
     pthread_mutex_lock(&closure_lock);
-    closure = closure_list.lh_first;
-    if (closure != NULL) {
-        LIST_REMOVE(closure, list);
-    } else {
+
+    if (closure_list.lh_first == NULL) {
         /*
          * Get a new page from the kernel and divvy that up
          */
         int clsize = roundup(sizeof(ffi_closure), sizeof(void *));
         int i;
-        caddr_t ptr = mmap(0, PAGE_SIZE,
-            PROT_EXEC | PROT_READ | PROT_WRITE,
+        caddr_t ptr = mmap(0, PAGE_SIZE, PROT_EXEC | PROT_READ | PROT_WRITE,
             MAP_ANON | MAP_PRIVATE, -1, 0);
-            
-        for (i = 0; ptr != NULL && i <= (PAGE_SIZE - clsize); i += clsize) {
+        if (ptr == NULL) {
+            pthread_mutex_unlock(&closure_lock);
+            return NULL;
+        }
+        for (i = 0; i <= (PAGE_SIZE - clsize); i += clsize) {
             closure = (struct closure *)(ptr + i);
             LIST_INSERT_HEAD(&closure_list, closure, list);            
         }
-        closure = closure_list.lh_first;
-        LIST_REMOVE(closure, list);
     }
+    closure = closure_list.lh_first;
+    LIST_REMOVE(closure, list);
+
     pthread_mutex_unlock(&closure_lock);
     return (ffi_closure *)closure;
 }
