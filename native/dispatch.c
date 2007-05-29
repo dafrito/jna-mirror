@@ -101,7 +101,7 @@ static jboolean init_jawt(JNIEnv*);
 /* invoke the real native function */
 static void dispatch(JNIEnv *env, jobject self, jint callconv, 
                      jobjectArray arr, 
-                     ffi_type *ffi_return, jvalue *resP)
+                     ffi_type *ffi_return, void *resP)
 {
     int i, nargs, nwords;
     void *func;
@@ -302,12 +302,12 @@ JNIEXPORT jobject JNICALL
 Java_com_sun_jna_Function_invokePointer(JNIEnv *env, jobject self, 
                                         jint callconv, jobjectArray arr)
 {
-    jvalue result;
+    void *result;
     dispatch(env, self, callconv, arr, &ffi_type_pointer, &result);
     if ((*env)->ExceptionCheck(env)) {
         return NULL;
     }
-    return newJavaPointer(env, L2A(result.j));
+    return newJavaPointer(env, result);
 }
 
 /*
@@ -319,9 +319,9 @@ JNIEXPORT jdouble JNICALL
 Java_com_sun_jna_Function_invokeDouble(JNIEnv *env, jobject self, 
                                        jint callconv, jobjectArray arr)
 {
-    jvalue result;
+    jdouble result;
     dispatch(env, self, callconv, arr, &ffi_type_double, &result);
-    return result.d;
+    return result;
 }
 
 /*
@@ -333,9 +333,9 @@ JNIEXPORT jfloat JNICALL
 Java_com_sun_jna_Function_invokeFloat(JNIEnv *env, jobject self, 
                                       jint callconv, jobjectArray arr)
 {
-    jvalue result;
+    jfloat result;
     dispatch(env, self, callconv, arr, &ffi_type_float, &result);
-    return result.f;
+    return result;
 }
 
 /*
@@ -347,9 +347,9 @@ JNIEXPORT jint JNICALL
 Java_com_sun_jna_Function_invokeInt(JNIEnv *env, jobject self, 
                                     jint callconv, jobjectArray arr)
 {
-    jvalue result;
+    jint result;
     dispatch(env, self, callconv, arr, &ffi_type_sint32, &result);
-    return result.i;
+    return result;
 }
 
 /*
@@ -361,9 +361,9 @@ JNIEXPORT jlong JNICALL
 Java_com_sun_jna_Function_invokeLong(JNIEnv *env, jobject self, 
                                      jint callconv, jobjectArray arr)
 {
-    jvalue result;
+    jlong result;
     dispatch(env, self, callconv, arr, &ffi_type_sint64, &result);
-    return result.j;
+    return result;
 }
 
 /*
