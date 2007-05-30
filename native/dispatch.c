@@ -246,7 +246,7 @@ static void dispatch(JNIEnv *env, jobject self, jint callconv,
             "Unrecognized call type");
         break;
     case FFI_OK:
-        ffi_call(&cif, FFI_FN(func), (ffi_arg *) resP, ffi_values);
+        ffi_call(&cif, FFI_FN(func), resP, ffi_values);
         break;
     default:
         throwByName(env,"java/lang/IllegalArgumentException",
@@ -319,9 +319,9 @@ JNIEXPORT jdouble JNICALL
 Java_com_sun_jna_Function_invokeDouble(JNIEnv *env, jobject self, 
                                        jint callconv, jobjectArray arr)
 {
-    jdouble result;
+    jvalue result;
     dispatch(env, self, callconv, arr, &ffi_type_double, &result);
-    return result;
+    return result.d;
 }
 
 /*
@@ -333,9 +333,9 @@ JNIEXPORT jfloat JNICALL
 Java_com_sun_jna_Function_invokeFloat(JNIEnv *env, jobject self, 
                                       jint callconv, jobjectArray arr)
 {
-    jfloat result;
+    jvalue result;
     dispatch(env, self, callconv, arr, &ffi_type_float, &result);
-    return result;
+    return result.f;
 }
 
 /*
@@ -347,9 +347,9 @@ JNIEXPORT jint JNICALL
 Java_com_sun_jna_Function_invokeInt(JNIEnv *env, jobject self, 
                                     jint callconv, jobjectArray arr)
 {
-    jint result;
+    jvalue result;
     dispatch(env, self, callconv, arr, &ffi_type_sint32, &result);
-    return result;
+    return result.i;
 }
 
 /*
@@ -361,9 +361,9 @@ JNIEXPORT jlong JNICALL
 Java_com_sun_jna_Function_invokeLong(JNIEnv *env, jobject self, 
                                      jint callconv, jobjectArray arr)
 {
-    jlong result;
+    jvalue result;
     dispatch(env, self, callconv, arr, &ffi_type_sint64, &result);
-    return result;
+    return result.j;
 }
 
 /*
