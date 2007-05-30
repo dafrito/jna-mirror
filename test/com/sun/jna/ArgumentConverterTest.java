@@ -22,6 +22,7 @@ public class ArgumentConverterTest extends TestCase {
     public static interface TestLibrary extends Library {
         int returnInt32Argument(boolean b);
         int returnInt32Argument(String s);
+        int returnInt32Argument(Number n);
     }
     public ArgumentConverterTest(String testName) {
         super(testName);
@@ -59,5 +60,31 @@ public class ArgumentConverterTest extends TestCase {
                 TestLibrary.class, Collections.EMPTY_MAP, converters);
         assertEquals("Failed to convert String to Int", MAGIC,
                 lib.returnInt32Argument(Integer.toHexString(MAGIC)));
+    }
+    public void testCharSequenceToInt() {
+        Map converters = new HashMap();
+        converters.put(CharSequence.class, new ArgumentConverter() {
+          public Object convert(Object arg) {
+                return Integer.valueOf(((CharSequence)arg).toString(), 16);
+            }
+        });
+        final int MAGIC = 0x7BEDCF23;
+        TestLibrary lib = (TestLibrary) Native.loadLibrary("testlib", 
+                TestLibrary.class, Collections.EMPTY_MAP, converters);
+        assertEquals("Failed to convert String to Int", MAGIC,
+                lib.returnInt32Argument(Integer.toHexString(MAGIC)));
+    }
+    public void testNumberToInt() {
+        Map converters = new HashMap();
+        converters.put(Double.class, new ArgumentConverter() {
+            public Object convert(Object arg) {
+                return Integer.valueOf(((Double)arg).intValue());
+            }
+        });
+        final int MAGIC = 0x7BEDCF23;
+        TestLibrary lib = (TestLibrary) Native.loadLibrary("testlib", 
+                TestLibrary.class, Collections.EMPTY_MAP, converters);
+        assertEquals("Failed to convert Double to Int", MAGIC,
+                lib.returnInt32Argument(Double.valueOf(MAGIC)));
     }
 }

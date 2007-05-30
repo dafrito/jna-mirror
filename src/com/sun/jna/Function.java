@@ -12,8 +12,15 @@ package com.sun.jna;
 
 import com.sun.jna.ptr.ByReference;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * An abstraction for a native function pointer.  An instance of 
@@ -190,11 +197,17 @@ public class Function extends Pointer {
         // returned (so you couldn't do something like strstr).
         for (int i=0; i < args.length; i++) {
             Object arg = args[i];
-            if (arg != null) {
-                ArgumentConverter converter = (ArgumentConverter)converters.get(arg.getClass());
-                if (converter != null) {
-                    args[i] = arg = converter.convert(arg);
+            if (arg != null && !converters.isEmpty()) {
+                Class argClass = arg.getClass();
+                Set keys = converters.keySet();
+                for (Iterator it = keys.iterator(); it.hasNext(); ) {
+                    Object key = it.next();
+                    if (((Class)key).isAssignableFrom(argClass)) {
+                        args[i] = arg = ((ArgumentConverter)converters.get(key)).convert(arg);
+                        break;
+                    }
                 }
+                
                 //
                 // Let the converted argument be further converted to standard types
                 //
@@ -249,7 +262,6 @@ public class Function extends Pointer {
             else if (arg instanceof ByteBuffer && !((ByteBuffer)arg).isDirect()) {
                 ByteBuffer buf = (ByteBuffer)arg;
                 if (!buf.hasArray()) {
-                    // AFAIK, This cannot happen, but check for it anyway
                     throw new IllegalArgumentException("Unsupported non-direct ByteBuffer without array");
                 }
                 args[i] = buf.array();
