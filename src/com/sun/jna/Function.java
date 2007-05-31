@@ -165,7 +165,7 @@ public class Function extends Pointer {
     public Object invoke(Class returnType, Object[] inArgs, Map converters) {
         return invoke(callingConvention, returnType, inArgs, converters);
     }
-    private Object invoke(int callingConvention, Class returnType, Object[] inArgs, Map converters) {
+    private Object invoke(int callingConvention, Class returnType, Object[] inArgs,Map options) {
         
         // This will be set to the full set of arguments if a varargs
         // argument is encountered
@@ -202,7 +202,7 @@ public class Function extends Pointer {
             args = new Object[inArgs.length];
             System.arraycopy(inArgs, 0, args, 0, args.length);
         }
-        
+        TypeMapper typeMapper = (TypeMapper)options.get("type-mapper");
         // Keep track of allocated ByteBuffers so they can be released again
         int bufferMask = 0;
 
@@ -213,15 +213,10 @@ public class Function extends Pointer {
         // returned (so you couldn't do something like strstr).
         for (int i=0; i < args.length; i++) {
             Object arg = args[i];
-            if (arg != null && !converters.isEmpty()) {
-                Class argClass = arg.getClass();
-                Set keys = converters.keySet();
-                for (Iterator it = keys.iterator(); it.hasNext(); ) {
-                    Object key = it.next();
-                    if (((Class)key).isAssignableFrom(argClass)) {
-                        args[i] = arg = ((ArgumentConverter)converters.get(key)).convert(arg);
-                        break;
-                    }
+            if (arg != null && typeMapper != null) {
+                TypeConverter converter = typeMapper.getTypeConverter(arg.getClass());
+                if (converter != null) {
+                    args[i] = arg = converter.toNative(arg);
                 }
 
                 //
@@ -335,7 +330,14 @@ public class Function extends Pointer {
                 throw new IllegalArgumentException("Unsupported array type: " + arg.getClass());
             }
         }
-
+        Class resultType = returnType;
+        TypeConverter resultConverter = null;
+        if (typeMapper != null) {
+            resultConverter = typeMapper.getTypeConverter(resultType);
+            if (resultConverter != null) {
+                returnType = resultConverter.invocationType();
+            }
+        }
         if (returnType==Void.TYPE || returnType==Void.class) {
             invokeVoid(callingConvention, args);
         }
@@ -398,7 +400,12 @@ public class Function extends Pointer {
             throw new IllegalArgumentException("Unsupported return type "
                                                + returnType);
         }
-
+        
+        // Convert the result to a custom value if needed.
+        if (resultConverter != null) {
+            result = resultConverter.fromNative(result, resultType);
+        }
+        
         // Sync java fields in structures to native memory after invocation
         if (inArgs != null) {
             for (int i=0; i < inArgs.length; i++) {

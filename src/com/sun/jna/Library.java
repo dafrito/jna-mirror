@@ -47,7 +47,7 @@ public interface Library {
         private Class interfaceClass;
         
         // Map java names to native function names
-        private Map functionMap, argumentMap;     
+        private Map functionMap, optionMap;     
         
         public Handler(String libname, Class interfaceClass, Map functionMap,
                 Map argumentMap) {
@@ -64,7 +64,7 @@ public interface Library {
             this.nativeLibrary = NativeLibrary.getInstance(libname);
             this.interfaceClass = interfaceClass;
             this.functionMap = functionMap;
-            this.argumentMap = argumentMap;
+            this.optionMap = functionMap;
             if (AltCallingConvention.class.isAssignableFrom(interfaceClass)) {
                 callingConvention = Function.ALT_CONVENTION; 
             } else {
@@ -89,7 +89,7 @@ public interface Library {
             }
             
             Function f = nativeLibrary.getFunction(methodName, callingConvention);
-            return f.invoke(method.getReturnType(), inArgs, argumentMap);
+            return f.invoke(method.getReturnType(), inArgs, optionMap);
         }
     }
 }
