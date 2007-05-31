@@ -1,18 +1,18 @@
-/*
- * TypeConverter.java
- * 
- * Created on 31/05/2007, 16:50:04
- * 
- * To change this template, choose Tools | Template Manager
- * and open the template in the editor.
+/* Copyright (c) 2007 Wayne Meissner, All Rights Reserved
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ * <p/>
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.  
  */
 
 package com.sun.jna;
 
-/**
- *
- * @author wayne
- */
 public interface TypeConverter {
     public Object toNative(Object value);
     public Object fromNative(Object value, Class returnType);
