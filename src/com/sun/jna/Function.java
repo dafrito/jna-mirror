@@ -12,13 +12,8 @@ package com.sun.jna;
 
 import com.sun.jna.ptr.ByReference;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -174,9 +169,30 @@ public class Function extends Pointer {
         
         // This will be set to the full set of arguments if a varargs
         // argument is encountered
-        Object[] fullArgs = null;
         Object result = null;
-
+		// If the final argument is an array of Object, treat it as
+        // varargs and concatenate the previous arguments with the varargs 
+        // elements.
+        if (inArgs != null && inArgs.length > 0) {
+            Object lastArg = inArgs[inArgs.length-1];
+            if (lastArg != null 
+                && lastArg.getClass().isArray() 
+                && !isPrimitiveArray(lastArg.getClass())
+                && !isStructureArray(lastArg.getClass())) {
+                Object[] varArgs = (Object[])lastArg;
+                Object[] fullArgs = new Object[inArgs.length+varArgs.length];
+                System.arraycopy(inArgs, 0, fullArgs, 0, inArgs.length-1);
+                System.arraycopy(varArgs, 0, fullArgs, inArgs.length-1, varArgs.length);
+                // For convenience, always append a NULL argument to the end
+                // of varargs, whether the called API requires it or not. If
+                // it is not needed, it will be ignored, but if it *is* 
+                // required, it avoids forcing the Java client to always
+                // explicitly add it.
+                fullArgs[fullArgs.length-1] = null;
+                inArgs = fullArgs;
+            }
+        }
+        
         // Clone the argument array
         Object[] args = { };
         if (inArgs != null) {
@@ -207,7 +223,7 @@ public class Function extends Pointer {
                         break;
                     }
                 }
-                
+
                 //
                 // Let the converted argument be further converted to standard types
                 //
@@ -285,8 +301,13 @@ public class Function extends Pointer {
                             ss[si] = tmp[si];
                         }
                     }
-                    catch(Exception e) {
-                        throw new IllegalArgumentException("Can't instantiate "
+                    catch(InstantiationException e) {
+                        throw new IllegalArgumentException("Instantiation of "
+                                                           + type + " failed: " 
+                                                           + e);
+                    }
+                    catch(IllegalAccessException e) {
+                        throw new IllegalArgumentException("Not allowed to instantiate "
                                                            + type + ": " + e);
                     }
                     args[i] = ss[0].getPointer();
@@ -310,45 +331,7 @@ public class Function extends Pointer {
                     args[i] = base;
                 }
             }
-            //
-            // Convert Java 1.5+ varargs to C stdargs
-            //
-            else if (argClass.isArray() && i == inArgs.length - 1 &&
-					 fullArgs == null) {
-                Object[] varargs = (Object[]) arg;
-                int fixedCount = inArgs.length - 1;
-                int argCount = fixedCount + varargs.length + 1; // +1 for NULL
-                if (argCount > MAX_NARGS) {
-                    throw new UnsupportedOperationException("Maximum argument count is " + MAX_NARGS);
-                }
-                Object[] newArgs = new Object[argCount];
-                //
-                // Make sure varargs are NULL terminated.  This is important for
-                // some varargs functions which assume the list is NULL terminated.
-                //
-                newArgs[newArgs.length - 1] = null;
-
-                // Copy the original arg array (less the current arg)
-                System.arraycopy(args, 0, newArgs, 0, fixedCount);
-                
-                // Copy the varargs array onto the end of the main args array
-                System.arraycopy(varargs, 0, newArgs, fixedCount, varargs.length);                                
-                args = newArgs;
-
-                // 
-                // Make a copy of the original argument array with the varargs appended
-                // This is to handle Structure & ByReference reloading, as the 
-                // values in args[] will have been replaced by Pointer objects
-                //
-                fullArgs = new Object[newArgs.length];
-                System.arraycopy(inArgs, 0, fullArgs, 0, fixedCount);
-                System.arraycopy(varargs, 0, fullArgs, fixedCount, varargs.length);
-                inArgs = fullArgs;
-
-                // Jump back and process the first arg of the varargs
-                --i; 
-            } 
-            else if (arg.getClass().isArray()) {
+            else if (argClass.isArray()) {
                 throw new IllegalArgumentException("Unsupported array type: " + arg.getClass());
             }
         }
@@ -393,15 +376,22 @@ public class Function extends Pointer {
         }
         else if (Structure.class.isAssignableFrom(returnType)) {
             result = invokePointer(callingConvention, args);
-            try {
-                Structure s = (Structure)returnType.newInstance();
-                s.useMemory((Pointer)result);
-                s.read();
-                result = s;
-            }
-            catch(Exception e) {
-                throw new IllegalArgumentException("Can't instantiate "
-                                                   + returnType + ": " + e);
+            if (result != null) {
+                try {
+                    Structure s = (Structure)returnType.newInstance();
+                    s.useMemory((Pointer)result);
+                    s.read();
+                    result = s;
+                }
+                catch(InstantiationException e) {
+                    throw new IllegalArgumentException("Instantiation of "
+                                                       + returnType + " failed: " 
+                                                       + e);
+                }
+                catch(IllegalAccessException e) {
+                    throw new IllegalArgumentException("Not allowed to instantiate "
+                                                       + returnType + ": " + e);
+                }
             }
         }
         else {
@@ -413,10 +403,12 @@ public class Function extends Pointer {
         if (inArgs != null) {
             for (int i=0; i < inArgs.length; i++) {
                 Object arg = inArgs[i];
+                if (arg == null)
+                    continue;
                 if (arg instanceof Structure) {
                     ((Structure)arg).read();
                 }
-                else if (arg != null && isStructureArray(arg.getClass())) {
+                else if (isStructureArray(arg.getClass())) {
                     Structure[] ss = (Structure[])arg;
                     for (int si=0;si < ss.length;si++) {
                         ss[si].read();

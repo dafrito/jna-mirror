@@ -61,6 +61,9 @@ public class ArgumentsMarshalTest extends TestCase {
         int fillInt16Buffer(ByteBuffer buf, int len, short value);
         int fillInt32Buffer(ByteBuffer buf, int len, int value);
         int fillInt64Buffer(ByteBuffer buf, int len, long value);
+        
+        // Nonexistent functions 
+        boolean returnBooleanArgument(Object arg);
     }
 
     TestLibrary lib;
@@ -267,14 +270,13 @@ public class ArgumentsMarshalTest extends TestCase {
     }
     
     public void testByteBufferArgument() {
-        ByteBuffer buf  = ByteBuffer.allocate(1024);
+        ByteBuffer buf  = ByteBuffer.allocate(1024).order(ByteOrder.nativeOrder());
         final byte MAGIC = (byte)0xED;
         lib.fillInt8Buffer(buf, 1024, MAGIC);
         for (int i=0;i < buf.capacity();i++) {
             assertEquals("Bad value at index " + i, MAGIC, buf.get(i));
         }
     }
-    
     public void testShortBufferArgument() {
         ByteBuffer buf  = ByteBuffer.allocate(1024*2).order(ByteOrder.nativeOrder());
         ShortBuffer shortBuf = buf.asShortBuffer();
@@ -293,7 +295,6 @@ public class ArgumentsMarshalTest extends TestCase {
             assertEquals("Bad value at index " + i, MAGIC, intBuf.get(i));
         }
     }
-    
     public void testLongBufferArgument() {
         ByteBuffer buf  = ByteBuffer.allocate(1024*8).order(ByteOrder.nativeOrder());
         LongBuffer longBuf = buf.asLongBuffer();
@@ -340,6 +341,15 @@ public class ArgumentsMarshalTest extends TestCase {
         lib.fillInt64Buffer(buf, 1024, MAGIC);
         for (int i=0;i < longBuf.capacity();i++) {
             assertEquals("Bad value at index " + i, MAGIC, longBuf.get(i));
+        }
+    }
+    
+    public void testInvalidArgument() {
+        try {
+            lib.returnBooleanArgument(this);
+            fail("Unsupported Java objects should be rejected");
+        }
+        catch(IllegalArgumentException e) {
         }
     }
     
