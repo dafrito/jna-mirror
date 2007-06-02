@@ -49,8 +49,7 @@ public interface Library {
         // Map java names to native function names
         private Map functionMap, optionMap;     
         
-        public Handler(String libname, Class interfaceClass, Map functionMap,
-                Map argumentMap) {
+        public Handler(String libname, Class interfaceClass, Map optionMap) {
 
             if (libname == null || libname.trim().length() == 0) {
                 throw new IllegalArgumentException("Invalid library name \""
@@ -63,8 +62,20 @@ public interface Library {
             }
             this.nativeLibrary = NativeLibrary.getInstance(libname);
             this.interfaceClass = interfaceClass;
-            this.functionMap = functionMap;
-            this.optionMap = functionMap;
+            this.optionMap = optionMap;
+            
+            /*
+             * If there is no "function-map" in the options, fallback to the old 
+             * API where the passed in map is the function map.
+             * 
+             * This works fine, as all the option are of the form "foo-bar-baz",
+             * and C/java functions cannot have '-' in the name.
+             * 
+             */
+            this.functionMap = (Map)optionMap.get("function-map");
+            if (this.functionMap == null) {
+                this.functionMap = optionMap;
+            }
             if (AltCallingConvention.class.isAssignableFrom(interfaceClass)) {
                 callingConvention = Function.ALT_CONVENTION; 
             } else {

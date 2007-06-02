@@ -16,6 +16,7 @@ import java.awt.Window;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 /** Provides generation of invocation plumbing for a defined native
@@ -81,35 +82,27 @@ public class Native {
      * names to the actual shared library function names.
      * @param name
      * @param interfaceClass
-     * @param functionMap Map of java interface method names to shared library 
-     * function names
+     * @param optionMap Map of options to use when accessing functions from the library.
+     * <p>
+     * e.g. "type-mapper" is an instance of TypeMapper used to map types.
      */
     public static Library loadLibrary(String name, 
                                       Class interfaceClass,
-                                      Map functionMap) {
-        return loadLibrary(name, interfaceClass, functionMap, Collections.EMPTY_MAP);
-    }
-    /** Load a library interface from the given shared library, providing
-     * the explicit interface class and a map from the interface method
-     * names to the actual shared library function names.
-     * @param name
-     * @param interfaceClass
-     * @param functionMap Map of java interface method names to shared library 
-     * function names
-     */
-    public static Library loadLibrary(String name, 
-                                      Class interfaceClass,
-                                      Map functionMap,
-                                      Map argumentMap) {
+                                      Map optionMap) {
         if (!Library.class.isAssignableFrom(interfaceClass)) {
             throw new IllegalArgumentException("Not a valid native library interface: " + interfaceClass);
         }
+        typeMappers.put(interfaceClass, optionMap.get("type-mapper"));
         InvocationHandler handler = 
-            new Library.Handler(name, interfaceClass, functionMap, argumentMap);
+            new Library.Handler(name, interfaceClass, optionMap);
         ClassLoader loader = interfaceClass.getClassLoader();
         Library proxy = (Library)
             Proxy.newProxyInstance(loader, new Class[] {interfaceClass},
                                    handler);
         return proxy;
     }
+    static TypeMapper getTypeMapper(Class interfaceClass) {
+        return (TypeMapper)typeMappers.get(interfaceClass);
+    }
+    private static Map typeMappers = Collections.synchronizedMap(new HashMap());
 }
