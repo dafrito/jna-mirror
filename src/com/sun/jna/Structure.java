@@ -48,6 +48,7 @@ public abstract class Structure {
     private Map structFields = new LinkedHashMap();
     // Keep track of java strings which have been converted to C strings
     private Map nativeStrings = new HashMap();
+    private TypeMapper typeMapper;
 
     public static int defaultAlignment() {
         if (OS.isWindows())
@@ -65,6 +66,7 @@ public abstract class Structure {
 
     protected Structure(int size, int alignment) {
         this.alignType = alignment;
+        this.typeMapper = Native.getTypeMapper(getClass().getDeclaringClass());
         allocateMemory(size);
     }
 
@@ -164,7 +166,18 @@ public abstract class Structure {
 
         // Determine the type of the field
         Class fieldType = structField.type;
-
+        TypeConverter fieldConverter = null;
+        Class javaType = fieldType;
+        /*
+         * Use the TypeMapper for this Structure to read in a custom java type
+         */
+        if (typeMapper != null) {
+            fieldConverter = typeMapper.getTypeConverter(fieldType);
+            if (fieldConverter != null) {
+                fieldType = fieldConverter.invocationType();
+            }
+        }
+        
         // Get the value at the offset according to its type
         Object result = null;
         if (fieldType == Byte.TYPE || fieldType == Byte.class) {
@@ -252,7 +265,13 @@ public abstract class Structure {
             throw new IllegalArgumentException("Unsupported field type \""
                                                + fieldType.getClass() + "\"");
         }
-
+        
+        /*
+         * Convert the custom native type back to the java structure type
+         */
+        if (fieldConverter != null) {
+            result = fieldConverter.fromNative(result, javaType);
+        }
         // Set the value on the field
         try {
             structField.field.set(this, result);
@@ -296,7 +315,17 @@ public abstract class Structure {
             throw new RuntimeException("Exception reading field \""
                                        + structField.name + "\"", e);
         }
-
+        /*
+         * Use the typeMapper to convert the java value to a custom native type
+         */
+        if (typeMapper != null) {
+            TypeConverter converter = typeMapper.getTypeConverter(fieldType);
+            if (converter != null) {
+                value = converter.toNative(value);
+                fieldType = value.getClass();
+            }
+        }
+        
         // Java strings get converted to C strings, where a Pointer is used
         if (String.class == fieldType
             || WString.class == fieldType) {
@@ -453,8 +482,16 @@ public abstract class Structure {
                             return -1;
                         }
                     }
-                    structField.size = getNativeSize(field.getType(), value);
-                    fieldAlignment = getNativeAlignment(field.getType(), value);
+                    Class fieldType = field.getType();
+                    if (typeMapper != null) {
+                        TypeConverter fieldConverter = typeMapper.getTypeConverter(fieldType);
+                        if (fieldConverter != null) {
+                            fieldType = fieldConverter.invocationType();
+                            value = fieldConverter.toNative(value);
+                        }
+                    }
+                    structField.size = getNativeSize(fieldType, value);
+                    fieldAlignment = getNativeAlignment(fieldType, value);
                 }
                 catch (IllegalAccessException e) {
                 }

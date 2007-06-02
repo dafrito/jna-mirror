@@ -8,7 +8,7 @@
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.  
+ * Lesser General Public License for more details.
  */
 
 package com.sun.jna;
@@ -29,16 +29,10 @@ public class TypeConverterTest extends TestCase {
     public void testBooleanToInt() {
         final int MAGIC = 0xABEDCF23;
         Map options = new HashMap();
-        final TypeConverter booleanConverter = new TypeConverter() {
+        final TypeConverter booleanConverter = new ArgumentConverter(Boolean.class) {
             public Object toNative(Object arg) {
                 return Integer.valueOf(Boolean.TRUE.equals(arg) ? MAGIC : 0);
             }
-
-            public Object fromNative(Object value, Class returnType) {
-                return Boolean.valueOf(((Integer) value).intValue() != 0);
-            }
-
-            public Class invocationType() { return Integer.class; }
         };
         TypeMapper typeMapper = new TypeMapper() {
             public TypeConverter getTypeConverter(Class cls) {
@@ -55,15 +49,10 @@ public class TypeConverterTest extends TestCase {
                 lib.returnInt32Argument(true));
     }
     public void testStringToInt() {
-        final TypeConverter stringConverter = new TypeConverter() {
+        final TypeConverter stringConverter = new ArgumentConverter(String.class) {
             public Object toNative(Object arg) {
                 return Integer.valueOf((String) arg, 16);
             }
-
-            public Object fromNative(Object value, Class returnType) {
-                return value;
-            }
-            public Class invocationType() { return Integer.class; }
         };
         TypeMapper typeMapper = new TypeMapper() {
             public TypeConverter getTypeConverter(Class cls) {
@@ -86,7 +75,7 @@ public class TypeConverterTest extends TestCase {
             public Object toNative(Object arg) {
                 return Integer.valueOf(((CharSequence)arg).toString(), 16);
             }
-
+            
             public Object fromNative(Object value, Class returnType) {
                 return value;
             }
@@ -114,7 +103,7 @@ public class TypeConverterTest extends TestCase {
             public Object toNative(Object arg) {
                 return Integer.valueOf(((Double)arg).intValue());
             }
-
+            
             public Object fromNative(Object value, Class returnType) {
                 return value;
             }
@@ -147,21 +136,15 @@ public class TypeConverterTest extends TestCase {
             public Object toNative(Object arg) {
                 return Integer.valueOf(Boolean.TRUE.equals(arg) ? MAGIC : 0);
             }
-
+            
             public Object fromNative(Object value, Class returnType) {
                 return Boolean.valueOf(((Integer) value).intValue() == MAGIC);
             }
-
+            
             public Class invocationType() { return Integer.class; }
         };
-        TypeMapper typeMapper = new TypeMapper() {
-            public TypeConverter getTypeConverter(Class cls) {
-                if (Boolean.class.isAssignableFrom(cls)) {
-                    return booleanConverter;
-                }
-                return null;
-            }
-        };
+        SimpleTypeMapper typeMapper = new SimpleTypeMapper();
+        typeMapper.add(Boolean.class, booleanConverter);
         options.put("type-mapper", typeMapper);
         BooleanTestLibrary lib = (BooleanTestLibrary) Native.loadLibrary("testlib",
                 BooleanTestLibrary.class, options);
@@ -169,5 +152,44 @@ public class TypeConverterTest extends TestCase {
                 lib.returnInt32Argument(true));
         assertEquals("Failed to convert Boolean.FALSE to Int", false,
                 lib.returnInt32Argument(false));
+    }
+    public static interface BooleanStructLibrary extends Library {
+        boolean returnInt32Argument(boolean b);
+        class BooleanStruct extends Structure {
+            public boolean value;
+        }
+    }
+    
+    public void testBooleanStructMember() throws Exception {
+        final int MAGIC = 0xABEDCF23;
+        Map options = new HashMap();
+        final TypeConverter booleanConverter = new TypeConverter() {
+            public Object toNative(Object arg) {
+                return Long.valueOf(Boolean.TRUE.equals(arg) ? MAGIC : 0);
+            }
+            
+            public Object fromNative(Object value, Class returnType) {
+                return Boolean.valueOf(((Long) value).intValue() == MAGIC);
+            }
+            
+            public Class invocationType() { return Long.class; }
+        };
+        SimpleTypeMapper typeMapper = new SimpleTypeMapper();
+        typeMapper.add(Boolean.class, booleanConverter);
+        typeMapper.add(Boolean.TYPE, booleanConverter);
+        options.put("type-mapper", typeMapper);
+        BooleanStructLibrary lib = (BooleanStructLibrary) Native.loadLibrary("testlib",
+                BooleanStructLibrary.class, options);
+        BooleanStructLibrary.BooleanStruct struct = new BooleanStructLibrary.BooleanStruct();
+        struct.value = true;
+        assertEquals("Struct size is not the same as long", 8, struct.size());
+        long value = struct.getPointer().getLong(0);
+        assertEquals("Wrong magic value", MAGIC, (int) value);
+        struct.getPointer().setLong(0, 0);
+        struct.read();
+        assertEquals("Boolean not set to false", false, struct.value);
+        struct.getPointer().setLong(0, MAGIC);
+        struct.read();
+        assertEquals("Boolean not set to true", true, struct.value);
     }
 }

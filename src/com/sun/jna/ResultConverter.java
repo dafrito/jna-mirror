@@ -4,7 +4,7 @@
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- * <p/>
+ *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
@@ -14,16 +14,21 @@
 package com.sun.jna;
 
 /**
- *
- * @author Wayne Meissner
+ * Simplified TypeConverter that just converts returned values to a custom java
+ * type.
  */
-public abstract class ArgumentConverter implements TypeConverter {
-    private Class javaType;
-    public ArgumentConverter(Class javaType) {
-        this.javaType = javaType;
+public abstract class ResultConverter implements TypeConverter {
+    private Class invocationType;
+    public ResultConverter(Class invocationType) {
+        this.invocationType = invocationType;
     }
-    public Class invocationType() { return javaType; }
-    public Object fromNative(Object value, Class returnType) {
+    
+    public Object toNative(Object value) {
         return value;
     }
+    
+    public Class invocationType() {
+        return invocationType;
+    }
+    
 }
