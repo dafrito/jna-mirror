@@ -70,7 +70,7 @@ public class X11Test extends TestCase {
             }
         });
         
-        Pointer dpy = x11.XOpenDisplay(null);
+        X11.Display dpy = x11.XOpenDisplay(null);
 
         int WIDTH = 300;
         int HEIGHT = 300;
@@ -79,12 +79,12 @@ public class X11Test extends TestCase {
         //Set windows = findWindow(dpy, root, frame);
         //assertEquals("Expect a single window", 1, windows.size());
         //int w = ((Integer)windows.iterator().next()).intValue();
-        int w = (int)Native.getWindowID(frame);
-        int pm = x11.XCreatePixmap(dpy, w, WIDTH, HEIGHT, 1);
-        if (pm == 0) {
+        X11.Window w = new X11.Window((int)Native.getWindowID(frame));
+        X11.Pixmap pm = x11.XCreatePixmap(dpy, w, WIDTH, HEIGHT, 1);
+        if (pm == null) {
             fail("Can't create pixmap");
         }
-        Pointer gc = x11.XCreateGC(dpy, pm, new NativeLong(0), null);
+        X11.GC gc = x11.XCreateGC(dpy, pm, new NativeLong(0), null);
         if (gc == null) {
             fail("Can't create GC");
         }
@@ -108,7 +108,7 @@ public class X11Test extends TestCase {
     }
 
     // Example of XQueryTree
-    Set findWindow(Pointer dpy, int parent, Window w) {
+    Set findWindow(X11.Display dpy, X11.Window parent, Window w) {
         Set list = new HashSet();
 
         // TODO: how to map a java window to native window?
@@ -116,14 +116,14 @@ public class X11Test extends TestCase {
         X11.XWindowAttributes atts = new X11.XWindowAttributes();
         int status = x11.XGetWindowAttributes(dpy, parent, atts);
         if (status == 0) {
-            System.err.println("skip " + Integer.toHexString(parent));
+            System.err.println("skip " + Integer.toHexString(parent.getId().intValue()));
             return list;
         }
         X11.XTextProperty tp = new X11.XTextProperty();
         x11.XGetWMName(dpy, parent, tp);
         String name = tp.value;
         if (w instanceof Frame && ((Frame)w).getTitle().equals(name)) {
-            list.add(new Integer(parent));
+            list.add(parent);
         }
         else {
             /*
@@ -146,7 +146,7 @@ public class X11Test extends TestCase {
             int[] kids = p.getIntArray(0, kidCount.getValue());
             x11.XFree(kidsRef.getValue());
             for (int i=0;i < kids.length;i++) {
-                list.addAll(findWindow(dpy, kids[i], w));
+                list.addAll(findWindow(dpy, new X11.Window(kids[i]), w));
             }
         }
         return list;

@@ -16,7 +16,6 @@ import java.awt.GraphicsEnvironment;
 import java.awt.HeadlessException;
 import java.awt.event.KeyEvent;
 import com.sun.jna.Native;
-import com.sun.jna.Pointer;
 import com.sun.jna.examples.unix.X11;
 import com.sun.jna.examples.win32.User32;
 
@@ -142,7 +141,7 @@ public class KeyboardUtils {
         }
         public boolean isPressed(int keycode, int location) {
             X11 lib = X11.INSTANCE;
-            Pointer dpy = lib.XOpenDisplay(null);
+            X11.Display dpy = lib.XOpenDisplay(null);
             try {
                 byte[] keys = new byte[32];
                 int result = lib.XQueryKeymap(dpy, keys); 
