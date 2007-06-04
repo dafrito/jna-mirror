@@ -13,6 +13,7 @@
 package com.sun.jna;
 
 import java.awt.Window;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.util.Collections;
@@ -101,7 +102,37 @@ public class Native {
                                    handler);
         return proxy;
     }
+    
     static TypeMapper getTypeMapper(Class interfaceClass) {
+        if (interfaceClass == null) {
+            return null;
+        }
+        
+        if (typeMappers.containsKey(interfaceClass)) {
+            return (TypeMapper)typeMappers.get(interfaceClass);
+        }
+        
+        //
+        // Abort if the structure was declared inside some other type of class
+        //
+        if (!Library.class.isAssignableFrom(interfaceClass)) {
+            return null;
+        }
+        
+        /*
+         * Force load the interface class for the library.  This assumes that 
+         * all library interfaces follow the convention of declaring an instance
+         * of themselves as a static field in order to load the library.
+         */
+        Field[] fields = interfaceClass.getDeclaredFields();
+        for (int i = 0; i < fields.length; ++i) {
+            if (fields[i].getType() == interfaceClass) {
+                try {
+                    fields[i].get(interfaceClass);
+                } catch (Exception e) {}
+                break;
+            }
+        }
         return (TypeMapper)typeMappers.get(interfaceClass);
     }
     private static Map typeMappers = Collections.synchronizedMap(new HashMap());
