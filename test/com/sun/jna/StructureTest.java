@@ -13,6 +13,8 @@
 package com.sun.jna;
 
 import java.util.Map;
+import com.sun.jna.ptr.IntByReference;
+import com.sun.jna.ptr.LongByReference;
 import junit.framework.TestCase;
 
 /** TODO: need more alignment tests, especially platform-specific behavior
@@ -24,7 +26,7 @@ public class StructureTest extends TestCase {
         junit.textui.TestRunner.run(StructureTest.class);
     }
 
-    public void testSize() throws Exception {
+    public void testSimpleSize() throws Exception {
         class TestStructure extends Structure {
             public int field;
         }
@@ -32,15 +34,143 @@ public class StructureTest extends TestCase {
         assertEquals("Wrong size", 4, s.size());
     }
 
-    public void testAlign() throws Exception {
-        class TestStructure extends Structure {
+    // cross-platform smoke test
+    public void testGNUCAlignment() {
+        class TestStructure extends Structure { 
             public byte b;
             public short s;
             public int i;
-            public long j;
+            public long l;
+            public float f;
+            public double d;
         }
-        Structure s = new TestStructure();
-        assertEquals("Wrong size", 16, s.size());
+        TestStructure s = new TestStructure();
+        s.setAlignment(Structure.ALIGN_GNUC);
+        assertEquals("Wrong structure size", 28, s.size());
+    }
+    
+    // cross-platform smoke test
+    public void testMSVCAlignment() {
+        class TestStructure extends Structure { 
+            public byte b;
+            public short s;
+            public int i;
+            public long l;
+            public float f;
+            public double d;
+        }
+        TestStructure s = new TestStructure();
+        s.setAlignment(Structure.ALIGN_MSVC);
+        assertEquals("Wrong structure size", 32, s.size());
+    }
+    
+    public static class FilledStructure extends Structure {
+        public FilledStructure() {
+            for (int i=0;i < size();i++) {
+                getPointer().setByte(i, (byte)0xFF);
+            }
+        }
+    }
+    // Do NOT change the order of naming w/o changing testlib.c
+    public static class TestStructure0 extends FilledStructure {
+        public byte field0 = 0x01;
+        public short field1 = 0x0202;
+    }
+    public static class TestStructure1 extends FilledStructure {
+        public byte field0 = 0x01;
+        public int field1 = 0x02020202;
+    }
+    public static class TestStructure2 extends FilledStructure {
+        public short field0 = 0x0101;
+        public int field1 = 0x02020202;
+    }
+    public static class TestStructure3 extends FilledStructure {
+        public int field0 = 0x01010101;
+        public short field1 = 0x0202;
+        public int field2 = 0x03030303;
+    }
+    public static class TestStructure4 extends FilledStructure {
+        public int field0 = 0x01010101;
+        public long field1 = 0x0202020202020202L;
+        public int field2 = 0x03030303;
+        public long field3 = 0x0404040404040404L;
+    }
+    public static class TestStructure5 extends FilledStructure {
+        public long field0 = 0x0101010101010101L;
+        public byte field1 = 0x02;
+    }
+    public interface SizeTest extends Library {
+        int getStructureSize(int type);
+    }
+    private void testStructureSize(int index) {
+        try {
+            SizeTest lib = (SizeTest)Native.loadLibrary("testlib", SizeTest.class);
+            Class cls = Class.forName(getClass().getName() + "$TestStructure" + index);
+            Structure s = (Structure)cls.newInstance();
+            assertEquals("Incorrect size: " + s, lib.getStructureSize(index), s.size());
+        }
+        catch(Exception e) {
+            throw new Error(e);
+        }
+    }
+    public void testStructureSize0() {
+        testStructureSize(0);
+    }
+    public void testStructureSize1() {
+        testStructureSize(1);
+    }
+    public void testStructureSize2() {
+        testStructureSize(2);
+    }
+    public void testStructureSize3() {
+        testStructureSize(3);
+    }
+    public void testStructureSize4() {
+        testStructureSize(4);
+    }
+    public void testStructureSize5() {
+        testStructureSize(5);
+    }
+    
+    public interface AlignmentTest extends Library {
+        int testStructureAlignment(Structure s, int type, 
+                                   IntByReference offsetp, LongByReference valuep);
+    }
+    
+    private void testAlignStruct(int index) {
+        AlignmentTest lib = (AlignmentTest)Native.loadLibrary("testlib", AlignmentTest.class);
+        try {
+            IntByReference offset = new IntByReference();
+            LongByReference value = new LongByReference();
+            Class cls = Class.forName(getClass().getName() + "$TestStructure" + index);
+            Structure s = (Structure)cls.newInstance();
+            int result = lib.testStructureAlignment(s, index, offset, value);
+            assertEquals("Wrong native value at field " + result 
+                         + "=0x" + Long.toHexString(value.getValue()) 
+                         + " (actual native field offset=" + offset.getValue() 
+                         + ") in " + s, -2, result);
+        }
+        catch(Exception e) {
+            throw new Error(e);
+        }
+    }
+    public void testAlignStruct0() {
+        testAlignStruct(0);
+    }
+    public void testAlignStruct1() {
+        testAlignStruct(1);
+    }
+    public void testAlignStruct2() {
+        testAlignStruct(2);
+    }
+    public void testAlignStruct3() {
+        testAlignStruct(3);
+    }
+    public void testAlignStruct4() {
+        testAlignStruct(4);
+    }
+    public void testAlignStruct5() {
+        testAlignStruct(5);
     }
     
     public static class InnerStructure extends Structure {
@@ -55,16 +185,6 @@ public class StructureTest extends TestCase {
         assertNotNull("Inner structure should be initialized", s.s1);
         assertEquals("Wrong aggregate size", 
                      s.s1.size() + s.s2.size() + 4, s.size());
-    }
-    
-    public void testStructureSizePadding() {
-        class TestStructure extends Structure {
-            public long bigbits;
-            public byte b;
-        }
-        TestStructure s = new TestStructure();
-        assertEquals("Structure should be padded to longest element",
-                     16, s.size());
     }
     
     public void testNestArray() throws Exception {
@@ -134,12 +254,14 @@ public class StructureTest extends TestCase {
         if (NativeLong.SIZE == 8) {
             final long MAGIC = 0x1234567887654321L;
             s.l = new NativeLong(MAGIC);
+            s.write();
             long l = s.getPointer().getLong(8);
             assertEquals("NativeLong field mismatch", MAGIC, l);
         } 
         else {
             final int MAGIC = 0xABEDCF23;
             s.l = new NativeLong(MAGIC);
+            s.write();
             int i = s.getPointer().getInt(4);
             assertEquals("NativeLong field mismatch", MAGIC, i);
         }
@@ -154,12 +276,7 @@ public class StructureTest extends TestCase {
         assertEquals("Array should consist of a single element",
                      1, array.length);
         assertEquals("First element should be original", s, array[0]);
-        try {
-            s.toArray(2);
-            fail("Should throw exception on attempts to exceed allocated bounds");
-        }
-        catch(IndexOutOfBoundsException e) {
-        }
+        assertEquals("Structure memory should be expanded", 2, s.toArray(2).length);
     }
     
     static class CbStruct extends Structure {

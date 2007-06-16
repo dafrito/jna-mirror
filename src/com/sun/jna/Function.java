@@ -11,18 +11,21 @@
 package com.sun.jna;
 
 import com.sun.jna.ptr.ByReference;
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 /**
  * An abstraction for a native function pointer.  An instance of 
  * <code>Function</code> repesents a pointer to some native function.  
- * <code>invokeXXX</code> methods provide means to call the function; select a 
- * <code>XXX</code> variant based on the return type of the Java interface
- * method. 
+ * {@link #invoke(Class,Object[],Map)} is the primary means to call
+ * the function. 
  *
  * @author Sheng Liang, originator
  * @author Todd Fast, suitability modifications
@@ -34,7 +37,7 @@ public class Function extends Pointer {
 
     /** Standard C calling convention. */
     public static final int C_CONVENTION = 0;
-    /** Alternate convention (currently used only for w32 stdcall). */
+    /** First alternate convention (currently used only for w32 stdcall). */
     public static final int ALT_CONVENTION = 1;
 
     private NativeLibrary library;
@@ -101,7 +104,7 @@ public class Function extends Pointer {
         this.library = library;
         this.functionName = functionName;
         this.callingConvention = callingConvention;
-        peer = library.getFunctionAddress(functionName);
+        this.peer = library.getFunctionAddress(functionName);
     }
     
     private void checkCallingConvention(int convention)
@@ -116,6 +119,10 @@ public class Function extends Pointer {
         }
     }
 
+    public NativeLibrary getLibrary() {
+        return library;
+    }
+    
     public String getLibraryName() {
         return library.getName();
     }
@@ -170,15 +177,17 @@ public class Function extends Pointer {
         // This will be set to the full set of arguments if a varargs
         // argument is encountered
         Object result = null;
-		// If the final argument is an array of Object, treat it as
+
+        // If the final argument is an array of Object, treat it as
         // varargs and concatenate the previous arguments with the varargs 
         // elements.
         if (inArgs != null && inArgs.length > 0) {
             Object lastArg = inArgs[inArgs.length-1];
-            if (lastArg != null 
+            if (lastArg != null
                 && lastArg.getClass().isArray() 
                 && !isPrimitiveArray(lastArg.getClass())
-                && !isStructureArray(lastArg.getClass())) {
+                && !isStructureArray(lastArg.getClass())
+                && String[].class != lastArg.getClass()) {
                 Object[] varArgs = (Object[])lastArg;
                 Object[] fullArgs = new Object[inArgs.length+varArgs.length];
                 System.arraycopy(inArgs, 0, fullArgs, 0, inArgs.length-1);
@@ -192,7 +201,7 @@ public class Function extends Pointer {
                 inArgs = fullArgs;
             }
         }
-        
+
         // Clone the argument array
         Object[] args = { };
         if (inArgs != null) {
@@ -202,7 +211,9 @@ public class Function extends Pointer {
             args = new Object[inArgs.length];
             System.arraycopy(inArgs, 0, args, 0, args.length);
         }
-        TypeMapper typeMapper = (TypeMapper)options.get("type-mapper");
+        
+        TypeMapper mapper = (TypeMapper)options.get(Library.OPTION_TYPE_MAPPER);
+
         // Keep track of allocated ByteBuffers so they can be released again
         int bufferMask = 0;
 
@@ -213,8 +224,8 @@ public class Function extends Pointer {
         // returned (so you couldn't do something like strstr).
         for (int i=0; i < args.length; i++) {
             Object arg = args[i];
-            if (arg != null && typeMapper != null) {
-                TypeConverter converter = typeMapper.getTypeConverter(arg.getClass());
+            if (arg != null && mapper != null) {
+                ArgumentConverter converter = mapper.getArgumentConverter(arg.getClass());
                 if (converter != null) {
                     args[i] = arg = converter.toNative(arg);
                 }
@@ -226,7 +237,6 @@ public class Function extends Pointer {
             if (arg == null || isPrimitiveArray(arg.getClass())) {
                 continue;
             }
-            
             Class argClass = arg.getClass();
             // Convert Structures to native pointers 
             if (arg instanceof Structure) {
@@ -249,6 +259,11 @@ public class Function extends Pointer {
                 // Use pointer to trampoline (callback->insns, see dispatch.h)
                 args[i] = cbref.getTrampoline();
             }
+            // String arguments are converted to native pointers here rather
+            // than in native code so that the values will be valid until
+            // this method returns.  At one point the conversion was in native
+            // code, which left the pointer values invalid before this method
+            // returned (so you couldn't do something like strstr).
             // Convert String to native pointer (const)
             else if (arg instanceof String) {
                 String s = (String) arg;
@@ -264,18 +279,13 @@ public class Function extends Pointer {
             else if (arg instanceof NativeLong) {
                 args[i] = ((NativeLong)arg).asNativeValue();
             }
-            // Convert boolean to int
-            // NOTE: this is specifically for BOOL on w32; most other 
-            // platforms simply use an 'int' or 'char' argument.
+            // Default conversion of boolean to int; if you want something
+            // different, use an ArgumentConverter
             else if (arg instanceof Boolean) {
                 args[i] = new Integer(Boolean.TRUE.equals(arg) ? -1 : 0);
             }
-            else if (arg instanceof ByteBuffer && !((ByteBuffer)arg).isDirect()) {
-                ByteBuffer buf = (ByteBuffer)arg;
-                if (!buf.hasArray()) {
-                    throw new IllegalArgumentException("Unsupported non-direct ByteBuffer without array");
-                }
-                args[i] = buf.array();
+            else if (String[].class.equals(argClass)) {
+                args[i] = new StringArray((String[])arg);
             }
             else if (isStructureArray(argClass)) {
                 // Initialize uninitialized arrays of Structure to point
@@ -326,73 +336,84 @@ public class Function extends Pointer {
                     args[i] = base;
                 }
             }
-            else if (argClass.isArray()) {
-                throw new IllegalArgumentException("Unsupported array type: " + arg.getClass());
+            else if (arg instanceof ByteBuffer && !((ByteBuffer)arg).isDirect()) {
+                ByteBuffer buf = (ByteBuffer)arg;
+                if (buf.hasArray()) {
+                    args[i] = buf.array();
+                }
+                else {
+                    throw new IllegalArgumentException("Unsupported non-direct ByteBuffer with no array");
+                }
+            }
+            else if (argClass.isArray()){
+                throw new IllegalArgumentException("Unsupported array argument type: " 
+                                                   + argClass.getComponentType());
             }
         }
-        Class resultType = returnType;
-        TypeConverter resultConverter = null;
-        if (typeMapper != null) {
-            resultConverter = typeMapper.getTypeConverter(resultType);
+        
+        Class nativeType = returnType;
+        ResultConverter resultConverter = null;
+        if (mapper != null) {
+            resultConverter = mapper.getResultConverter(returnType);
             if (resultConverter != null) {
-                returnType = resultConverter.invocationType();
+                nativeType = resultConverter.nativeType();
             }
         }
-        if (returnType==Void.TYPE || returnType==Void.class) {
+        if (nativeType == null || nativeType==void.class || nativeType==Void.class) {
             invokeVoid(callingConvention, args);
         }
-        else if (returnType==Boolean.TYPE || returnType==Boolean.class) {
+        else if (nativeType==boolean.class || nativeType==Boolean.class) {
             result = new Boolean(invokeInt(callingConvention, args) != 0);
         }
-        else if (returnType==Byte.TYPE || returnType==Byte.class) {
+        else if (nativeType==byte.class || nativeType==Byte.class) {
             result = new Byte((byte)invokeInt(callingConvention, args));
         }
-        else if (returnType==Short.TYPE || returnType==Short.class) {
+        else if (nativeType==short.class || nativeType==Short.class) {
             result = new Short((short)invokeInt(callingConvention, args));
         }
-        else if (returnType==Integer.TYPE || returnType==Integer.class) {
+        else if (nativeType==int.class || nativeType==Integer.class) {
             result = new Integer(invokeInt(callingConvention, args));
         }
-        else if (returnType==Long.TYPE || returnType==Long.class) {
+        else if (nativeType==long.class || nativeType==Long.class) {
             result = new Long(invokeLong(callingConvention, args));
         }
-        else if (returnType==NativeLong.class) {
+        else if (nativeType==NativeLong.class) {
             result = new NativeLong(NativeLong.SIZE == 8
                                     ? invokeLong(callingConvention, args)
                                     : invokeInt(callingConvention, args));
         }
-        else if (returnType==Float.TYPE || returnType==Float.class) {
+        else if (nativeType==float.class || nativeType==Float.class) {
             result = new Float(invokeFloat(callingConvention, args));
         }
-        else if (returnType==Double.TYPE || returnType==Double.class) {
+        else if (nativeType==double.class || nativeType==Double.class) {
             result = new Double(invokeDouble(callingConvention, args));
         }
-        else if (returnType==String.class) {
+        else if (nativeType==String.class) {
             result = invokeString(args, false);
         }
-        else if (returnType==WString.class) {
+        else if (nativeType==WString.class) {
             result = new WString(invokeString(args, true));
         }
-        else if (Pointer.class.isAssignableFrom(returnType)) {
+        else if (Pointer.class.isAssignableFrom(nativeType)) {
             result = invokePointer(callingConvention, args);
         }
-        else if (Structure.class.isAssignableFrom(returnType)) {
+        else if (Structure.class.isAssignableFrom(nativeType)) {
             result = invokePointer(callingConvention, args);
             if (result != null) {
                 try {
-                    Structure s = (Structure)returnType.newInstance();
+                    Structure s = (Structure)nativeType.newInstance();
                     s.useMemory((Pointer)result);
                     s.read();
                     result = s;
                 }
                 catch(InstantiationException e) {
                     throw new IllegalArgumentException("Instantiation of "
-                                                       + returnType + " failed: " 
+                                                       + nativeType + " failed: " 
                                                        + e);
                 }
                 catch(IllegalAccessException e) {
                     throw new IllegalArgumentException("Not allowed to instantiate "
-                                                       + returnType + ": " + e);
+                                                       + nativeType + ": " + e);
                 }
             }
         }
@@ -400,10 +421,11 @@ public class Function extends Pointer {
             throw new IllegalArgumentException("Unsupported return type "
                                                + returnType);
         }
-        
-        // Convert the result to a custom value if needed.
+
+        // Convert the result to a custom value/type if appropriate
         if (resultConverter != null) {
-            result = resultConverter.fromNative(result, resultType);
+            ResultContext context = new FunctionResultContext(returnType, this, inArgs);
+            result = resultConverter.fromNative(result, context);
         }
         
         // Sync java fields in structures to native memory after invocation
@@ -414,6 +436,15 @@ public class Function extends Pointer {
                     continue;
                 if (arg instanceof Structure) {
                     ((Structure)arg).read();
+                }
+                else if (String[].class == arg.getClass()) {
+                    // Copy back the string values, just in case they were
+                    // modified
+                    StringArray buf = (StringArray)args[i];
+                    String[] array = (String[])arg;
+                    for (int si=0;si < array.length;si++) {
+                        array[si] = buf.getPointer(si * Pointer.SIZE).getString(0, false);
+                    }
                 }
                 else if (isStructureArray(arg.getClass())) {
                     Structure[] ss = (Structure[])arg;
@@ -441,7 +472,6 @@ public class Function extends Pointer {
         return result;
     }
 
-
     private boolean isStructureArray(Class argClass) {
         return argClass.isArray()
             && Structure.class.isAssignableFrom(argClass.getComponentType());
@@ -458,18 +488,6 @@ public class Function extends Pointer {
      *
      * @param	args
      *			Arguments to pass to the native function
-     * @return	The value returned by the target function
-     */
-    public int invokeInt(Object[] args) {
-        return ((Integer)invoke(Integer.class, args)).intValue();
-    }
-
-
-    /**
-     * Call the native function being represented by this object
-     *
-     * @param	args
-     *			Arguments to pass to the native function
      * @return	The value returned by the target native function
      */
     public native int invokeInt(int callingConvention, Object[] args);
@@ -479,33 +497,9 @@ public class Function extends Pointer {
      *
      * @param	args
      *			Arguments to pass to the native function
-     * @return	The value returned by the target function
-     */
-    public long invokeLong(Object[] args) {
-        return ((Long)invoke(Long.class, args)).longValue();
-    }
-
-
-    /**
-     * Call the native function being represented by this object
-     *
-     * @param	args
-     *			Arguments to pass to the native function
      * @return	The value returned by the target native function
      */
     public native long invokeLong(int callingConvention, Object[] args);
-
-    /**
-     * Call the native function being represented by this object
-     *
-     * @param	args
-     *			Arguments to pass to the native function
-     * @return	The value returned by the target function
-     */
-    public boolean invokeBoolean(Object[] args) {
-        return Boolean.TRUE.equals(invoke(Boolean.class, args));
-    }
-
 
     /**
      * Call the native function being represented by this object
@@ -533,31 +527,7 @@ public class Function extends Pointer {
      *			Arguments to pass to the native function
      * @return	The value returned by the target native function
      */
-    public float invokeFloat(Object[] args) {
-        return ((Float)invoke(Float.class, args)).floatValue();
-    }
-
-
-    /**
-     * Call the native function being represented by this object
-     *
-     * @param	args
-     *			Arguments to pass to the native function
-     * @return	The value returned by the target native function
-     */
     public native float invokeFloat(int callingConvention, Object[] args);
-
-    /**
-     * Call the native function being represented by this object
-     *
-     * @param	args
-     *			Arguments to pass to the native function
-     * @return	The value returned by the target native function
-     */
-    public double invokeDouble(Object[] args) {
-        return ((Double)invoke(Double.class, args)).doubleValue();
-    }
-
 
     /**
      * Call the native function being represented by this object
@@ -576,18 +546,7 @@ public class Function extends Pointer {
      * @return	The value returned by the target native function
      */
     public String invokeString(Object[] args, boolean wide) {
-        return invokeString(callingConvention, args, wide);
-    }
-
-    /**
-     * Call the native function being represented by this object
-     *
-     * @param	args
-     *			Arguments to pass to the native function
-     * @return	The value returned by the target native function
-     */
-    public String invokeString(int callingConvention, Object[] args, boolean wide) {
-        Pointer ptr = (Pointer) invoke(callingConvention, Pointer.class, args);
+        Pointer ptr = invokePointer(callingConvention, args);
         String s = null;
         if (ptr != null) {
             s = ptr.getString(0, wide);
@@ -602,21 +561,76 @@ public class Function extends Pointer {
      *			Arguments to pass to the native function
      * @return	The native pointer returned by the target native function
      */
+    public native Pointer invokePointer(int callingConvention, Object[] args);
+
+    /** Create a callback function pointer. */
+    static native Pointer createCallback(Callback callback, Method method, 
+                                         Class[] parameterTypes, 
+                                         Class returnType,
+                                         int callingConvention);
+    /** Free the given callback function pointer. */
+    static native void freeCallback(long ptr);
+    
+    /** Provide a human-readable representation of this object. */
+    public String toString() {
+        return "native function " + functionName + "(" + library.getName() 
+            + ")@0x" + Long.toHexString(peer);
+    }
+    
+    /** Handle native array of char* type by managing allocation/disposal of 
+     * native strings within an array of pointers.  Always NULL-terminates
+     * the array. 
+     */
+    private class StringArray extends Memory {
+        private List natives = new ArrayList();
+        public StringArray(String[] strings) {
+            super((strings.length + 1) * Pointer.SIZE);
+            for (int i=0;i < strings.length;i++) {
+                NativeString ns = new NativeString(strings[i]);
+                natives.add(ns);
+                setPointer(Pointer.SIZE * i, ns.getPointer());
+            }
+            setPointer(Pointer.SIZE * strings.length, null);
+        }
+    }
+    
+    // The following convenience methods are provided for using a Function
+    // instance directly
+    
+    /** Convenience method for 
+     * {@link #invoke(Class,Object[]) invoke(Pointer.class, args)}.
+     */
     public Pointer invokePointer(Object[] args) {
         return (Pointer)invoke(Pointer.class, args);
     }
-
-
-    /**
-     * Call the native function being represented by this object
-     *
-     * @param	args
-     *			Arguments to pass to the native function
-     * @return	The native pointer returned by the target native function
+    /** Convenience method for 
+     * {@link #invoke(Class,Object[]) invoke(Integer.class, args)}.
      */
-    public native Pointer invokePointer(int callingConvention, Object[] args);
-
-    public String toString() {
-        return "Function: " + functionName + "(" + library.getName() + ")";
+    public int invokeInt(Object[] args) {
+        return ((Integer)invoke(Integer.class, args)).intValue();
+    }
+    /** Convenience method for 
+     * {@link #invoke(Class,Object[]) invoke(Long.class, args)}.
+     */
+    public long invokeLong(Object[] args) {
+        return ((Long)invoke(Long.class, args)).longValue();
+    }
+    /** Convenience method for 
+     * {@link #invoke(Class,Object[]) invoke(Float.class, args)}.
+     */
+    public float invokeFloat(Object[] args) {
+        return ((Float)invoke(Float.class, args)).floatValue();
+    }
+    /** Convenience method for 
+     * {@link #invoke(Class,Object[]) invoke(Double.class, args)}.
+     */
+    public double invokeDouble(Object[] args) {
+        return ((Double)invoke(Double.class, args)).doubleValue();
+    }
+    /** Convenience method for 
+     * {@link #invoke(Class,Object[]) invoke(Void.class, args)}.
+     */
+    public void invokeVoid(Object[] args) {
+        invoke(Void.class, args);
     }
 }

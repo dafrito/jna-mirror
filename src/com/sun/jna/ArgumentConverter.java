@@ -13,17 +13,8 @@
 
 package com.sun.jna;
 
-/**
- *
- * @author Wayne Meissner
- */
-public abstract class ArgumentConverter implements TypeConverter {
-    private Class javaType;
-    public ArgumentConverter(Class javaType) {
-        this.javaType = javaType;
-    }
-    public Class invocationType() { return javaType; }
-    public Object fromNative(Object value, Class returnType) {
-        return value;
-    }
+/** Define conversion from a Java type to its corresponding native type. */
+public interface ArgumentConverter {
+    /** Convert a Java type to an appropriate native type. */
+    public Object toNative(Object value);
 }

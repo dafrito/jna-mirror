@@ -17,6 +17,7 @@ import java.nio.ByteOrder;
 import java.nio.IntBuffer;
 import java.nio.LongBuffer;
 import java.nio.ShortBuffer;
+import java.util.Arrays;
 import junit.framework.TestCase;
 
 /** Exercise a range of native methods.
@@ -30,10 +31,12 @@ public class ArgumentsMarshalTest extends TestCase {
             Native.loadLibrary("testlib", TestLibrary.class);
 
         class CheckFieldAlignment extends Structure {
-            public int int32Field = 1;
-            public long int64Field = 2;
-            public float floatField = 3f;
-            public double doubleField = 4d;
+            public byte int8Field = 1;
+            public short int16Field = 2;
+            public int int32Field = 3;
+            public long int64Field = 4;
+            public float floatField = 5f;
+            public double doubleField = 6d;
         }
 
         boolean returnBooleanArgument(boolean arg);
@@ -47,10 +50,14 @@ public class ArgumentsMarshalTest extends TestCase {
         String returnStringArgument(String s);
         WString returnWStringArgument(WString s);
         Pointer returnPointerArgument(Pointer p);
+        String returnFirstCharArrayArgument(String[] args);
+        int returnRotatedArgumentCount(String[] args);
+
         long checkInt64ArgumentAlignment(int i, long j, int i2, long j2);
         double checkDoubleArgumentAlignment(float i, double j, float i2, double j2);
-        int testSimpleStructurePointerArgument(CheckFieldAlignment p);
+        Pointer testSimpleStructurePointerArgument(CheckFieldAlignment p);
         void modifyStructureArray(CheckFieldAlignment[] p, int length);
+        
         int fillInt8Buffer(byte[] buf, int len, byte value);
         int fillInt16Buffer(short[] buf, int len, short value);
         int fillInt32Buffer(int[] buf, int len, int value);
@@ -191,10 +198,10 @@ public class ArgumentsMarshalTest extends TestCase {
     }
 
     public void testSimpleStructurePointerArgument() {
-        TestLibrary.CheckFieldAlignment aligned = new TestLibrary.CheckFieldAlignment();
-        assertEquals("Structure data not properly initialized",
-                     aligned.size(), 
-                     lib.testSimpleStructurePointerArgument(aligned));
+        TestLibrary.CheckFieldAlignment struct = new TestLibrary.CheckFieldAlignment();
+        assertEquals("Native size does not match calculated size",
+                     struct.getPointer(), 
+                     lib.testSimpleStructurePointerArgument(struct));
     }
     
     public void testUninitializedStructureArrayArgument() {
@@ -351,6 +358,19 @@ public class ArgumentsMarshalTest extends TestCase {
         }
         catch(IllegalArgumentException e) {
         }
+    }
+    
+    public void testCharArrayArgument() {
+        String[] args = { "one", "two", "three" };
+        assertEquals("Wrong argument returned", args[0], lib.returnFirstCharArrayArgument(args));
+    }
+    
+    public void testModifiedCharArrayArgument() {
+        String[] args = { "one", "two", "three" };
+        assertEquals("Wrong native array count", args.length, lib.returnRotatedArgumentCount(args));
+        assertEquals("Modified array argument not re-read",
+                     Arrays.asList(new String[] { "two", "three", "one" }),
+                     Arrays.asList(args));
     }
     
     public static void main(java.lang.String[] argList) {

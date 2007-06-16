@@ -13,13 +13,17 @@
 
 package com.sun.jna;
 
-/**
+/** Represents the <code>long</code> C data type, which may be 32 or 64 bits
+ * on *nix-based systems.
  *
  * @author wmeissner@gmail.com
  */
 public class NativeLong extends Number {
+    /** Size of a native long, in bytes. */
     public static final int SIZE = Pointer.LONG_SIZE;
     private final Number value;
+
+    /** Create a NativeLong with the given value. */
     public NativeLong(long value) {
         if (SIZE == 4) {
             long masked = value & 0xFFFFFFFF80000000L;

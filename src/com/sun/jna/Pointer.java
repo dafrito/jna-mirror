@@ -10,6 +10,7 @@
  */
 package com.sun.jna;
 
+import java.awt.Toolkit;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -36,9 +37,13 @@ import java.nio.ByteOrder;
  */
 public class Pointer {
 
-    /** The size of a native pointer on the current platform */
+    /** The size of a native pointer on the current platform, in bytes. */
     public static final int SIZE;
+    /** Size of a native long type, in bytes. */
     public static final int LONG_SIZE;
+    /** Size of a native wchar_t type, in bytes. */
+    public static final int WCHAR_SIZE;
+    
     /** Convenience constant, same as <code>null</code>. */
     public static final Pointer NULL = null;
     /** Convenience constant, equivalent to <code>(void*)-1</code>. */
@@ -51,6 +56,7 @@ public class Pointer {
         }
         SIZE = initIDs();
         LONG_SIZE = longSize();
+        WCHAR_SIZE = wideCharSize();
     }
     
     private static String getNativeLibraryResourcePath() {
@@ -121,14 +127,14 @@ public class Pointer {
                 }
             }
         }
-        
+        // Avoid dependent library link errors on w32 (this is handled
+        // internal to the jnidispatch library for X11-based platforms)
         if (OS.isWindows()) {
-            // Avoid dependent library link errors on w32 (this is handled
-            // internal to the jnidispatch library for X11-based platforms)
-            try { System.loadLibrary("awt"); } 
-            catch(UnsatisfiedLinkError e) { }
+            // Ensure AWT library ("awt") is loaded by the proper class loader, 
+            // otherwise Toolkit class init will fail
+            Toolkit.getDefaultToolkit();
             try { System.loadLibrary("jawt"); } 
-            catch(UnsatisfiedLinkError e) { }
+            catch(UnsatisfiedLinkError e) { e.printStackTrace(); }
         }
         System.load(lib.getAbsolutePath());
         return true;
@@ -139,10 +145,13 @@ public class Pointer {
      * Returns the size of a native pointer.
      **/
     private static native int initIDs();
-    
+
     /** Return the size of a native <code>long</code>. */
     private static native int longSize();
-
+    
+    /** Return the size of a native <code>wchar_t</code>. */
+    private static native int wideCharSize();
+    
     /** Pointer value of the real native pointer. Use long to be 64-bit safe. 
      */
     long peer;
@@ -452,13 +461,9 @@ public class Pointer {
      * @return the <code>long</code> value being pointed to
      */
     public NativeLong getNativeLong(int offset) {
-        if (SIZE == 8) {
-            return new NativeLong(getLong(offset));
-        } else {
-            return new NativeLong(getInt(offset));
-        }
+        return new NativeLong(SIZE == 8 ? getLong(offset) : getInt(offset));
     }
-
+    
     /**
      * Indirect the native pointer as a pointer to <code>float</code>.  This is
      * equivalent to the expression
@@ -493,18 +498,26 @@ public class Pointer {
     public native Pointer getPointer(int offset);
 
     /**
-     * Get a ByteBuffer mapped to the memory pointed to by the pointer.
+     * Get a ByteBuffer mapped to the memory pointed to by the pointer,
+     * ensuring the buffer uses native byte order.
      *
      * @param offset byte offset from pointer to start the buffer
      * @param length Length of ByteBuffer
-     * @return a direct ByteBuffer that accesses the memory being pointed to,
-     *      in native byte order 
+     * @return a direct ByteBuffer that accesses the memory being pointed to, 
      */
     public ByteBuffer getByteBuffer(int offset, int length) {
         return getDirectByteBuffer(offset, length).order(ByteOrder.nativeOrder());
     }
-    native ByteBuffer getDirectByteBuffer(int offset, int length);
-  
+    
+    /**
+     * Get a direct ByteBuffer mapped to the memory pointed to by the pointer.
+     *
+     * @param offset byte offset from pointer to start the buffer
+     * @param length Length of ByteBuffer
+     * @return a direct ByteBuffer that accesses the memory being pointed to, 
+     */
+    private native ByteBuffer getDirectByteBuffer(int offset, int length);
+
     /**
      * Copy native memory to a Java String.  If <code>wide</code> is true,
      * access the memory as an array of <code>wchar_t</code>, otherwise 
@@ -684,6 +697,6 @@ public class Pointer {
     public native void setString(int offset, String value, boolean wide);
 
     public String toString() {
-        return "Native Pointer <0x" + Long.toHexString(peer) + ">";
+        return "native@0x" + Long.toHexString(peer);
     }
 }

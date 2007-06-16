@@ -12,11 +12,12 @@
  */
 package com.sun.jna.examples.unix;
 
+import com.sun.jna.DefaultTypeMapper;
 import com.sun.jna.Library;
 import com.sun.jna.Native;
 import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
-import com.sun.jna.SimpleTypeMapper;
+import com.sun.jna.ResultContext;
 import com.sun.jna.Structure;
 import com.sun.jna.TypeConverter;
 import com.sun.jna.ptr.IntByReference;
@@ -65,11 +66,11 @@ public interface X11 extends Library {
             return ((XID)value).id;
         }
 
-        public Object fromNative(Object value, Class returnType) {
+        public Object fromNative(Object value, ResultContext context) {
             return new XID((Integer)value);
         }
 
-        public Class invocationType() {
+        public Class nativeType() {
             return Integer.class;
         }   
     }
@@ -89,35 +90,35 @@ public interface X11 extends Library {
             return ((PointerType)value).ptr;
         }
 
-        public Class invocationType() {
+        public Class nativeType() {
             return Pointer.class;
         }   
     }
     
     public static class DisplayTypeConverter extends PointerTypeConverter {
-        public Object fromNative(Object value, Class returnType) {
+        public Object fromNative(Object value, ResultContext context) {
             return value != null ? new Display((Pointer)value) : null;
         }
     }
     public static class VisualTypeConverter extends PointerTypeConverter {
-        public Object fromNative(Object value, Class returnType) {
+        public Object fromNative(Object value, ResultContext context) {
             return value != null ? new Visual((Pointer)value) : null;
         }
     }
     public static class GCTypeConverter extends PointerTypeConverter {
-        public Object fromNative(Object value, Class returnType) {
+        public Object fromNative(Object value, ResultContext context) {
             return value != null ? new GC((Pointer)value) : null;
         }
     }
     public static class OptionMap extends HashMap {
         public OptionMap() {
-            SimpleTypeMapper mapper = new SimpleTypeMapper();
-            mapper.add(Window.class, new WindowTypeConverter());
-            mapper.add(Pixmap.class, new PixmapTypeConverter());
-            mapper.add(Display.class, new DisplayTypeConverter());
-            mapper.add(Visual.class, new VisualTypeConverter());
-            mapper.add(GC.class, new GCTypeConverter());
-            put("type-mapper", mapper);
+            DefaultTypeMapper mapper = new DefaultTypeMapper();
+            mapper.addTypeConverter(Window.class, new WindowTypeConverter());
+            mapper.addTypeConverter(Pixmap.class, new PixmapTypeConverter());
+            mapper.addTypeConverter(Display.class, new DisplayTypeConverter());
+            mapper.addTypeConverter(Visual.class, new VisualTypeConverter());
+            mapper.addTypeConverter(GC.class, new GCTypeConverter());
+            put(Library.OPTION_TYPE_MAPPER, mapper);
         }
     }
     /** Definition (incomplete) of the Xext library. */

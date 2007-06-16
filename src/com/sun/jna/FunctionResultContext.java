@@ -12,13 +12,18 @@
  */
 package com.sun.jna;
 
-/** Provides converters for conversion to and from native types. */
-public interface TypeMapper {
-    /** Return the {@link ResultConverter} appropriate for the given Java class. 
-     */
-    ResultConverter getResultConverter(Class javaType);
-
-    /** Return the {@link ArgumentConverter} appropriate for the given Java class. 
-     */
-    ArgumentConverter getArgumentConverter(Class javaType);
+/** Provide result conversion context for a function call. */
+public class FunctionResultContext extends ResultContext {
+    
+    private Function function;
+    private Object[] args;
+    public FunctionResultContext(Class resultClass, Function function, Object[] args) {
+        super(resultClass);
+        this.function = function;
+        this.args = args;
+    }
+    /** Get the function that was invoked. */
+    public Function getFunction() { return function; }
+    /** Get the arguments used in this function call. */
+    public Object[] getArguments() { return args; }
 }
