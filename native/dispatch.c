@@ -380,50 +380,13 @@ Java_com_sun_jna_Function_invokeVoid(JNIEnv *env, jobject self,
 }
 
 /*
- * Class:     Function
- * Method:    find
- * Signature: (Ljava/lang/String;Ljava/lang/String;)J
- */
-JNIEXPORT jlong JNICALL Java_com_sun_jna_Function_find
-    (JNIEnv *env, jobject self, jstring lib, jstring fun)
-{
-    void *handle;
-    void *func = NULL;
-    char *libname = NULL;
-    char *funname = NULL;
-
-    if ((libname = newCString(env, lib)) == 0) {
-        goto ret;
-    }
-    if ((funname = newCString(env, fun)) == 0) {
-        goto ret;
-    }
-    if ((handle = (void *)LOAD_LIBRARY(libname)) == NULL) {
-        throwByName(env, "java/lang/UnsatisfiedLinkError", libname);
-        goto ret;
-    }
-    if ((func = (void *)FIND_ENTRY(handle, funname)) == NULL) {
-        const char* fmt = "no such function '%s' in library '%s'";
-        char *buf = alloca(strlen(funname) + strlen(libname) + strlen(fmt) + 1);
-        sprintf(buf, fmt, funname, libname);
-        throwByName(env, "java/lang/UnsatisfiedLinkError", buf);
-        goto ret;
-    }
-
- ret:
-    free(libname);
-    free(funname);
-    return (jlong)A2L(func);
-}
-
-/*
  * Class:     com_sun_jna_NativeLibrary
  * Method:    open
  * Signature: (Ljava/lang/String;)J
  */
 JNIEXPORT jlong JNICALL
 Java_com_sun_jna_NativeLibrary_open(JNIEnv *env, jclass cls, jstring lib){
-    void *handle;
+    void *handle = NULL;
     char *libname = NULL;
 
     if ((libname = newCString(env, lib)) != NULL) {
@@ -484,6 +447,16 @@ Java_com_sun_jna_Pointer_initIDs(JNIEnv *env, jclass cls)
 JNIEXPORT jint JNICALL 
 Java_com_sun_jna_Pointer_longSize(JNIEnv *env, jclass cls) {
   return sizeof(long);
+}
+
+/*
+ * Class:     Pointer
+ * Method:    wideCharSize
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL 
+Java_com_sun_jna_Pointer_wideCharSize(JNIEnv *env, jclass cls) {
+  return sizeof(wchar_t);
 }
 
 /*
@@ -884,8 +857,8 @@ JNIEXPORT void JNICALL Java_com_sun_jna_Pointer_setString
     (JNIEnv *env, jobject self, jint offset, jstring value, jboolean wide)
 {
     char *peer = (char *)getNativeAddress(env, self);
+    int len = (*env)->GetStringLength(env, value);
     if (wide) {
-        int len = (*env)->GetStringLength(env, value);
         wchar_t* str = newWideCString(env, value);
         if (str == NULL) return;
         memcpy(peer + offset, str, (len + 1) * sizeof(wchar_t));
@@ -894,7 +867,7 @@ JNIEXPORT void JNICALL Java_com_sun_jna_Pointer_setString
     else {
         char *str = newCString(env, value);
         if (str == NULL) return;
-        strcpy(peer + offset, str);
+        memcpy(peer + offset, str, len + 1);
         free(str);
     }
 }
@@ -989,7 +962,7 @@ newWideCString(JNIEnv *env, jstring str)
             (*env)->DeleteLocalRef(env, chars);
             return 0;
         }
-        // TODO: ensure proper conversion from jchar to native wchar_t
+        // TODO: ensure proper encoding conversion from jchar to native wchar_t
         if (sizeof(jchar) == sizeof(wchar_t)) {
             (*env)->GetCharArrayRegion(env, chars, 0, len, (jchar*)result);
         }
@@ -1344,7 +1317,7 @@ jnidispatch_init(JavaVM* jvm) {
     return JNI_TRUE;
 }
 
-jint 
+JNIEXPORT jint JNICALL 
 JNI_OnLoad(JavaVM *vm, void *reserved) {
   jnidispatch_init(vm);
   jnidispatch_callback_init(vm);
