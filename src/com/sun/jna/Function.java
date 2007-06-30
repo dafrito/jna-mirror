@@ -11,15 +11,15 @@
 package com.sun.jna;
 
 import com.sun.jna.ptr.ByReference;
+import com.sun.jna.types.NativeValue;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * An abstraction for a native function pointer.  An instance of 
@@ -234,6 +234,9 @@ public class Function extends Pointer {
                 // Let the converted argument be further converted to standard types
                 //
             }
+            if (arg instanceof NativeValue) {
+                args[i] = arg = ((NativeValue)arg).toNativeValue();
+            }
             if (arg == null || isPrimitiveArray(arg.getClass())) {
                 continue;
             }
@@ -275,9 +278,6 @@ public class Function extends Pointer {
             // Convert WString to native pointer (const)
             else if (arg instanceof WString) {
                 args[i] = new NativeString(arg.toString(), true).getPointer();
-            }
-            else if (arg instanceof NativeLong) {
-                args[i] = ((NativeLong)arg).asNativeValue();
             }
             // Default conversion of boolean to int; if you want something
             // different, use an ArgumentConverter
@@ -359,11 +359,25 @@ public class Function extends Pointer {
                 nativeType = resultConverter.nativeType();
             }
         }
+        Constructor resultConstructor = null;
+        if (nativeType == returnType && NativeValue.class.isAssignableFrom(returnType)) {
+            try {
+                Method typeMethod = returnType.getDeclaredMethod("nativeType", new Class[] {});
+                nativeType = (Class)typeMethod.invoke(null, null);
+                resultConstructor = returnType.getDeclaredConstructor(new Class[] { nativeType });
+            } catch (NoSuchMethodException e) {
+                throw new IllegalArgumentException("Invalid return type: " + returnType.getName(), e);
+            } catch (IllegalAccessException e) {                
+                throw new IllegalArgumentException("Invalid return type: " + returnType.getName(), e);
+            } catch (InvocationTargetException e) {                
+                throw new IllegalArgumentException("Invalid return type: " + returnType.getName(), e);
+            }
+        }
         if (nativeType == null || nativeType==void.class || nativeType==Void.class) {
             invokeVoid(callingConvention, args);
         }
         else if (nativeType==boolean.class || nativeType==Boolean.class) {
-            result = new Boolean(invokeInt(callingConvention, args) != 0);
+            result = Boolean.valueOf(invokeInt(callingConvention, args) != 0);
         }
         else if (nativeType==byte.class || nativeType==Byte.class) {
             result = new Byte((byte)invokeInt(callingConvention, args));
@@ -376,11 +390,6 @@ public class Function extends Pointer {
         }
         else if (nativeType==long.class || nativeType==Long.class) {
             result = new Long(invokeLong(callingConvention, args));
-        }
-        else if (nativeType==NativeLong.class) {
-            result = new NativeLong(NativeLong.SIZE == 8
-                                    ? invokeLong(callingConvention, args)
-                                    : invokeInt(callingConvention, args));
         }
         else if (nativeType==float.class || nativeType==Float.class) {
             result = new Float(invokeFloat(callingConvention, args));
@@ -426,6 +435,17 @@ public class Function extends Pointer {
         if (resultConverter != null) {
             ResultContext context = new FunctionResultContext(returnType, this, inArgs);
             result = resultConverter.fromNative(result, context);
+        } else if (resultConstructor != null) {
+            try {
+                result = resultConstructor.newInstance(new Object[] { result });
+            } catch (InstantiationException e) {
+                throw new IllegalArgumentException("Invalid return type: " + returnType.getName(), e);
+            } catch (IllegalAccessException e) {    
+                throw new IllegalArgumentException("Invalid return type: " + returnType.getName(), e);
+            } catch (InvocationTargetException e) {                
+                throw new IllegalArgumentException("Invalid return type: " + returnType.getName(), e);
+            }
+            
         }
         
         // Sync java fields in structures to native memory after invocation

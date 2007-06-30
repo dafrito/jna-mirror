@@ -13,14 +13,17 @@
 
 package com.sun.jna;
 
+import com.sun.jna.types.NativeValue;
+
 /** Represents the <code>long</code> C data type, which may be 32 or 64 bits
  * on *nix-based systems.
  *
  * @author wmeissner@gmail.com
  */
-public class NativeLong extends Number {
+public class NativeLong extends Number implements NativeValue {
     /** Size of a native long, in bytes. */
     public static final int SIZE = Pointer.LONG_SIZE;
+    public static final Class nativeType = Pointer.LONG_SIZE == 4 ? Integer.class : Long.class;
     private final Number value;
 
     /** Create a NativeLong with the given value. */
@@ -35,13 +38,21 @@ public class NativeLong extends Number {
             this.value = new Long(value);
         }
     }
+    NativeLong(Long value) {
+        this(value.longValue());
+    }
+    NativeLong(Integer value) {
+        this(value.longValue());
+    }
     /**
      * Return the appropriate Number sublclass to natively represent this value
      */
-    Number asNativeValue() {
+    public Object toNativeValue() {
         return value;
     }
-    
+    public static Class nativeType() {
+        return nativeType;
+    }
     public int intValue() {
         return value.intValue();
     }
