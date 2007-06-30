@@ -225,7 +225,7 @@ public class Function extends Pointer {
         for (int i=0; i < args.length; i++) {
             Object arg = args[i];
             if (arg != null && mapper != null) {
-                ArgumentConverter converter = mapper.getArgumentConverter(arg.getClass());
+                ToNativeConverter converter = mapper.getToNativeConverter(arg.getClass());
                 if (converter != null) {
                     args[i] = arg = converter.toNative(arg);
                 }
@@ -352,9 +352,9 @@ public class Function extends Pointer {
         }
         
         Class nativeType = returnType;
-        ResultConverter resultConverter = null;
+        FromNativeConverter resultConverter = null;
         if (mapper != null) {
-            resultConverter = mapper.getResultConverter(returnType);
+            resultConverter = mapper.getFromNativeConverter(returnType);
             if (resultConverter != null) {
                 nativeType = resultConverter.nativeType();
             }
@@ -433,7 +433,7 @@ public class Function extends Pointer {
 
         // Convert the result to a custom value/type if appropriate
         if (resultConverter != null) {
-            ResultContext context = new FunctionResultContext(returnType, this, inArgs);
+            FromNativeContext context = new FunctionResultContext(returnType, this, inArgs);
             result = resultConverter.fromNative(result, context);
         } else if (resultConstructor != null) {
             try {

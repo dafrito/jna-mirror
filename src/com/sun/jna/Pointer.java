@@ -190,7 +190,7 @@ public class Pointer {
     public boolean equals(Object o) {
         if (o == null)
             return peer == 0;
-        return o.getClass().equals(Pointer.class) && ((Pointer)o).peer == peer;
+        return (o instanceof Pointer) && ((Pointer)o).peer == peer;
     }
 
     /**

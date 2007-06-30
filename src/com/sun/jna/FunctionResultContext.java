@@ -13,7 +13,7 @@
 package com.sun.jna;
 
 /** Provide result conversion context for a function call. */
-public class FunctionResultContext extends ResultContext {
+public class FunctionResultContext extends FromNativeContext {
     
     private Function function;
     private Object[] args;

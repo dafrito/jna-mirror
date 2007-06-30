@@ -221,7 +221,7 @@ public abstract class Structure {
 
         // Determine the type of the field
         Class nativeType = structField.type;
-        ResultConverter resultConverter = structField.readConverter;
+        FromNativeConverter resultConverter = structField.readConverter;
         if (resultConverter != null) {
             nativeType = resultConverter.nativeType();
         }
@@ -361,7 +361,7 @@ public abstract class Structure {
         }
         // Determine the type of the field
         Class nativeType = structField.type;
-        ArgumentConverter converter = structField.writeConverter;
+        ToNativeConverter converter = structField.writeConverter;
         if (converter != null) {
             value = converter.toNative(value);
             // Assume any null values are pointers
@@ -534,8 +534,8 @@ public abstract class Structure {
                 }
                 Class nativeType = type;
                 if (typeMapper != null) {
-                    ArgumentConverter writeConverter = typeMapper.getArgumentConverter(type);
-                    ResultConverter readConverter = typeMapper.getResultConverter(type);
+                    ToNativeConverter writeConverter = typeMapper.getToNativeConverter(type);
+                    FromNativeConverter readConverter = typeMapper.getFromNativeConverter(type);
                     // Only set the read/write converter for the struct if the
                     // field can be both read & written.
                     if (readConverter != null && writeConverter != null) {
@@ -727,9 +727,9 @@ public abstract class Structure {
         public Field field;
         public int size = -1;
         public int offset = -1;
-        public ResultConverter readConverter;
-        public ArgumentConverter writeConverter;
-        public ResultContext context;
+        public FromNativeConverter readConverter;
+        public ToNativeConverter writeConverter;
+        public FromNativeContext context;
         public String toString() {
             Object value = "<unavailable>";
             try {

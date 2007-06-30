@@ -15,7 +15,7 @@ package com.sun.jna;
 /** Provide native to Java type conversion context for a {@link Structure} 
  * read. 
  */
-public class StructureReadContext extends ResultContext {
+public class StructureReadContext extends FromNativeContext {
     
     private Structure structure;
     public StructureReadContext(Class resultClass, Structure struct) {

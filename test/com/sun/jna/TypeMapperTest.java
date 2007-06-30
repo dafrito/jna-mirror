@@ -30,7 +30,7 @@ public class TypeMapperTest extends TestCase {
         final int MAGIC = 0xABEDCF23;
         Map options = new HashMap();
         DefaultTypeMapper mapper = new DefaultTypeMapper();
-        mapper.addArgumentConverter(Boolean.class, new ArgumentConverter() {
+        mapper.addToNativeConverter(Boolean.class, new ToNativeConverter() {
             public Object toNative(Object arg) {
                 return new Integer(Boolean.TRUE.equals(arg) ? MAGIC : 0);
             }
@@ -43,7 +43,7 @@ public class TypeMapperTest extends TestCase {
     }
     public void testStringToIntArgumentConversion() {
         DefaultTypeMapper mapper = new DefaultTypeMapper();
-        mapper.addArgumentConverter(String.class, new ArgumentConverter() {
+        mapper.addToNativeConverter(String.class, new ToNativeConverter() {
             public Object toNative(Object arg) {
                 return Integer.valueOf((String) arg, 16);
             }
@@ -58,7 +58,7 @@ public class TypeMapperTest extends TestCase {
     }
     public void testCharSequenceToIntArgumentConversion() {
         DefaultTypeMapper mapper = new DefaultTypeMapper();
-        mapper.addArgumentConverter(CharSequence.class, new ArgumentConverter() {
+        mapper.addToNativeConverter(CharSequence.class,new ToNativeConverter() {
             public Object toNative(Object arg) {
                 return Integer.valueOf(((CharSequence)arg).toString(), 16);
             }
@@ -74,7 +74,7 @@ public class TypeMapperTest extends TestCase {
     }
     public void testNumberToIntArgumentConversion() {
         DefaultTypeMapper mapper = new DefaultTypeMapper();
-        mapper.addArgumentConverter(Double.class, new ArgumentConverter() {
+        mapper.addToNativeConverter(Double.class, new ToNativeConverter() {
             public Object toNative(Object arg) {
                 return new Integer(((Double)arg).intValue());
             }
@@ -95,13 +95,13 @@ public class TypeMapperTest extends TestCase {
         final int MAGIC = 0xABEDCF23;
         Map options = new HashMap();
         DefaultTypeMapper mapper = new DefaultTypeMapper();
-        mapper.addArgumentConverter(Boolean.class, new ArgumentConverter() {
+        mapper.addToNativeConverter(Boolean.class,new ToNativeConverter() {
             public Object toNative(Object value) {
                 return new Integer(Boolean.TRUE.equals(value) ? MAGIC : 0);
             }
         });
-        mapper.addResultConverter(Boolean.class, new ResultConverter() {
-            public Object fromNative(Object value, ResultContext context) {
+        mapper.addFromNativeConverter(Boolean.class, new FromNativeConverter() {
+            public Object fromNative(Object value,FromNativeContext context) {
                 return Boolean.valueOf(((Integer) value).intValue() == MAGIC);
             }
             public Class nativeType() { 
@@ -130,15 +130,15 @@ public class TypeMapperTest extends TestCase {
             public Object toNative(Object value) {
                 return new Integer(Boolean.TRUE.equals(value) ? 1 : 0);
             }
-            public Object fromNative(Object value, ResultContext context) {
+            public Object fromNative(Object value,FromNativeContext context) {
                 return new Boolean(((Integer)value).intValue() == 1);
             }
             public Class nativeType() {
                 return Integer.class;
             }
         };
-        mapper.addArgumentConverter(Boolean.class, converter);
-        mapper.addResultConverter(Boolean.class, converter);
+        mapper.addToNativeConverter(Boolean.class, converter);
+        mapper.addFromNativeConverter(Boolean.class, converter);
         Map options = new HashMap();
         options.put(Library.OPTION_TYPE_MAPPER, mapper);
         StructureTestLibrary lib = (StructureTestLibrary)

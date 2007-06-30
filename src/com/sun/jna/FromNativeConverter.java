@@ -13,8 +13,12 @@
 
 package com.sun.jna;
 
-/** Define conversion from a Java type to its corresponding native type. */
-public interface ArgumentConverter {
-    /** Convert a Java type to an appropriate native type. */
-    public Object toNative(Object value);
+/** Define conversion from a native type to the appropriate Java type. */
+public interface FromNativeConverter {
+    /** Convert the given native object into its Java representation using
+     * the given context. 
+     */
+    public Object fromNative(Object value, FromNativeContext context);
+    /** Indicate the native type used by this converter. */
+    public Class nativeType();
 }

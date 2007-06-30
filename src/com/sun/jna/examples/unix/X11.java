@@ -17,19 +17,22 @@ import com.sun.jna.Library;
 import com.sun.jna.Native;
 import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
-import com.sun.jna.ResultContext;
+import com.sun.jna.FromNativeContext;
 import com.sun.jna.Structure;
 import com.sun.jna.TypeConverter;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.PointerByReference;
+import com.sun.jna.types.NativeValue;
 import java.util.HashMap;
 
 /** Definition (incomplete) of the X library. */
 public interface X11 extends Library {
-    public static class XID {
+    public static class XID implements NativeValue {
         public XID(Integer id) { this.id = id; }
         public XID(int id) { this.id = new Integer(id); }
         public Integer getId() { return id; }
+        public Object toNativeValue() { return id; }
+        public static Class nativeType() { return Integer.class; }
         Integer id;
     }
     public static class Drawable extends XID {
@@ -66,7 +69,7 @@ public interface X11 extends Library {
             return ((XID)value).id;
         }
 
-        public Object fromNative(Object value, ResultContext context) {
+        public Object fromNative(Object value, FromNativeContext context) {
             return new XID((Integer)value);
         }
 
@@ -96,17 +99,17 @@ public interface X11 extends Library {
     }
     
     public static class DisplayTypeConverter extends PointerTypeConverter {
-        public Object fromNative(Object value, ResultContext context) {
+        public Object fromNative(Object value,FromNativeContext context) {
             return value != null ? new Display((Pointer)value) : null;
         }
     }
     public static class VisualTypeConverter extends PointerTypeConverter {
-        public Object fromNative(Object value, ResultContext context) {
+        public Object fromNative(Object value,FromNativeContext context) {
             return value != null ? new Visual((Pointer)value) : null;
         }
     }
     public static class GCTypeConverter extends PointerTypeConverter {
-        public Object fromNative(Object value, ResultContext context) {
+        public Object fromNative(Object value,FromNativeContext context) {
             return value != null ? new GC((Pointer)value) : null;
         }
     }

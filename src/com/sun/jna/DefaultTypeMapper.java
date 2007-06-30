@@ -97,7 +97,7 @@ public class DefaultTypeMapper implements TypeMapper {
      * type from arguments of the given Java type.  Converters are
      * checked for in the order added.
      */
-    public void addArgumentConverter(Class cls, ArgumentConverter converter) {
+    public void addToNativeConverter(Class cls, ToNativeConverter converter) {
         argumentConverters.add(new Entry(cls, converter));
         Class alt = getAltClass(cls);
         if (alt != null) {
@@ -107,20 +107,20 @@ public class DefaultTypeMapper implements TypeMapper {
     /** Add a {@link ResultConverter} to convert a native result type into the 
      * given Java type.  Converters are checked for in the order added.
      */
-    public void addResultConverter(Class cls, ResultConverter converter) {
+    public void addFromNativeConverter(Class cls, FromNativeConverter converter) {
         resultConverters.add(new Entry(cls, converter));
         Class alt = getAltClass(cls);
         if (alt != null) {
             resultConverters.add(new Entry(alt, converter));
         }
     }
-    /** Add a {@link TpeConverter} to convert a native result type both into the 
+    /** Add a {@link TypeConverter} to convert a native result type both into the 
      * given Java type and from that java type to the native type.
      * Converters are checked for in the order added.
      */
     public void addTypeConverter(Class cls, TypeConverter converter) {
-        addResultConverter(cls, converter);
-        addArgumentConverter(cls, converter);
+        addFromNativeConverter(cls, converter);
+        addToNativeConverter(cls, converter);
     }
     private Object lookupConverter(Class javaClass, List converters) {
         for (Iterator i=converters.iterator();i.hasNext();) {
@@ -135,13 +135,13 @@ public class DefaultTypeMapper implements TypeMapper {
     /* (non-Javadoc)
      * @see com.sun.jna.TypeMapper#getResultConverter(java.lang.Class)
      */
-    public ResultConverter getResultConverter(Class javaType) {
-        return (ResultConverter)lookupConverter(javaType, resultConverters);
+    public FromNativeConverter getFromNativeConverter(Class javaType) {
+        return (FromNativeConverter)lookupConverter(javaType, resultConverters);
     }
     /* (non-Javadoc)
      * @see com.sun.jna.TypeMapper#getArgumentConverter(java.lang.Class)
      */
-    public ArgumentConverter getArgumentConverter(Class javaType) {
-        return (ArgumentConverter)lookupConverter(javaType, argumentConverters);
+    public ToNativeConverter getToNativeConverter(Class javaType) {
+        return (ToNativeConverter)lookupConverter(javaType, argumentConverters);
     }
 }

@@ -16,9 +16,9 @@ package com.sun.jna;
 public interface TypeMapper {
     /** Return the {@link ResultConverter} appropriate for the given Java class. 
      */
-    ResultConverter getResultConverter(Class javaType);
+    FromNativeConverter getFromNativeConverter(Class javaType);
 
     /** Return the {@link ArgumentConverter} appropriate for the given Java class. 
      */
-    ArgumentConverter getArgumentConverter(Class javaType);
+    ToNativeConverter getToNativeConverter(Class javaType);
 }
