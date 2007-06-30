@@ -43,7 +43,8 @@ public class Function extends Pointer {
     private NativeLibrary library;
     private String functionName;
     private int callingConvention;
-
+    private Method method = null;
+    
     private static final BufferPool globalBufferPool = new MultiBufferPool(512, 128, true);
    
     /**
@@ -107,6 +108,27 @@ public class Function extends Pointer {
         this.peer = library.getFunctionAddress(functionName);
     }
     
+    /**
+     * Create a new @{link Function} that is linked with a native 
+     * function that follows a given calling convention.
+     * 
+     * <p>The allocated instance represents a pointer to the named native 
+     * function from the supplied library, called with the named calling 
+     * convention.
+     *
+     * @param  library
+     *                 {@link NativeLibrary} in which to find the function
+     * @param  method
+     *                 @{link Method} in the Library that this method represents
+     * @param  callingConvention
+     *                 Calling convention used by the native function
+     */
+    Function(NativeLibrary library, Method method, int callingConvention) {
+        this(library, method.getName(), callingConvention);
+        this.method = method;
+    }
+    
+    
     private void checkCallingConvention(int convention)
         throws IllegalArgumentException {
         switch(convention) {
@@ -134,6 +156,16 @@ public class Function extends Pointer {
 
     public int getCallingConvention() {
         return callingConvention;
+    }
+    
+    /**
+     * Get the Java @{link Method} that is the proxy for this @{link Function}
+     * 
+     * @return The Java Method that invoked this Function, or null if not invoked 
+     *         from a @{link Library} subclass.
+     */
+    public Method getMethod() {
+        return method;
     }
     
     /*

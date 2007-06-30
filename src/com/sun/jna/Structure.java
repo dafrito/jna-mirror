@@ -544,7 +544,7 @@ public abstract class Structure {
                         nativeType = value != null ? value.getClass() : Pointer.class;
                         structField.writeConverter = writeConverter;
                         structField.readConverter = readConverter;
-                        structField.context = new StructureReadContext(type, this);
+                        structField.context = new StructureReadContext(type, this, structField.field);
                     }
                 }
                 structField.size = getNativeSize(nativeType, value);

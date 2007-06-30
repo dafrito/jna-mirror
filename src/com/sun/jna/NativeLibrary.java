@@ -16,6 +16,7 @@ package com.sun.jna;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.lang.ref.WeakReference;
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -154,7 +155,29 @@ public class NativeLibrary {
             return function;
         }
     }
-    
+    /**
+     * Create a new  @{link Function} that is linked with a native
+     * function that follows a given calling convention.
+     *
+     * <p>The allocated instance represents a pointer to the named native
+     * function from the library, called with the named calling convention.
+     *
+     * @param	method
+     *			@{link Method} in the Library that this method represents
+     * @param	callingConvention
+     *			Calling convention used by the native function
+     */
+    Function getFunction(Method method, int callingConvention) {
+        String functionName = method.getName();
+        synchronized (functions) {
+            Function function = (Function) functions.get(functionName);
+            if (function == null) {
+                function = new Function(this, method, callingConvention);
+                functions.put(functionName, function);
+            }
+            return function;
+        }
+    }
     /**
      * Used by the Function class to locate a symbol
      */

@@ -137,7 +137,12 @@ public interface Library {
                     int callingConvention = 
                         proxy instanceof AltCallingConvention
                         ? Function.ALT_CONVENTION : Function.C_CONVENTION;
-                    f = nativeLibrary.getFunction(methodName, callingConvention);
+                    //
+                    // Pass in the original method from the Library interface subclass
+                    // so annotations present in the interface get passed on.
+                    //
+                    Method interfaceMethod = interfaceClass.getMethod(method.getName(), method.getParameterTypes());
+                    f = nativeLibrary.getFunction(interfaceMethod, callingConvention);
                     functions.put(method, f);
                 }
             }
