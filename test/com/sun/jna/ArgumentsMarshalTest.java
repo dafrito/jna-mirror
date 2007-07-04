@@ -12,6 +12,13 @@
  */
 package com.sun.jna;
 
+import com.sun.jna.types.Int16;
+import com.sun.jna.types.Int32;
+import com.sun.jna.types.Int64;
+import com.sun.jna.types.Int8;
+import com.sun.jna.types.UInt16;
+import com.sun.jna.types.UInt32;
+import com.sun.jna.types.UInt8;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
@@ -44,6 +51,16 @@ public class ArgumentsMarshalTest extends TestCase {
         short returnInt16Argument(short arg);
         int returnInt32Argument(int i);
         long returnInt64Argument(long l);
+        Int8 returnInt8Argument(Int8 arg);
+        Int16 returnInt16Argument(Int16 arg);
+        Int32 returnInt32Argument(Int32 i);
+        Int64 returnInt64Argument(Int64 l);
+        UInt8 returnInt8Argument(UInt8 arg);
+        UInt16 returnInt16Argument(UInt16 arg);
+        UInt32 returnInt32Argument(UInt32 i);
+        UInt8 incrementUInt8Argument(UInt8 arg);
+        UInt16 incrementUInt16Argument(UInt16 arg);
+        UInt32 incrementUInt32Argument(UInt32 i);
         NativeLong returnLongArgument(NativeLong l);
         float returnFloatArgument(float f);
         double returnDoubleArgument(double d);
@@ -93,12 +110,38 @@ public class ArgumentsMarshalTest extends TestCase {
         byte b = 0;
         assertEquals("Wrong value returned", 
                      b, lib.returnInt8Argument(b));
+        assertEquals("Wrong value returned", 
+                     b, lib.returnInt8Argument(new Int8(b)).byteValue());
         b = 127;
         assertEquals("Wrong value returned", 
                      b, lib.returnInt8Argument(b));
+        assertEquals("Wrong value returned", 
+                     b, lib.returnInt8Argument(new Int8(b)).byteValue());
         b = -128;
         assertEquals("Wrong value returned", 
                      b, lib.returnInt8Argument(b));
+        assertEquals("Wrong value returned", 
+                     b, lib.returnInt8Argument(new Int8(b)).byteValue());
+    }
+    public void testUnsignedInt8Argument() {
+        short b = 0;        
+        assertEquals("Wrong value returned", 
+                     b, lib.returnInt8Argument(new UInt8(b)).intValue());
+        b = 127;        
+        assertEquals("Wrong value returned", 
+                     b, lib.returnInt8Argument(new UInt8(b)).intValue());
+        assertEquals("Wrong value returned", 
+                     b + 1, lib.incrementUInt8Argument(new UInt8(b)).intValue());
+        b = 128;        
+        assertEquals("Wrong value returned", 
+                     b, lib.returnInt8Argument(new UInt8(b)).intValue());   
+        assertEquals("Wrong value returned", 
+                     b + 1, lib.incrementUInt8Argument(new UInt8(b)).intValue());
+        b = 255;        
+        assertEquals("Wrong value returned", 
+                     b, lib.returnInt8Argument(new UInt8(b)).intValue());   
+        assertEquals("Wrong value returned", 
+                     (short)0, lib.incrementUInt8Argument(new UInt8(b)).intValue());
     }
 
     public void testInt16Argument() {
@@ -112,7 +155,24 @@ public class ArgumentsMarshalTest extends TestCase {
         assertEquals("Wrong value returned", 
                      v, lib.returnInt16Argument(v));
     }
-
+    public void testUnsignedInt16Argument() {
+        int b = 0;        
+        assertEquals("Wrong value returned", 
+                     b, lib.returnInt16Argument(new UInt16(b)).intValue());
+        b = 0x7FFF;        
+        assertEquals("Wrong value returned", 
+                     b, lib.returnInt16Argument(new UInt16(b)).intValue());
+        assertEquals("Wrong value returned", 
+                     0x8000, lib.incrementUInt16Argument(new UInt16(b)).intValue());
+        b = 0x8000;        
+        assertEquals("Wrong value returned", 
+                     b, lib.returnInt16Argument(new UInt16(b)).intValue());        
+        b = 0xFFFF;        
+        assertEquals("Wrong value returned", 
+                     b, lib.returnInt16Argument(new UInt16(b)).intValue());        
+        assertEquals("Wrong value returned", 
+                     0, lib.incrementUInt16Argument(new UInt16(b)).intValue());
+    }
     public void testIntArgument() {
         int value = 0;
         assertEquals("Should return 32-bit argument", 
@@ -127,7 +187,17 @@ public class ArgumentsMarshalTest extends TestCase {
         assertEquals("Should return 32-bit argument", 
                      value, lib.returnInt32Argument(value));
     }
-
+    public void testUnsignedInt32Argument() {
+        long b = 0;        
+        assertEquals("Wrong value returned", 
+                     b, lib.returnInt32Argument(new UInt32(b)).longValue());
+        b = 0x7FFFFFFFL;        
+        assertEquals("Wrong value returned", 
+                     b, lib.returnInt32Argument(new UInt32(b)).longValue());
+        b = 0x80000000L;        
+        assertEquals("Wrong value returned", 
+                     b, lib.returnInt32Argument(new UInt32(b)).longValue());             
+    }
     public void testLongArgument() {
         long value = 0L;
         assertEquals("Should return 64-bit argument", 
@@ -151,6 +221,8 @@ public class ArgumentsMarshalTest extends TestCase {
 
     public void testNativeLongArgument() {
         NativeLong value = new NativeLong(0);
+        assertEquals("NativeLong mismatch", 0L, value.longValue());
+        assertEquals("NativeLong incorrect class", Integer.class, NativeLong.nativeType());
         assertEquals("Should return 0", 
                      value, lib.returnLongArgument(value));
         value = new NativeLong(1);
