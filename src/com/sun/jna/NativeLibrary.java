@@ -63,7 +63,7 @@ public class NativeLibrary {
         //
         // Failed to load the library normally - try to match libfoo.so.*
         //
-        if (handle == 0 && OS.isLinux()) {
+        if (handle == 0 && Platform.isLinux()) {
             libraryPath = matchLibrary(libraryName, searchPath);
             if (libraryPath != null) {
                 handle = open(libraryPath);
@@ -245,7 +245,7 @@ public class NativeLibrary {
         return name;
     }
     private static String mapLibraryName(String libName) {        
-        if (OS.isMac()) {
+        if (Platform.isMac()) {
             //
             // A specific version was requested - use as is for search
             //
@@ -260,7 +260,7 @@ public class NativeLibrary {
                 return name.substring(0, name.lastIndexOf(".jnilib")) + ".dylib";
             }
             return name;
-        } else if (OS.isLinux()) {
+        } else if (Platform.isLinux()) {
             //
             // A specific version was requested - use as is for search
             //
@@ -318,7 +318,7 @@ public class NativeLibrary {
     static {
         
         librarySearchPath.addAll(initPaths("jna.library.path"));
-        if (OS.isLinux() || OS.isSolaris() || OS.isMac()) {
+        if (Platform.isLinux() || Platform.isSolaris() || Platform.isMac()) {
             //
             // Explicitly add the system search path next, so fallback searching
             // for libfoo.so.* works

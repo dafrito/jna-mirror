@@ -393,16 +393,22 @@ public class Function extends Pointer {
         }
         Constructor resultConstructor = null;
         if (nativeType == returnType && NativeValue.class.isAssignableFrom(returnType)) {
-            try {
-                Method typeMethod = returnType.getDeclaredMethod("nativeType", new Class[] {});
-                nativeType = (Class)typeMethod.invoke(null, null);
-                resultConstructor = returnType.getDeclaredConstructor(new Class[] { nativeType });
-            } catch (NoSuchMethodException e) {
-                throw new IllegalArgumentException("Invalid return type: " + returnType.getName(), e);
-            } catch (IllegalAccessException e) {                
-                throw new IllegalArgumentException("Invalid return type: " + returnType.getName(), e);
-            } catch (InvocationTargetException e) {                
-                throw new IllegalArgumentException("Invalid return type: " + returnType.getName(), e);
+            Class javaType = returnType;
+            while (javaType != null && resultConstructor == null) {
+                try {
+                    Method typeMethod = javaType.getDeclaredMethod("nativeType", new Class[]{});
+                    nativeType = (Class) typeMethod.invoke(null, null);
+                    resultConstructor = returnType.getDeclaredConstructor(new Class[]{nativeType});                    
+                } catch (NoSuchMethodException e) {                    
+                    javaType = javaType.getSuperclass();
+                    if (javaType == null) {
+                        throw new IllegalArgumentException("Invalid return type: " + returnType.getName(), e);
+                    }
+                } catch (IllegalAccessException e) {
+                    throw new IllegalArgumentException("Invalid return type: " + returnType.getName(), e);
+                } catch (InvocationTargetException e) {
+                    throw new IllegalArgumentException("Invalid return type: " + returnType.getName(), e);
+                }
             }
         }
         if (nativeType == null || nativeType==void.class || nativeType==Void.class) {

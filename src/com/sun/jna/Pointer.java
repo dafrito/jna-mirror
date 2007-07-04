@@ -62,16 +62,16 @@ public class Pointer {
     private static String getNativeLibraryResourcePath() {
         String arch = System.getProperty("os.arch");
         String osPrefix;
-        if (OS.isWindows()) {
+        if (Platform.isWindows()) {
             osPrefix = "win32-" + arch;
         }
-        else if (OS.isMac()) {
+        else if (Platform.isMac()) {
             osPrefix = "darwin-" + arch;
         }
-        else if (OS.isLinux()) {
+        else if (Platform.isLinux()) {
             osPrefix = "linux-" + arch;
         }
-        else if (OS.isSolaris()) {
+        else if (Platform.isSolaris()) {
             osPrefix = "sunos-" + arch;
         }
         else {
@@ -129,7 +129,7 @@ public class Pointer {
         }
         // Avoid dependent library link errors on w32 (this is handled
         // internal to the jnidispatch library for X11-based platforms)
-        if (OS.isWindows()) {
+        if (Platform.isWindows()) {
             // Ensure AWT library ("awt") is loaded by the proper class loader, 
             // otherwise Toolkit class init will fail
             Toolkit.getDefaultToolkit();

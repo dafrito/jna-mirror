@@ -113,7 +113,7 @@ public abstract class Structure {
             if (declaring != null) 
                 alignment = Native.getStructureAlignment(declaring);
             if (alignment == ALIGN_DEFAULT) {
-                if (OS.isWindows())
+                if (Platform.isWindows())
                     alignment = ALIGN_MSVC;
                 else
                     alignment = ALIGN_GNUC;
