@@ -215,6 +215,8 @@ get_ffi_type(char jtype) {
     return &ffi_type_float;
   case 'D':
     return &ffi_type_double;
+  case 'V':
+    return &ffi_type_void;
   case 'L':
   default:
     return &ffi_type_pointer;
@@ -255,6 +257,7 @@ callback_dispatch(ffi_cif* cif, void* resp, void** cbargs, void* user_data) {
           break;
         case FFI_TYPE_DOUBLE:
           args[i].d = *(double *)cbargs[i];
+	  break;
         default:
           args[i].i = *(int *)cbargs[i];
           break;
@@ -362,11 +365,11 @@ callback_proxy_dispatch(ffi_cif* cif, void* resp, void** cbargs, void* user_data
         memset(resp, 0, cif->rtype->size); // Just return 0?
     }
     else {
-        jobject ret = (*env)->CallObjectMethodA(env, obj, mid, &args);
+        jobject ret = (*env)->CallObjectMethod(env, obj, mid, array);
         switch (cb->return_jtype) {
         case 'L':
-            if ((*env)->IsSameObject(env, classPointer, cb->return_type)) {
-                *(long long *)resp = (*env)->GetLongField(env, ret, FID_Pointer_peer);
+            if ((*env)->IsInstanceOf(env, ret, classPointer)) {
+                *(void **)resp = (void *)(*env)->GetLongField(env, ret, FID_Pointer_peer);
             }
             break;
         case 'I':
@@ -381,12 +384,12 @@ callback_proxy_dispatch(ffi_cif* cif, void* resp, void** cbargs, void* user_data
             break;
         case 'S':
             if ((*env)->IsInstanceOf(env, ret, classShort)) {
-                *(short*)resp = (*env)->GetLongField(env, ret, FID_Short_value);
+                *(short*)resp = (*env)->GetShortField(env, ret, FID_Short_value);
             }
             break;
         case 'B':
             if ((*env)->IsInstanceOf(env, ret, classByte)) {
-                *(char*)resp = (*env)->GetLongField(env, ret, FID_Byte_value);
+                *(char*)resp = (*env)->GetByteField(env, ret, FID_Byte_value);
             }
             break;
         case 'Z':
@@ -394,6 +397,18 @@ callback_proxy_dispatch(ffi_cif* cif, void* resp, void** cbargs, void* user_data
                 *(int*)resp = (*env)->GetBooleanField(env, ret, FID_Boolean_value);
             }
             break;
+	case 'F':
+            if ((*env)->IsInstanceOf(env, ret, classFloat)) {
+                *(float*)resp = (*env)->GetFloatField(env, ret, FID_Float_value);
+            }
+            break;
+	case 'D':
+            if ((*env)->IsInstanceOf(env, ret, classDouble)) {
+                *(double*)resp = (*env)->GetDoubleField(env, ret, FID_Double_value);
+            }
+            break;
+        default:
+            memset(resp, 0, cif->rtype->size); // Just return 0?
         }
     }
 

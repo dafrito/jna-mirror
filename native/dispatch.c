@@ -17,6 +17,7 @@
 #define LOAD_LIBRARY(name) LoadLibrary(name)
 #define FREE_LIBRARY(handle) FreeLibrary(handle)
 #define FIND_ENTRY(lib, name) GetProcAddress(lib, name)
+#define dlerror() ""
 #else
 #include <dlfcn.h>
 #define LOAD_LIBRARY(name) dlopen(name, RTLD_LAZY)
@@ -59,6 +60,7 @@ extern "C"
 static jclass classObject;
 static jclass classClass;
 static jclass classMethod;
+static jclass classVoid, classPrimitiveVoid;
 static jclass classBoolean, classPrimitiveBoolean;
 static jclass classByte, classPrimitiveByte;
 static jclass classCharacter, classPrimitiveCharacter;
@@ -71,7 +73,6 @@ static jclass classString;
 static jclass classPointer;
 static jclass classByteBuffer;
 
-static jmethodID MID_getClass;
 static jmethodID MID_Class_getComponentType;
 static jmethodID MID_String_getBytes;
 static jmethodID MID_String_toCharArray;
@@ -79,14 +80,23 @@ static jmethodID MID_String_init_bytes;
 static jmethodID MID_Pointer_init;
 static jmethodID MID_Method_getReturnType;
 static jmethodID MID_Method_getParameterTypes;
+static jmethodID MID_Long_init;
+static jmethodID MID_Integer_init;
+static jmethodID MID_Short_init;
+static jmethodID MID_Character_init;
+static jmethodID MID_Byte_init;
+static jmethodID MID_Boolean_init;
+static jmethodID MID_Float_init;
+static jmethodID MID_Double_init;
 
+static jfieldID FID_Boolean_value;
 static jfieldID FID_Byte_value;
 static jfieldID FID_Short_value;
+static jfieldID FID_Character_value;
 static jfieldID FID_Integer_value;
 static jfieldID FID_Long_value;
 static jfieldID FID_Float_value;
 static jfieldID FID_Double_value;
-static jfieldID FID_Boolean_value;
 static jfieldID FID_Pointer_peer;
 
 /* Forward declarations */
@@ -219,8 +229,9 @@ static void dispatch(JNIEnv *env, jobject self, jint callconv,
 	ffi_values[i] = &c_args[i];
       }
       else {
-        throwByName(env,"java/lang/IllegalArgumentException",
-                    "Unrecognized argument type");
+        char buf[1024];
+        sprintf(buf, "Unsupported type at parameter %d", i);
+        throwByName(env,"java/lang/IllegalArgumentException", buf);
         goto cleanup;
       }
     }
@@ -424,7 +435,6 @@ JNIEXPORT jlong JNICALL Java_com_sun_jna_NativeLibrary_findSymbol(JNIEnv *env,
 	free(funname);
     }
     return (jlong)A2L(func);
-
 }
 
 /*
@@ -1032,6 +1042,9 @@ newJavaPointer(JNIEnv *env, void *p)
 char
 get_jtype(JNIEnv* env, jclass cls) {
 
+  if ((*env)->IsSameObject(env, classVoid, cls)
+      || (*env)->IsSameObject(env, classPrimitiveVoid, cls))
+    return 'V';
   if ((*env)->IsSameObject(env, classBoolean, cls)
       || (*env)->IsSameObject(env, classPrimitiveBoolean, cls))
     return 'Z';
@@ -1068,7 +1081,7 @@ getNativeAddress(JNIEnv *env, jobject obj) {
 
 static char
 getArrayComponentType(JNIEnv *env, jobject obj) {
-  jclass cls = (*env)->CallObjectMethod(env, obj, MID_getClass);
+  jclass cls = (*env)->GetObjectClass(env, obj);
   jclass type = (*env)->CallObjectMethod(env, cls, MID_Class_getComponentType);
   if (type != NULL) {
     return get_jtype(env, type);
@@ -1078,7 +1091,7 @@ getArrayComponentType(JNIEnv *env, jobject obj) {
 
 
 JNIEXPORT jlong JNICALL
-Java_com_sun_jna_Native_getWindowHandle0(JNIEnv *env, jobject unused, jobject w) {
+Java_com_sun_jna_Native_getWindowHandle0(JNIEnv *env, jobject classp, jobject w) {
   jlong handle = 0;
   JAWT_DrawingSurface* ds;
   JAWT_DrawingSurfaceInfo* dsi;
@@ -1152,6 +1165,15 @@ Java_com_sun_jna_Native_getWindowHandle0(JNIEnv *env, jobject unused, jobject w)
   return handle;
 }
 
+JNIEXPORT jobject JNICALL
+Java_com_sun_jna_Native_getByteBufferPointer(JNIEnv *env, jobject classp, jobject byteBuffer) {
+  void* addr = (*env)->GetDirectBufferAddress(env, byteBuffer);
+  if (addr == NULL) {
+    throwByName(env,"java/lang/IllegalArgumentException",
+                "Non-direct ByteBuffer is not supported");
+  }
+  return newJavaPointer(env, addr);
+}
 
 static jboolean 
 init_jawt(JNIEnv* env) {
@@ -1259,7 +1281,8 @@ jnidispatch_init(JavaVM* jvm) {
     if (!LOAD_CREF(env, ByteBuffer, "java/nio/ByteBuffer")) return 0;
 
     if (!LOAD_CREF(env, Pointer, "com/sun/jna/Pointer")) return 0;
-
+    
+    if (!LOAD_PCREF(env, Void, "java/lang/Void")) return 0;
     if (!LOAD_PCREF(env, Boolean, "java/lang/Boolean")) return 0;
     if (!LOAD_PCREF(env, Byte, "java/lang/Byte")) return 0;
     if (!LOAD_PCREF(env, Character, "java/lang/Character")) return 0;
@@ -1272,8 +1295,29 @@ jnidispatch_init(JavaVM* jvm) {
     if (!LOAD_MID(env, MID_Pointer_init, classPointer,
                   "<init>", "(J)V"))
       return 0;
-    if (!LOAD_MID(env, MID_getClass, classObject,
-                  "getClass", "()Ljava/lang/Class;"))
+    if (!LOAD_MID(env, MID_Long_init, classLong,
+                  "<init>", "(J)V"))
+      return 0;
+    if (!LOAD_MID(env, MID_Integer_init, classInteger,
+                  "<init>", "(I)V"))
+      return 0;
+    if (!LOAD_MID(env, MID_Short_init, classShort,
+                  "<init>", "(S)V"))
+      return 0;
+    if (!LOAD_MID(env, MID_Character_init, classCharacter,
+                  "<init>", "(C)V"))
+      return 0;
+    if (!LOAD_MID(env, MID_Byte_init, classByte,
+                  "<init>", "(B)V"))
+      return 0;
+    if (!LOAD_MID(env, MID_Boolean_init, classBoolean,
+                  "<init>", "(Z)V"))
+      return 0;
+    if (!LOAD_MID(env, MID_Float_init, classFloat,
+                  "<init>", "(F)V"))
+      return 0;
+    if (!LOAD_MID(env, MID_Double_init, classDouble,
+                  "<init>", "(D)V"))
       return 0;
     if (!LOAD_MID(env, MID_Class_getComponentType, classClass,
                   "getComponentType", "()Ljava/lang/Class;"))
@@ -1293,7 +1337,7 @@ jnidispatch_init(JavaVM* jvm) {
     if (!LOAD_MID(env, MID_Method_getReturnType, classMethod,
                   "getReturnType", "()Ljava/lang/Class;"))
       return 0;
-
+    
     if (!LOAD_FID(env, FID_Byte_value, classByte, "value", "B"))
       return 0;
     if (!LOAD_FID(env, FID_Short_value, classShort, "value", "S"))
