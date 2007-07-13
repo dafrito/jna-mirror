@@ -12,10 +12,15 @@ package com.sun.jna;
 
 import com.sun.jna.ptr.ByReference;
 import com.sun.jna.types.NativeValue;
+import java.io.File;
+import java.io.PrintStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.Charset;
+import java.nio.charset.CharsetEncoder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -295,6 +300,10 @@ public class Function extends Pointer {
                         CallbackReference.getInstance((Callback) arg, callingConvention);
                 // Use pointer to trampoline (callback->insns, see dispatch.h)
                 args[i] = cbref.getTrampoline();
+            }            
+            // Convert WString to native pointer (const)
+            else if (arg instanceof WString) {
+                args[i] = new NativeString(arg.toString(), true).getPointer();
             }
             // String arguments are converted to native pointers here rather
             // than in native code so that the values will be valid until
@@ -302,17 +311,21 @@ public class Function extends Pointer {
             // code, which left the pointer values invalid before this method
             // returned (so you couldn't do something like strstr).
             // Convert String to native pointer (const)
-            else if (arg instanceof String) {
-                String s = (String) arg;
-                ByteBuffer buf = getBufferPool().get(s.length() + 1);
-                buf.put(s.getBytes()).put((byte) 0).flip();
+            else if (arg instanceof CharSequence) {                
+                CharBuffer cb = CharBuffer.wrap((CharSequence) arg);
+                CharsetEncoder encoder = Charset.defaultCharset().newEncoder();                
+                float charSize = encoder.maxBytesPerChar();
+                int len = (int) (((float)cb.length() + 1) * charSize);
+                if (arg instanceof StringBuffer) {
+                    StringBuffer sb = (StringBuffer)arg;
+                    len = (int) (((float)sb.capacity()) * charSize);
+                }
+                ByteBuffer buf = getBufferPool().get(len);
+                encoder.encode(cb, buf, true);
+                buf.put((byte)0).put((byte)0).flip();
                 args[i] = buf;
                 bufferMask |= (1 << i);
-            }
-            // Convert WString to native pointer (const)
-            else if (arg instanceof WString) {
-                args[i] = new NativeString(arg.toString(), true).getPointer();
-            }
+            }            
             // Default conversion of boolean to int; if you want something
             // different, use an ArgumentConverter
             else if (arg instanceof Boolean) {
@@ -522,6 +535,18 @@ public class Function extends Pointer {
                     ByteBuffer buf = (ByteBuffer)args[i];
                     if (inArgs[i] instanceof ByReference) {
                         ((ByReference)inArgs[i]).readFrom(buf);
+                    }
+                    else if (inArgs[i] instanceof StringBuffer) {
+                        buf.position(0);
+                        buf.limit(buf.capacity());
+                        buf.mark();
+                        // Find the NUL terminator and limit to that
+                        while (buf.get() != (byte) 0) {}                            
+                        buf.limit(buf.position() - 1);
+                        buf.position(0);
+                        StringBuffer sb = (StringBuffer)inArgs[i];
+                        sb.delete(0, sb.length());
+                        sb.append(Charset.defaultCharset().decode(buf));    
                     }
                     pool.put(buf);
                 }

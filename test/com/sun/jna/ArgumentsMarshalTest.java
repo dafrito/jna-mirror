@@ -88,6 +88,8 @@ public class ArgumentsMarshalTest extends TestCase {
         
         // Nonexistent functions 
         boolean returnBooleanArgument(Object arg);
+        
+        void copyStringArgument(String src, StringBuffer dst);
     }
 
     TestLibrary lib;
@@ -259,7 +261,11 @@ public class ArgumentsMarshalTest extends TestCase {
         assertEquals("Expect null pointer", null, lib.returnStringArgument(null));
         assertEquals("Expect string magic", MAGIC, lib.returnStringArgument(MAGIC).toString());
     }
-    
+    public void testCopyStringArgument() {
+        StringBuffer buf = new StringBuffer(1024);
+        lib.copyStringArgument(MAGIC, buf);
+        assertEquals("StringBuffer not updated", MAGIC, buf.toString());
+    }
     public void testInt64ArgumentAlignment() {
         long value = lib.checkInt64ArgumentAlignment(0x10101010, 0x1111111111111111L, 
                                                      0x01010101, 0x2222222222222222L);

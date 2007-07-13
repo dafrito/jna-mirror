@@ -7,7 +7,8 @@ extern "C" {
 #include <wchar.h>
 #include <stdio.h>
 #include <stdarg.h>
-
+#include <string.h>
+    
 #ifdef _WIN32
 #define EXPORT __declspec(dllexport)
 #else
@@ -225,6 +226,12 @@ EXPORT char*
 returnStringArgument(char *arg) {
   nonleaf();
   return arg;
+}
+
+EXPORT void
+copyStringArgument(const char *src, char *dst) {
+  nonleaf();
+  strcpy(dst, src);  
 }
 
 EXPORT wchar_t* 
