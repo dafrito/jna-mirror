@@ -222,7 +222,11 @@ public class ArgumentsMarshalTest extends TestCase {
     public void testNativeLongArgument() {
         NativeLong value = new NativeLong(0);
         assertEquals("NativeLong mismatch", 0L, value.longValue());
-        assertEquals("NativeLong incorrect class", Integer.class, NativeLong.nativeType());
+        if (NativeLong.SIZE == 4) {
+            assertEquals("NativeLong incorrect class", Integer.class, NativeLong.nativeType());
+        } else {
+            assertEquals("NativeLong incorrect class", Long.class, NativeLong.nativeType());
+        }
         assertEquals("Should return 0", 
                      value, lib.returnLongArgument(value));
         value = new NativeLong(1);

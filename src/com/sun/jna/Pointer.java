@@ -610,6 +610,18 @@ public class Pointer {
     /**
      * Set <code>value</code> at location being pointed to. This is equivalent
      * to the expression
+     * <code>*((wchar_t *)((char *)Pointer + offset)) = value</code>.
+     *
+     * @param offset byte offset from pointer at which <code>value</code>
+     *               must be set
+     * @param value <code>char</code> value to set
+     */
+    public native void setChar(int offset, char value);
+
+
+    /**
+     * Set <code>value</code> at location being pointed to. This is equivalent
+     * to the expression
      * <code>*((jint *)((char *)Pointer + offset)) = value</code>.
      *
      * @param offset byte offset from pointer at which <code>value</code>

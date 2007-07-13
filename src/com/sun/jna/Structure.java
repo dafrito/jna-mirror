@@ -13,8 +13,6 @@ package com.sun.jna;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.nio.ByteBuffer;
-import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -54,13 +52,13 @@ public abstract class Structure {
     }
 
     public static final int ALIGN_DEFAULT = 0;
-    // No alignment, place all fields on nearest 1-byte boundary
+    /** No alignment, place all fields on nearest 1-byte boundary */
     public static final int ALIGN_NONE = 1;
-    // validated for 32-bit linux/gcc; align on minimum of 32-bits or field size
+    /** validated for 32-bit x86 linux/gcc; align field size, max 4 bytes */
     public static final int ALIGN_GNUC = 2;
-    // validated for w32/msvc; align on field size boundary
+    /** validated for w32/msvc; align on field size */
     public static final int ALIGN_MSVC = 3;
-    
+    private static final boolean isPPC = "ppc".equals(System.getProperty("os.arch"));
     protected static final int CALCULATE_SIZE = -1;
 
     private Pointer memory;
@@ -81,11 +79,16 @@ public abstract class Structure {
     }
 
     protected Structure(int size, int alignment) {
-        setAlignment(alignment);
+        setAlignType(alignment);
         setTypeMapper(null);
         allocateMemory(size);
     }
     
+    /** Return all fields in this structure (ordered). */
+    Map fields() {
+        return structFields;
+    }
+
     /** Change the type mapping for this structure.  May cause the structure
      * to be resized and any existing memory to be reallocated.  
      * If <code>null</code>, the default mapper for the
@@ -98,30 +101,30 @@ public abstract class Structure {
                 mapper = Native.getTypeMapper(declaring);
             }
         }
-        typeMapper = mapper;
-        size = CALCULATE_SIZE;
-        memory = null;
+        this.typeMapper = mapper;
+        this.size = CALCULATE_SIZE;
+        this.memory = null;
     }
     
     /** Change the alignment of this structure.  Re-allocates memory if 
      * necessary.  If alignment is {@link #ALIGN_DEFAULT}, the default 
      * alignment for the defining class will be used. 
      */
-    protected void setAlignment(int alignment) {
-        if (alignment == ALIGN_DEFAULT) {
+    protected void setAlignType(int alignType) {
+        if (alignType == ALIGN_DEFAULT) {
             Class declaring = getClass().getDeclaringClass();
             if (declaring != null) 
-                alignment = Native.getStructureAlignment(declaring);
-            if (alignment == ALIGN_DEFAULT) {
+                alignType = Native.getStructureAlignment(declaring);
+            if (alignType == ALIGN_DEFAULT) {
                 if (Platform.isWindows())
-                    alignment = ALIGN_MSVC;
+                    alignType = ALIGN_MSVC;
                 else
-                    alignment = ALIGN_GNUC;
+                    alignType = ALIGN_GNUC;
             }
         }
-        alignType = alignment;
-        size = CALCULATE_SIZE;
-        memory = null;
+        this.alignType = alignType;
+        this.size = CALCULATE_SIZE;
+        this.memory = null;
     }
 
     protected void allocateMemory() {
@@ -197,38 +200,36 @@ public abstract class Structure {
     public void read() {
         // Read all fields
         for (Iterator i=structFields.values().iterator();i.hasNext();) {
-            StructField f = (StructField)i.next();
-            if (Structure.class.isAssignableFrom(f.type)) {
-                try {
-                    Structure s = (Structure)f.field.get(this);
-                    s.useMemory(memory, f.offset);
-                    s.read();
-                }
-                catch (IllegalAccessException e) {
-                }
-            }
-            else {
-                readField(f);
-            }
+            readField((StructField)i.next());
         }
     }
 
-
-    private void readField(StructField structField) {
-
+    void readField(StructField structField) {
+        
         // Get the offset of the field
         int offset = structField.offset;
 
         // Determine the type of the field
         Class nativeType = structField.type;
-        FromNativeConverter resultConverter = structField.readConverter;
-        if (resultConverter != null) {
-            nativeType = resultConverter.nativeType();
+        FromNativeConverter readConverter = structField.readConverter;
+        if (readConverter != null) {
+            nativeType = readConverter.nativeType();
         }
 
         // Get the value at the offset according to its type
         Object result = null;
-        if (nativeType == byte.class || nativeType == Byte.class) {
+        if (Structure.class.isAssignableFrom(nativeType)) {
+            Structure s = null;
+            try {
+                s = (Structure)structField.field.get(this);
+                s.useMemory(memory, offset);
+                s.read();
+            }
+            catch (IllegalAccessException e) {
+            }
+            result = s;
+        }
+        else if (nativeType == byte.class || nativeType == Byte.class) {
             result = new Byte(memory.getByte(offset));
         }
         else if (nativeType == short.class || nativeType == Short.class) {
@@ -266,7 +267,8 @@ public abstract class Structure {
         else if (Callback.class.isAssignableFrom(nativeType)) {
             // ignore; Callback members are write-only (don't try to convert
             // a native function pointer to a Java Callback)
-            // TODO: may want to warn if the value is different
+            // TODO: may want to warn if the value has been changed by
+            // native code
             return;
         }
         else if (nativeType.isArray()) {
@@ -287,11 +289,11 @@ public abstract class Structure {
             if (cls == byte.class) {
                 result = memory.getByteArray(offset, length);
             }
-            else if (cls == char.class) {
-                result = memory.getCharArray(offset, length);
-            }
             else if (cls == short.class) {
                 result = memory.getShortArray(offset, length);
+            }
+            else if (cls == char.class) {
+                result = memory.getCharArray(offset, length);
             }
             else if (cls == int.class) {
                 result = memory.getIntArray(offset, length);
@@ -315,8 +317,8 @@ public abstract class Structure {
                                                + structField.type.getClass() + "\"");
         }
 
-        if (resultConverter != null) {
-            result = resultConverter.fromNative(result, structField.context);
+        if (readConverter != null) {
+            result = readConverter.fromNative(result, structField.context);
         }
 
         // Set the value on the field
@@ -346,7 +348,7 @@ public abstract class Structure {
         }
     }
 
-    private void writeField(Structure.StructField structField) {
+    void writeField(StructField structField) {
         // Get the offset of the field
         int offset = structField.offset;
 
@@ -393,6 +395,9 @@ public abstract class Structure {
         else if (nativeType == short.class || nativeType == Short.class) {
             memory.setShort(offset, ((Short)value).shortValue());
         }
+        else if (nativeType == char.class || nativeType == Character.class) {
+            memory.setChar(offset, ((Character)value).charValue());
+        }
         else if (nativeType == int.class || nativeType == Integer.class) {
             memory.setInt(offset, ((Integer)value).intValue());
         }
@@ -423,12 +428,12 @@ public abstract class Structure {
                 byte[] buf = (byte[])value;
                 memory.write(offset, buf, 0, buf.length);
             }
-            else if (cls == char.class) {
-                char[] buf = (char[])value;
-                memory.write(offset, buf, 0, buf.length);
-            }
             else if (cls == short.class) {
                 short[] buf = (short[])value;
+                memory.write(offset, buf, 0, buf.length);
+            }
+            else if (cls == char.class) {
+                char[] buf = (char[])value;
                 memory.write(offset, buf, 0, buf.length);
             }
             else if (cls == int.class) {
@@ -479,7 +484,7 @@ public abstract class Structure {
      * determined (usually due to fields in the derived class not yet
      * being initialized).
      */
-    private int calculateSize() {
+    int calculateSize() {
         // TODO: maybe cache this information on a per-class basis
         // so that we don't have to re-analyze this static information each 
         // time a struct is allocated.
@@ -536,19 +541,20 @@ public abstract class Structure {
                 if (typeMapper != null) {
                     ToNativeConverter writeConverter = typeMapper.getToNativeConverter(type);
                     FromNativeConverter readConverter = typeMapper.getFromNativeConverter(type);
-                    // Only set the read/write converter for the struct if the
-                    // field can be both read & written.
-                    if (readConverter != null && writeConverter != null) {
-
+                    if (writeConverter != null && readConverter != null) {
                         value = writeConverter.toNative(value);
                         nativeType = value != null ? value.getClass() : Pointer.class;
                         structField.writeConverter = writeConverter;
                         structField.readConverter = readConverter;
                         structField.context = new StructureReadContext(type, this, structField.field);
                     }
+                    else if (writeConverter != null || readConverter != null) {
+                        String msg = "Structures require bidirectional type conversion for " + type;
+                        throw new IllegalArgumentException(msg);
+                    }
                 }
                 structField.size = getNativeSize(nativeType, value);
-                fieldAlignment = getNativeAlignment(nativeType, value);
+                fieldAlignment = getNativeAlignment(nativeType, value, i==0);
             }
             catch (IllegalAccessException e) {
                 // ignore non-public fields
@@ -566,6 +572,16 @@ public abstract class Structure {
             structFields.put(structField.name, structField);
         }
 
+        if (calculatedSize > 0) {
+            return calculateAlignedSize(calculatedSize);
+        }
+
+        throw new IllegalArgumentException("Structure " + getClass()
+                                           + " has unknown size (ensure "
+                                           + "all fields are public)");
+    }
+    
+    int calculateAlignedSize(int calculatedSize) {
         // Structure size must be an integral multiple of its alignment,
         // add padding if necessary.
         if (alignType != ALIGN_NONE) {
@@ -573,17 +589,14 @@ public abstract class Structure {
                 calculatedSize += structAlignment - (calculatedSize % structAlignment);
             }
         }
-        if (calculatedSize > 0) {
-            return calculatedSize;
-        }
-
-        throw new IllegalArgumentException("Structure " + getClass()
-                                           + " has invalid size (ensure "
-                                           + "all fields are public)");
+        return calculatedSize;
     }
 
     /** Overridable in subclasses. */
-    protected int getNativeAlignment(Class type, Object value) {
+    // TODO: write getNaturalAlignment(stack/alloc) + getEmbeddedAlignment(structs)
+    // TODO: move this into a native call which detects default alignment
+    // automatically
+    protected int getNativeAlignment(Class type, Object value, boolean firstElement) {
         int alignment = 1;
         int size = getNativeSize(type, value);
         if (type.isPrimitive() || Long.class == type || Integer.class == type
@@ -603,7 +616,7 @@ public abstract class Structure {
             alignment = ((Structure)value).structAlignment;
         }
         else if (type.isArray()) {
-            alignment = getNativeAlignment(type.getComponentType(), null);
+            alignment = getNativeAlignment(type.getComponentType(), null, firstElement);
         }
         else {
             throw new IllegalArgumentException("Type " + type + " has unknown "
@@ -613,7 +626,13 @@ public abstract class Structure {
             return 1;
         if (alignType == ALIGN_MSVC)
             return Math.min(8, alignment);
-        return Math.min(NativeLong.SIZE, alignment);
+        if (alignType == ALIGN_GNUC) {
+            // NOTE this is published ABI for 32-bit gcc/linux/x86, osx/x86,
+            // and osx/ppc.  osx/ppc special-cases the first element
+            if (!firstElement || !isPPC)
+                return Math.min(NativeLong.SIZE, alignment);
+        }
+        return alignment;
     }
 
     /** Returns the native size for classes which don't need an object instance
@@ -621,8 +640,8 @@ public abstract class Structure {
      */
     protected int getNativeSize(Class cls) {
         if (cls == byte.class || cls == Byte.class) return 1;
-        if (cls == char.class || cls == Character.class) return Pointer.WCHAR_SIZE;
         if (cls == short.class || cls == Short.class) return 2; 
+        if (cls == char.class || cls == Character.class) return Pointer.WCHAR_SIZE;
         if (cls == int.class || cls == Integer.class) return 4;
         if (cls == long.class || cls == Long.class) return 8;
         if (cls == float.class || cls == Float.class) return 4;
@@ -650,6 +669,7 @@ public abstract class Structure {
                 return len * getNativeSize(type.getComponentType(), o);
             }
             // Don't process zero-length arrays
+            throw new IllegalArgumentException("Arrays of length zero not allowed in structure: " + this);
         }
         return getNativeSize(type);
     }
@@ -721,7 +741,24 @@ public abstract class Structure {
         return toArray(new Structure[size]);
     }
 
-    private class StructField extends Object {
+    /** This structure is only equal to another based on the same native 
+     * memory address and data type.
+     */
+    public boolean equals(Object o) {
+        return o == this
+            || (o != null
+                && o.getClass() == getClass()
+                && ((Structure)o).getPointer().equals(getPointer()));
+    }
+    
+    /** Since {@link #equals} depends on the native address, use that
+     * as the hashcode.
+     */
+    public int hashCode() {
+        return getPointer().hashCode();
+    }
+
+    class StructField extends Object {
         public String name;
         public Class type;
         public Field field;

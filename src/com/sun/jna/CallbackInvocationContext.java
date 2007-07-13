@@ -12,13 +12,17 @@
  */
 package com.sun.jna;
 
-/** Provides converters for conversion to and from native types. */
-public interface TypeMapper {
-    /** Return the {@link FromNativeConverter} appropriate for the given Java class. 
-     */
-    FromNativeConverter getFromNativeConverter(Class javaType);
+import java.lang.reflect.Method;
 
-    /** Return the {@link ToNativeConverter} appropriate for the given Java class. 
-     */
-    ToNativeConverter getToNativeConverter(Class javaType);
+/** Provide argument conversion context for a callback. */
+public class CallbackInvocationContext extends FromNativeContext {
+    private Method method;
+    private Object[] args;
+    public CallbackInvocationContext(Class javaType, Method m, Object[] args) {
+        super(javaType);
+        this.method = m;
+        this.args = args;
+    }
+    public Method getMethod() { return method; }
+    public Object[] getArguments() { return args; }
 }

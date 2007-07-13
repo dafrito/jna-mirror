@@ -13,9 +13,11 @@
 package com.sun.jna;
 
 import java.util.Map;
+
+import junit.framework.TestCase;
+
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.LongByReference;
-import junit.framework.TestCase;
 
 /** TODO: need more alignment tests, especially platform-specific behavior
  * @author twall@users.sf.net
@@ -45,8 +47,10 @@ public class StructureTest extends TestCase {
             public double d;
         }
         TestStructure s = new TestStructure();
-        s.setAlignment(Structure.ALIGN_GNUC);
-        assertEquals("Wrong structure size", 28, s.size());
+        s.setAlignType(Structure.ALIGN_GNUC);
+        // Size will differ depending on machine word size
+        final int SIZE = NativeLong.SIZE == 4 ? 28 : 32;
+        assertEquals("Wrong structure size", SIZE, s.size());
     }
     
     // cross-platform smoke test
@@ -60,7 +64,7 @@ public class StructureTest extends TestCase {
             public double d;
         }
         TestStructure s = new TestStructure();
-        s.setAlignment(Structure.ALIGN_MSVC);
+        s.setAlignType(Structure.ALIGN_MSVC);
         assertEquals("Wrong structure size", 32, s.size());
     }
     
@@ -283,8 +287,6 @@ public class StructureTest extends TestCase {
         public Callback cb;
     }
     static interface CbTest extends Library {
-        CbTest INSTANCE = (CbTest)
-            Native.loadLibrary("testlib", CbTest.class);
         public void callCallbackInStruct(CbStruct cbstruct);
     }
     public void testCallbackWrite() {
@@ -310,7 +312,8 @@ public class StructureTest extends TestCase {
                 flag[0] = true;
             }
         };
-        CbTest.INSTANCE.callCallbackInStruct(s);
+        CbTest lib = (CbTest)Native.loadLibrary("testlib", CbTest.class);
+        lib.callCallbackInStruct(s);
         assertTrue("Callback not invoked", flag[0]);
     }
 }
