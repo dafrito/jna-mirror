@@ -12,8 +12,6 @@ package com.sun.jna;
 
 import com.sun.jna.ptr.ByReference;
 import com.sun.jna.types.NativeValue;
-import java.io.File;
-import java.io.PrintStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -313,13 +311,15 @@ public class Function extends Pointer {
             // Convert String to native pointer (const)
             else if (arg instanceof CharSequence) {                
                 CharBuffer cb = CharBuffer.wrap((CharSequence) arg);
-                CharsetEncoder encoder = Charset.defaultCharset().newEncoder();                
-                float charSize = encoder.maxBytesPerChar();
-                int len = (int) (((float)cb.length() + 1) * charSize);
+                CharsetEncoder encoder = Charset.defaultCharset().newEncoder();               
+                int len = cb.length() + 1;                
                 if (arg instanceof StringBuffer) {
-                    StringBuffer sb = (StringBuffer)arg;
-                    len = (int) (((float)sb.capacity()) * charSize);
+                    len = ((StringBuffer)arg).capacity();                    
                 }
+                else if (arg instanceof StringBuilder) {
+                    len = ((StringBuilder)arg).capacity();                                        
+                }
+                len = (int) (((float)len) * encoder.maxBytesPerChar());
                 ByteBuffer buf = getBufferPool().get(len);
                 encoder.encode(cb, buf, true);
                 buf.put((byte)0).put((byte)0).flip();
@@ -412,8 +412,8 @@ public class Function extends Pointer {
             while (javaType != null && resultConstructor == null) {
                 try {
                     Method typeMethod = javaType.getDeclaredMethod("nativeType", new Class[]{});
-                    nativeType = (Class) typeMethod.invoke(null, null);
-                    resultConstructor = returnType.getDeclaredConstructor(new Class[]{nativeType});                    
+                    nativeType = (Class) typeMethod.invoke(null, new Object[] {});
+                    resultConstructor = returnType.getDeclaredConstructor(new Class[] { nativeType });                    
                 } catch (NoSuchMethodException e) {                    
                     javaType = javaType.getSuperclass();
                     if (javaType == null) {
@@ -536,7 +536,7 @@ public class Function extends Pointer {
                     if (inArgs[i] instanceof ByReference) {
                         ((ByReference)inArgs[i]).readFrom(buf);
                     }
-                    else if (inArgs[i] instanceof StringBuffer) {
+                    else if (inArgs[i] instanceof StringBuffer || inArgs[i] instanceof StringBuilder) {
                         buf.position(0);
                         buf.limit(buf.capacity());
                         buf.mark();
@@ -544,10 +544,18 @@ public class Function extends Pointer {
                         while (buf.get() != (byte) 0) {}                            
                         buf.limit(buf.position() - 1);
                         buf.position(0);
-                        StringBuffer sb = (StringBuffer)inArgs[i];
-                        sb.delete(0, sb.length());
-                        sb.append(Charset.defaultCharset().decode(buf));    
+                        if (inArgs[i] instanceof StringBuffer) {
+                            StringBuffer sb = (StringBuffer)inArgs[i];
+                            sb.delete(0, sb.length());
+                            sb.append(Charset.defaultCharset().decode(buf));    
+                        }
+                        else {
+                            StringBuilder sb = (StringBuilder)inArgs[i];
+                            sb.delete(0, sb.length());
+                            sb.append(Charset.defaultCharset().decode(buf));    
+                        }
                     }
+                    
                     pool.put(buf);
                 }
                 bufferMask >>= 1;
