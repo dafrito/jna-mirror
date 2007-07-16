@@ -28,6 +28,7 @@
   <property name="copyright"
             value="Copyright &amp;copy; 2007 ${company.full}. All Rights Reserved."/>
 
+  <!-- Software release version -->            
   <property name="version" value="3.0.0-experimental"/>
   <property name="jdk" value="1.4"/>
 
@@ -37,7 +38,7 @@
   <target name="default" depends="test" description="Build and Test."/>
 
   <target name="dynamic-properties">
-    <echo>Java version: ${java.version}</echo>
+    <echo>Java version: ${java.version}, compatibility: ${jdk}</echo>
     <echo>Build ${version}</echo>
     <property name="build" location="build"/>
     <property name="classes" location="${build}/classes"/>
@@ -162,7 +163,6 @@
       <class name="com.sun.jna.Function"/>
       <class name="com.sun.jna.Pointer"/>
       <class name="com.sun.jna.Memory"/>
-      <class name="com.sun.jna.Library$Handler"/>
       <class name="com.sun.jna.Native"/>
       <class name="com.sun.jna.NativeLibrary"/>
       <class name="com.sun.jna.CallbackReference"/>
@@ -183,15 +183,16 @@
     <condition property="make.SDKROOT" value="SDKROOT=/Developer/SDKs/MacOSX10.4u.sdk" else="IGNORE=">
       <available file="/Developer/SDKs/MacOSX10.4u.sdk"/>
     </condition>
+    <!-- Windows' drive letters in absolute paths wreak havoc on make -->
+    <condition property="make.BUILD" value="BUILD=../build/native" else="BUILD=${build.native}">
+      <os family="windows"/>
+    </condition>
     <exec executable="make" dir="${native}" failonerror="true">
-      <!-- FIXME can't use the location directly, since drive letters are
-           problematic with gnu make --> 
-      <!--<arg value="BUILD=${build.native}"/>-->
-      <arg value="BUILD=../build/native"/>
       <arg value="JAVA_HOME=${jdk.home}"/>
       <arg value="JAVAH=${build.native}"/>
       <arg value="DEBUG=${debug.native}"/>
       <arg value="${make.CC}"/>
+      <arg value="${make.BUILD}"/>
       <arg value="${make.SDKROOT}"/>
       <arg value="${make.ARCH}"/>
     </exec>
@@ -326,6 +327,9 @@
       <zipfileset src="${dist}/linux-i386.jar" 
                   includes="*jnidispatch*"
                   prefix="com/sun/jna/linux-i386"/>
+      <zipfileset src="${dist}/linux-amd64.jar" 
+                  includes="*jnidispatch*"
+                  prefix="com/sun/jna/linux-amd64"/>
     </jar>
     <copy todir="${dist}">
       <fileset dir="${build}">
@@ -347,6 +351,45 @@
       <fileset dir="${doc}/api"/>
       <fileset dir="." includes="*~,**/*~"/>
     </delete>
+  </target>
+
+  <target name="profile-single" depends="examples-jar" description="Profile Class">
+    <fail unless="netbeans.home">This target can only run inside the NetBeans IDE.</fail>
+    <nbprofiledirect>
+      <classpath> <pathelement location="${build}/examples.jar"/> </classpath>
+    </nbprofiledirect>
+    <java classname="${main.class}" fork="true">
+      <jvmarg value="${profiler.info.jvmargs.agent}"/>
+      <jvmarg value="${profiler.info.jvmargs}"/>
+      <jvmarg value="-Djna.library.path=${build.native}"/>
+      <classpath>
+        <pathelement location="${build}/examples.jar"/>
+      </classpath>
+    </java>
+  </target>
+
+  <target name="profile-test-single" depends="examples-jar,compile-tests"
+          description="Profile Test Class">
+    <fail unless="netbeans.home">This target can only run inside the NetBeans IDE.</fail>
+    <nbprofiledirect>
+      <classpath>
+        <pathelement location="${build}/examples.jar"/>
+        <pathelement location="${test.classes}"/>
+      </classpath>
+    </nbprofiledirect>
+    <junit dir="${build.native}" jvm="${profiler.info.jvm}"
+        failureproperty="tests.failed" errorproperty="tests.failed" fork="true">
+      <jvmarg value="${profiler.info.jvmargs.agent}"/>
+      <jvmarg value="${profiler.info.jvmargs}"/>
+      <jvmarg value="-Djna.library.path=${build.native}"/>
+      <test name="${profile.class}"/>
+      <classpath>
+        <pathelement location="${build}/examples.jar"/>
+        <pathelement location="${test.classes}"/>
+      </classpath>
+      <formatter type="brief" usefile="false"/>
+      <formatter type="xml"/>
+    </junit>
   </target>
 
 </project>
