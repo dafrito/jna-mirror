@@ -348,8 +348,8 @@ callback_proxy_dispatch(ffi_cif* cif, void* resp, void** cbargs, void* user_data
       case 'D':
         jarg.d = *(double *)cbargs[i];
         break;
-      case 'L':
-        jarg.j = *(jlong *)cbargs[i];
+      case 'L':        
+        jarg.j = (jlong)(unsigned long)*(void **)cbargs[i];
         break;
       }
       obj = (*env)->NewObjectA(env, cb->param_classes[i], cb->param_constructors[i], &jarg);
@@ -369,7 +369,7 @@ callback_proxy_dispatch(ffi_cif* cif, void* resp, void** cbargs, void* user_data
         switch (cb->return_jtype) {
         case 'L':
             if ((*env)->IsInstanceOf(env, ret, classPointer)) {
-                *(void **)resp = (void *)(*env)->GetLongField(env, ret, FID_Pointer_peer);
+                *(intptr_t *)resp = (intptr_t)(*env)->GetLongField(env, ret, FID_Pointer_peer);
             }
             break;
         case 'I':
