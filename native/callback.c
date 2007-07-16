@@ -366,7 +366,10 @@ callback_proxy_dispatch(ffi_cif* cif, void* resp, void** cbargs, void* user_data
     }
     else {
         jobject ret = (*env)->CallObjectMethod(env, obj, mid, array);
-        switch (cb->return_jtype) {
+        if (ret == NULL) {
+            memset(resp, 0, cif->rtype->size); // Just return 0?
+        } 
+        else switch (cb->return_jtype) {
         case 'L':
             if ((*env)->IsInstanceOf(env, ret, classPointer)) {
                 *(intptr_t *)resp = (intptr_t)(*env)->GetLongField(env, ret, FID_Pointer_peer);
