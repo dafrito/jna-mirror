@@ -42,16 +42,12 @@ class CallbackReference extends WeakReference {
             paramTypes = proxy.getParameterTypes();
             rtype = proxy.getReturnType();
         }
-        else {
-            paramTypes = m.getParameterTypes();
-            rtype = m.getReturnType();
-            if (requiresConversion(paramTypes, rtype)) {
-                proxy = new ConversionCallbackProxy(callback, m, paramTypes, rtype);
-                paramTypes = proxy.getParameterTypes();
-                rtype = proxy.getReturnType();
-                m = getCallbackMethod(proxy);                
-                callback = proxy;
-            }
+        else {            
+            proxy = new ConversionCallbackProxy(callback, m, m.getParameterTypes(), m.getReturnType());
+            paramTypes = proxy.getParameterTypes();
+            rtype = proxy.getReturnType();
+            m = getCallbackMethod(proxy);                
+            callback = proxy;
         }
         if (paramTypes.length > MAX_NARGS) {
             String msg = "Method signature exceeds the maximum "
