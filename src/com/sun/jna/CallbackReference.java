@@ -14,11 +14,10 @@
 package com.sun.jna;
 
 import com.sun.jna.types.NativeValue;
-import java.io.File;
-import java.io.PrintStream;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -29,11 +28,37 @@ class CallbackReference extends WeakReference {
     static final int MAX_NARGS = Function.MAX_NARGS;
     static final Map callbackMap = new WeakHashMap();
     static final Map altCallbackMap = new WeakHashMap();
-    
+
     Pointer cbstruct;
-    private CallbackReference(Callback callback, Pointer cbstruct) {
+
+    CallbackProxy proxy;
+    private CallbackReference(Callback callback, int callingConvention) {
         super(callback);
-        this.cbstruct = cbstruct;
+        Method m = getCallbackMethod(callback);
+        Class[] paramTypes;
+        Class rtype;
+        if (callback instanceof CallbackProxy) {
+            CallbackProxy proxy = (CallbackProxy)callback;
+            paramTypes = proxy.getParameterTypes();
+            rtype = proxy.getReturnType();
+        }
+        else {
+            paramTypes = m.getParameterTypes();
+            rtype = m.getReturnType();
+            if (requiresConversion(paramTypes, rtype)) {
+                proxy = new ConversionCallbackProxy(callback, m, paramTypes, rtype);
+                paramTypes = proxy.getParameterTypes();
+                rtype = proxy.getReturnType();
+                m = getCallbackMethod(proxy);                
+                callback = proxy;
+            }
+        }
+        if (paramTypes.length > MAX_NARGS) {
+            String msg = "Method signature exceeds the maximum "
+                + "parameter count: " + m;
+            throw new IllegalArgumentException(msg);
+        }
+        this.cbstruct = createNativeCallback(callback, m, paramTypes, rtype, callingConvention);
     }
     
     public static CallbackReference getInstance(Callback cb, int callingConvention) {
@@ -42,9 +67,8 @@ class CallbackReference extends WeakReference {
             ? altCallbackMap : callbackMap;
         synchronized (map) {
             cbref = (CallbackReference) map.get(cb);
-            if (cbref == null) {
-                Pointer cbstruct = createCallback(callingConvention, cb);
-                cbref = new CallbackReference(cb, cbstruct);
+            if (cbref == null) {                
+                cbref = new CallbackReference(cb, callingConvention);
                 map.put(cb, cbref);
             }
             return cbref;
@@ -56,34 +80,6 @@ class CallbackReference extends WeakReference {
         return getInstance(cb, callingConvention);
     }
     
-    private static Pointer createCallback(int callingConvention, Callback obj) {
-        Method m = getCallbackMethod(obj);
-        Class[] paramTypes;
-        Class rtype;
-        if (obj instanceof CallbackProxy) {
-            CallbackProxy proxy = (CallbackProxy)obj;
-            paramTypes = proxy.getParameterTypes();
-            rtype = proxy.getReturnType();
-        }        
-        else {
-            paramTypes = m.getParameterTypes();
-            rtype = m.getReturnType();
-            if (true || requiresConversion(paramTypes, rtype)) {
-                System.err.println("Converting");
-                CallbackProxy proxy = new ConversionCallbackProxy(obj, m, paramTypes, rtype);
-                paramTypes = proxy.getParameterTypes();
-                rtype = proxy.getReturnType();
-                m = getCallbackMethod(proxy);
-                obj = proxy;
-            }
-        }
-        if (paramTypes.length > MAX_NARGS) {
-            String msg = "Method signature exceeds the maximum "
-                + "parameter count: " + m;
-            throw new IllegalArgumentException(msg);
-        }
-        return createNativeCallback(obj, m, paramTypes, rtype, callingConvention);
-    }
     private static boolean requiresConversion(Class[] paramTypes, Class rtype) {
         if (!isAllowableNativeType(rtype)) {
             return true;
@@ -152,8 +148,8 @@ class CallbackReference extends WeakReference {
     private static native void freeNativeCallback(long peer);
     
     static class ConversionCallbackProxy implements CallbackProxy {
-        final Method callbackMethod;
-        final Callback callback;
+        final Method callbackMethod;        
+        final WeakReference callbackRef;
         Class nativeReturnType;
         Class[] nativeParamTypes;
         FromNativeConverter[] paramConverters;
@@ -161,7 +157,7 @@ class CallbackReference extends WeakReference {
         public ConversionCallbackProxy(Callback callback, Method method, 
                 Class[] paramTypes, Class returnType) {
             this.callbackMethod = method;
-            this.callback = callback;
+            this.callbackRef = new WeakReference(callback);
             this.paramConverters = new FromNativeConverter[paramTypes.length];
             this.nativeParamTypes = new Class[paramTypes.length];
             this.nativeReturnType = returnType;
@@ -245,7 +241,10 @@ class CallbackReference extends WeakReference {
             }
 
             try {
-                return convertResult(callbackMethod.invoke(callback, callbackArgs));
+                Callback callback = (Callback)callbackRef.get();
+                if (callback != null) {
+                    return convertResult(callbackMethod.invoke(callback, callbackArgs));
+                }
             } catch (IllegalArgumentException e) {
                 e.printStackTrace();
             } catch (IllegalAccessException e) {
@@ -253,7 +252,7 @@ class CallbackReference extends WeakReference {
             } catch (InvocationTargetException e) {
                 e.printStackTrace();
             }
-            return null;            
+            return Long.valueOf(0);            
         }
         /** Convert argument from its basic native type to the given
          * Java parameter type.
@@ -300,7 +299,7 @@ class CallbackReference extends WeakReference {
                 value = resultConverter.toNative(value);
             }
             if (value == null) {
-                return null;
+                return Long.valueOf(0);
             }
             Class cls = value.getClass();
             if (Structure.class.isAssignableFrom(cls)) {
