@@ -15,7 +15,6 @@ package com.sun.jna;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
@@ -34,7 +33,7 @@ public class MultiBufferPool implements BufferPool {
         pools = new SimpleBufferPool[maxPoolIndex + 1];
         
         // Now create each of the buckets
-        for (int i = 0; i < maxPoolIndex; ++i) {
+        for (int i = 0; i <= maxPoolIndex; ++i) {
             if (threadSafe) {
                 pools[i] = new SynchronizedPool(1 << i, maxItemsPerSize);
             } else {
