@@ -56,7 +56,7 @@
       <os family="mac"/>
     </condition>
     <condition property="os.prefix" value="sunos-${os.arch}">
-      <os family="unix" arch="sparc"/>
+      <os name="SunOS"/>
     </condition>
     <fail unless="os.prefix" message="OS/arch not supported (${os.name}/${os.arch})"/>
     <condition property="jdk.home" value="${java.home}">
@@ -187,7 +187,13 @@
     <condition property="make.BUILD" value="BUILD=../build/native" else="BUILD=${build.native}">
       <os family="windows"/>
     </condition>
-    <exec executable="make" dir="${native}" failonerror="true">
+    <condition property="make.exe" value="/usr/sfw/bin/gmake" else="make">
+      <os name="SunOS"/>
+    </condition>
+    <condition property="make.PATH" value="PATH=/usr/sfw/bin:/usr/bin:/usr/ccs/bin">
+      <os name="SunOS"/>
+    </condition>
+    <exec executable="${make.exe}" dir="${native}" failonerror="true">
       <arg value="JAVA_HOME=${jdk.home}"/>
       <arg value="JAVAH=${build.native}"/>
       <arg value="DEBUG=${debug.native}"/>
@@ -195,6 +201,7 @@
       <arg value="${make.BUILD}"/>
       <arg value="${make.SDKROOT}"/>
       <arg value="${make.ARCH}"/>
+      <arg value="${make.PATH}"/>
     </exec>
     <mkdir dir="${classes}/com/sun/jna/${os.prefix}"/>
     <copy todir="${classes}/com/sun/jna/${os.prefix}">
@@ -235,7 +242,10 @@
     <junit printsummary="yes" fork="${test.fork}">
       <!--<jvmarg value="-verbose:jni"/>-->
       <jvmarg value="-Djna.library.path=${build.native}"/>
-      <classpath><path refid="test.runpath"/></classpath>
+      <classpath>
+        <path refid="test.runpath"/>
+        <pathelement location="lib/junit.jar"/>
+      </classpath>
       <formatter type="xml"/>
       <batchtest todir="${results.junit}">
         <fileset dir="${test.src}">
@@ -330,6 +340,9 @@
       <zipfileset src="${dist}/linux-amd64.jar" 
                   includes="*jnidispatch*"
                   prefix="com/sun/jna/linux-amd64"/>
+      <zipfileset src="${dist}/sunos-x86.jar" 
+                  includes="*jnidispatch*"
+                  prefix="com/sun/jna/sunos-x86"/>
     </jar>
     <copy todir="${dist}">
       <fileset dir="${build}">
