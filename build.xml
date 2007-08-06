@@ -190,7 +190,7 @@
     <condition property="make.exe" value="/usr/sfw/bin/gmake" else="make">
       <os name="SunOS"/>
     </condition>
-    <condition property="make.PATH" value="PATH=/usr/sfw/bin:/usr/bin:/usr/ccs/bin">
+    <condition property="make.PATH" value="PATH=/usr/sfw/bin:/usr/bin:/usr/ccs/bin" else="IGNORE=">
       <os name="SunOS"/>
     </condition>
     <exec executable="${make.exe}" dir="${native}" failonerror="true">
