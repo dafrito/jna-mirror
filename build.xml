@@ -193,6 +193,10 @@
     <condition property="make.PATH" value="PATH=/usr/sfw/bin:/usr/bin:/usr/ccs/bin" else="IGNORE=">
       <os name="SunOS"/>
     </condition>
+    <condition property="make.ARCH" value="ARCH=${os.arch}" else="IGNORE=">
+      <os name="SunOS"/>
+    </condition>
+    <echo message="make.ARCH=${make.ARCH}"/>
     <exec executable="${make.exe}" dir="${native}" failonerror="true">
       <arg value="JAVA_HOME=${jdk.home}"/>
       <arg value="JAVAH=${build.native}"/>

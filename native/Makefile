@@ -105,7 +105,13 @@ endif
 
 # FIXME untested
 ifeq ($(OS),solaris)
-ARCH=sparc
+ifeq ($(ARCH),)
+  ARCH=$(shell uname -n)
+endif
+ifeq ($(ARCH), sparcv9)
+  CC=gcc -m64
+  LD=gcc -m64 
+endif
 # Avoid 1.5/1.6 bug linking directly to -ljawt
 CDEFINES+=-DNEED_JAWT_HACK -fPIC
 LDFLAGS=-o $@ -G
@@ -166,10 +172,10 @@ $(TESTLIB): $(BUILD)/testlib.o $(SPECS)
 
 $(FFI_OBJS):		
 	@mkdir -p $(BUILD)/libffi
-	@if [ ! -f $(BUILD)/libffi/Makefile ]; then \
+	if [ ! -f $(BUILD)/libffi/Makefile ]; then \
 	    echo "Configuring libffi"; \
 	    cd $(BUILD)/libffi && \
-		$(SRCDIR)/libffi/configure --disable-static --with-pic=yes > /dev/null; \
+		CC="$(CC)" $(SRCDIR)/libffi/configure --disable-static --with-pic=yes > /dev/null; \
 	fi
 	$(MAKE) -C $(BUILD)/libffi
 
