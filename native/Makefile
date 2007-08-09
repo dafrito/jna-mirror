@@ -51,7 +51,7 @@ endif
 COUT=-o $@
 CINCLUDES=$(JAVA_INCLUDES) -I"$(JAVAH)" -I$(BUILD)/libffi/include
 CDEFINES=-D_REENTRANT
-PCFLAGS=-W -Wall -Wno-unused -Wno-parentheses -Werror
+CDEFINES+=-W -Wall -Wno-unused -Wno-parentheses -Werror
 CFLAGS=$(PCFLAGS) $(COPT) $(CDEBUG) $(CDEFINES) $(CINCLUDES)
 LDFLAGS=-o $@ -shared -Wl,-soname,$@ 
 LIBDIR=$(JAVA_HOME)/jre/lib/$(ARCH)
@@ -108,14 +108,17 @@ ifeq ($(OS),solaris)
 ifeq ($(ARCH),)
   ARCH=$(shell uname -n)
 endif
-ifeq ($(ARCH), sparcv9)
-  CC=gcc -m64
-  LD=gcc -m64 
-endif
+
 # Avoid 1.5/1.6 bug linking directly to -ljawt
 CDEFINES+=-DNEED_JAWT_HACK -fPIC
 LDFLAGS=-o $@ -G
 LIBS=
+ifeq ($(ARCH), sparcv9)
+  # alter CC instead of PCFLAGS, since we need to pass it down to libffi configure
+  # and some of the other settings in PCFLAGS might make the build choke
+  CC += -m64  
+  LDFLAGS += -m64 
+endif
 endif
 
 ifeq ($(OS),darwin)

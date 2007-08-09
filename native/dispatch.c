@@ -10,7 +10,6 @@
  * JNI native methods supporting the infrastructure for shared
  * dispatchers.  
  */
-#define USE_BSD // For Linux to get the BYTE_ORDER macro
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
@@ -359,13 +358,17 @@ JNIEXPORT jint JNICALL
 Java_com_sun_jna_Function_invokeInt(JNIEnv *env, jobject self, 
                                     jint callconv, jobjectArray arr)
 {
-#if defined (_LP64) && BYTE_ORDER == BIG_ENDIAN
-    struct { int hi; int i; } result;
-#else
     jvalue result;
-#endif
     dispatch(env, self, callconv, arr, &ffi_type_sint32, &result);
+    /* 
+     * Big endian 64bit machines will put a 32bit return value in the 
+     * upper 4 bytes of the memory area.
+     */
+#if defined (_LP64)
+    return result.j & 0xffffffff;
+#else
     return result.i;
+#endif
 }
 
 /*
