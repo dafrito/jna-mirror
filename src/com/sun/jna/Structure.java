@@ -59,6 +59,8 @@ public abstract class Structure {
     /** validated for w32/msvc; align on field size */
     public static final int ALIGN_MSVC = 3;
     private static final boolean isPPC = "ppc".equals(System.getProperty("os.arch"));
+    private static final boolean isSPARC = "sparc".equals(System.getProperty("os.arch"));
+    private static final int ALIGN_GNUC_MIN = isSPARC ? 8 : NativeLong.SIZE;
     protected static final int CALCULATE_SIZE = -1;
 
     private Pointer memory;
@@ -630,7 +632,7 @@ public abstract class Structure {
             // NOTE this is published ABI for 32-bit gcc/linux/x86, osx/x86,
             // and osx/ppc.  osx/ppc special-cases the first element
             if (!firstElement || !isPPC)
-                return Math.min(NativeLong.SIZE, alignment);
+                return Math.min(ALIGN_GNUC_MIN, alignment);
         }
         return alignment;
     }

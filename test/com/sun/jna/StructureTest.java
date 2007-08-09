@@ -48,8 +48,9 @@ public class StructureTest extends TestCase {
         }
         TestStructure s = new TestStructure();
         s.setAlignType(Structure.ALIGN_GNUC);
-        // Size will differ depending on machine word size
-        final int SIZE = NativeLong.SIZE == 4 ? 28 : 32;
+        // Size will differ depending on machine word size & ABI
+        final boolean isSPARC = "sparc".equals(System.getProperty("os.arch"));
+        final int SIZE = NativeLong.SIZE == 4 ? isSPARC ? 32 : 28 : 32;
         assertEquals("Wrong structure size", SIZE, s.size());
     }
     
