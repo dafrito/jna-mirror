@@ -5,11 +5,14 @@
 #include <jni.h>
 #include <ffi.h>
 
-#if defined(__linux__)
+#if !defined(_WIN32)
 #  include <sys/types.h>
 #  include <sys/param.h>
 #  include <sys/user.h> /* for PAGE_SIZE */
 #  include <sys/mman.h>
+#  ifdef sun
+#    include <sys/sysmacros.h>
+#  endif
 #  include <sys/queue.h>
 #  include <pthread.h>
 #  define MMAP_CLOSURE
@@ -542,6 +545,13 @@ jnidispatch_callback_init(JavaVM* jvm) {
 }
 
 #ifdef MMAP_CLOSURE
+# ifndef PAGE_SIZE
+#  if defined(PAGESIZE)
+#   define PAGE_SIZE PAGESIZE
+#  elif defined(NBPG)
+#   define PAGE_SIZE NBPG
+#  endif   
+# endif
 typedef struct closure {
     LIST_ENTRY(closure) list;
 } closure;
@@ -573,6 +583,7 @@ alloc_closure(JNIEnv* env)
     LIST_REMOVE(closure, list);
 
     pthread_mutex_unlock(&closure_lock);
+    memset(closure, 0, sizeof(*closure));
     return (ffi_closure *)closure;
 }
 
