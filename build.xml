@@ -174,9 +174,18 @@
     <condition property="make.CC" value="CC=${CC}" else="IGNORE=">
       <isset property="CC"/>
     </condition>
-    <condition property="make.ARCH" value="ARCH=${ARCH}" else="IGNORE=">
-      <isset property="ARCH"/>
+    <condition property="ARCH" value="${os.arch}">
+      <and>
+        <os name="SunOS"/>
+        <not>
+          <isset property="ARCH"/>
+        </not>
+      </and>
     </condition>
+    <condition property="make.ARCH" value="ARCH=${ARCH}" else="IGNORE=">
+        <isset property="ARCH"/>
+    </condition>
+    
     <condition property="make.SDKROOT" value="SDKROOT=${SDKROOT}">
       <isset property="SDKROOT"/>
     </condition>
@@ -193,10 +202,6 @@
     <condition property="make.PATH" value="PATH=/usr/sfw/bin:/usr/bin:/usr/ccs/bin" else="IGNORE=">
       <os name="SunOS"/>
     </condition>
-    <condition property="make.ARCH" value="ARCH=${os.arch}" else="IGNORE=">
-      <os name="SunOS"/>
-    </condition>
-    <echo message="make.ARCH=${make.ARCH}"/>
     <exec executable="${make.exe}" dir="${native}" failonerror="true">
       <arg value="JAVA_HOME=${jdk.home}"/>
       <arg value="JAVAH=${build.native}"/>
