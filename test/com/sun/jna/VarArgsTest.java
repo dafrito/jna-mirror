@@ -55,4 +55,7 @@ public class VarArgsTest extends TestCase {
         assertEquals("Did not return correct string", args[0],
                 TestLibrary.INSTANCE.returnStringVarArgs("", args));
     }
+    public static void main(java.lang.String[] argList) {
+        junit.textui.TestRunner.run(VarArgsTest.class);
+    }
 }

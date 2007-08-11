@@ -52,4 +52,7 @@ public class FunctionTest extends TestCase {
         lib.returnInt32Argument(true);
         assertTrue("Method not set on Function instance", set[0]);
     }
+    public static void main(java.lang.String[] argList) {
+        junit.textui.TestRunner.run(FunctionTest.class);
+    }
 }

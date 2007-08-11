@@ -34,4 +34,7 @@ public class MemoryTest extends TestCase {
         }
         assertNull("Memory not GC'd", ref.get());
     }
+    public static void main(java.lang.String[] argList) {
+        junit.textui.TestRunner.run(MemoryTest.class);
+    }
 }

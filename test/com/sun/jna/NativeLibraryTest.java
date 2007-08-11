@@ -89,4 +89,7 @@ public class NativeLibraryTest extends TestCase {
         int count2 = lib2.callCount();
         assertEquals("Simple library name not aliased", count + 1, count2);
     }
+    public static void main(java.lang.String[] argList) {
+        junit.textui.TestRunner.run(NativeLibraryTest.class);
+    }
 }

@@ -103,4 +103,7 @@ public class PointerTest extends TestCase {
             assertEquals("Native long mismatch", MAGIC, m.getLong(0));
         }
     }
+    public static void main(java.lang.String[] argList) {
+        junit.textui.TestRunner.run(PointerTest.class);
+    }
 }

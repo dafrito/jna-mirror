@@ -154,4 +154,7 @@ public class TypeMapperTest extends TestCase {
         s.read();
         assertFalse("Wrong value read", s.data);
     }
+    public static void main(java.lang.String[] argList) {
+        junit.textui.TestRunner.run(TypeMapperTest.class);
+    }
 }
