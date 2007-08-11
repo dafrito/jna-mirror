@@ -22,6 +22,7 @@ extern "C" {
 #endif
 
 static ffi_type *get_ffi_type(char jtype);
+static ffi_type *get_ffi_rtype(char jtype);
 static void callback_dispatch(ffi_cif*, void*, void**, void*);
 static void callback_proxy_dispatch(ffi_cif*, void*, void**, void*);
 static ffi_closure* alloc_closure(JNIEnv *env);
@@ -188,7 +189,7 @@ create_callback(JNIEnv* env, jobject obj, jobject method,
   }
 #endif // _WIN32
 
-  ffi_prep_cif(&cb->ffi_cif, abi, argc, get_ffi_type(cb->return_jtype),
+  ffi_prep_cif(&cb->ffi_cif, abi, argc, get_ffi_rtype(cb->return_jtype),
       &cb->ffi_args[0]);
   ffi_prep_closure(cb->ffi_closure, &cb->ffi_cif, dispatch, cb);
   return cb;
@@ -204,11 +205,37 @@ static ffi_type*
 get_ffi_type(char jtype) {
   switch (jtype) {
   case 'Z': 
+    return &ffi_type_sint;
+  case 'B':
+    return &ffi_type_sint8;
+  case 'C':
+    return &ffi_type_sint;
+  case 'S':
+    return &ffi_type_sshort;
+  case 'I':
+    return &ffi_type_sint;
+  case 'J':
+    return &ffi_type_sint64;
+  case 'F':
+    return &ffi_type_float;
+  case 'D':
+    return &ffi_type_double;
+  case 'V':
+    return &ffi_type_void;
+  case 'L':
+  default:
+    return &ffi_type_pointer;
+  }
+}
+static ffi_type*
+get_ffi_rtype(char jtype) {
+  switch (jtype) {
+  case 'Z': 
   case 'B': 
   case 'C': 
-  case 'S':
+  case 'S':    
   case 'I':
-    return &ffi_type_sint32;
+    return &ffi_type_slong;
   case 'J':
     return &ffi_type_sint64;
   case 'F':
@@ -377,7 +404,7 @@ callback_proxy_dispatch(ffi_cif* cif, void* resp, void** cbargs, void* user_data
             break;
         case 'I':
             if ((*env)->IsInstanceOf(env, ret, classInteger)) {
-                *(int*)resp = (*env)->GetIntField(env, ret, FID_Integer_value);
+                *(long*)resp = (*env)->GetIntField(env, ret, FID_Integer_value);
             }
             break;
         case 'J':
