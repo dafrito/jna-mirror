@@ -238,6 +238,10 @@ get_ffi_rtype(char jtype) {
   case 'C': 
   case 'S':    
   case 'I':
+    /*
+     * Always use a cpu register sized return type.  This fixes up callbacks on 
+     * big-endian 64bit machines, and does not break things on i386 or amd64.
+     */
     return &ffi_type_slong;
   case 'J':
     return &ffi_type_sint64;
@@ -417,17 +421,17 @@ callback_proxy_dispatch(ffi_cif* cif, void* resp, void** cbargs, void* user_data
             break;
         case 'S':
             if ((*env)->IsInstanceOf(env, ret, classShort)) {
-                *(short*)resp = (*env)->GetShortField(env, ret, FID_Short_value);
+                *(long*)resp = (*env)->GetShortField(env, ret, FID_Short_value);
             }
             break;
         case 'B':
             if ((*env)->IsInstanceOf(env, ret, classByte)) {
-                *(char*)resp = (*env)->GetByteField(env, ret, FID_Byte_value);
+                *(long*)resp = (*env)->GetByteField(env, ret, FID_Byte_value);
             }
             break;
         case 'Z':
             if ((*env)->IsInstanceOf(env, ret, classBoolean)) {
-                *(int*)resp = (*env)->GetBooleanField(env, ret, FID_Boolean_value);
+                *(long*)resp = (*env)->GetBooleanField(env, ret, FID_Boolean_value);
             }
             break;
 	case 'F':
