@@ -256,7 +256,7 @@ class CallbackReference extends WeakReference {
         private Object convertArgument(Object value, Class dstType) {
             if (value instanceof Pointer) {
                 if (dstType == String.class) {
-                    value = ((Pointer)value).getString(0, false);
+                    value = ((Pointer)value).getString(0);
                 }
                 else if (dstType == WString.class) {
                     value = new WString(((Pointer)value).getString(0, true));

@@ -13,10 +13,12 @@
 package com.sun.jna;
 
 import java.awt.Window;
+import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -72,16 +74,38 @@ public class Native {
     
     private static native long getWindowHandle0(Window w);
     
-    /** Obtain a Java String from the given native char array. */
+    /** Convert a direct {@link ByteBuffer} into a {@link Pointer}. 
+     * @throws IllegalArgumentException if the byte buffer is not direct.
+     */
+    public static native Pointer getByteBufferPointer(ByteBuffer b);
+    
+    /** Obtain a Java String from the given native byte array.  If there is
+     * no NUL terminator, the String will comprise the entire array.
+     */
     public static String toString(byte[] buf) {
+        String encoding = System.getProperty("jna.encoding");
+        if (encoding != null) {
+            try {
+                return new String(buf, encoding);
+            }
+            catch(UnsupportedEncodingException e) { }
+        }
         String s = new String(buf);
-        return s.substring(0, s.indexOf(0));
+        int term = s.indexOf(0);
+        if (term != -1)
+            s = s.substring(0, term);
+        return s;
     }
     
-    /** Obtain a Java String from the given native wchar_t array. */
+    /** Obtain a Java String from the given native wchar_t array.  If there is
+     * no NUL terminator, the String will comprise the entire array.
+     */
     public static String toString(char[] buf) {
         String s = new String(buf); 
-        return s.substring(0, s.indexOf(0));
+        int term = s.indexOf(0);
+        if (term != -1)
+            s = s.substring(0, term);
+        return s;
     }
     
     /** Load a library interface from the given shared library, providing
@@ -210,5 +234,21 @@ public class Native {
         }
         Integer value = (Integer)alignments.get(interfaceClass);
         return value != null ? value.intValue() : Structure.ALIGN_DEFAULT;
+    }
+
+    /** Return an byte array corresponding to the given String.  If the
+     * system property <code>jna.encoding</code> is set, it will override
+     * the default platform encoding (if supported).
+     */
+    static byte[] getBytes(String s) {
+        String encoding = System.getProperty("jna.encoding");
+        if (encoding != null) {
+            try {
+                return s.getBytes(encoding);
+            }
+            catch (UnsupportedEncodingException e) {
+            }
+        }
+        return s.getBytes();
     }
 }

@@ -563,6 +563,24 @@ JNIEXPORT void JNICALL Java_com_sun_jna_Pointer_write__I_3SII
 
 /*
  * Class:     Pointer
+ * Method:    indexOf
+ * Signature: (IB)I
+ */
+JNIEXPORT jint JNICALL Java_com_sun_jna_Pointer_indexOf__IB
+    (JNIEnv *env, jobject self, jint boff, jbyte value)
+{
+  jbyte *peer = (jbyte *)getNativeAddress(env, self) + boff;
+  int i = 0;
+  while (i >= 0) {
+    if (peer[i] == value)
+      return i;
+    ++i;
+  }
+  return -1;
+}
+
+/*
+ * Class:     Pointer
  * Method:    read
  * Signature: (I[BII)V
  */
@@ -934,7 +952,7 @@ throwByName(JNIEnv *env, const char *name, const char *msg)
 /* Translates a Java string to a C string using the String.getBytes 
  * method, which uses default local encoding.
  */
-// TODO: make sure encoding is correct
+// TODO: use jna.encoding
 static char *
 newCString(JNIEnv *env, jstring jstr)
 {
@@ -960,7 +978,7 @@ newCString(JNIEnv *env, jstring jstr)
 /* Translates a Java string to a wide C string using the String.toCharArray
  * method.
  */
-// TODO: make any required encoding changes
+// TODO: are any encoding changes required?
 static wchar_t *
 newWideCString(JNIEnv *env, jstring str)
 {
@@ -1135,8 +1153,8 @@ Java_com_sun_jna_Native_getWindowHandle0(JNIEnv *env, jobject classp, jobject w)
       JAWT_Win32DrawingSurfaceInfo* wdsi = 
         (JAWT_Win32DrawingSurfaceInfo*)dsi->platformInfo;
       if (wdsi != NULL) {
-        // FIXME this kills the VM if the window is not realized
-        // wdsi might be a bogus, non-null value
+        // FIXME this kills the VM if the window is not realized;
+        // if not, wdsi might be a bogus, non-null value
         // TODO: fix JVM (right) or ensure window is realized
         handle = (jint)wdsi->hwnd;
         if (!handle) {

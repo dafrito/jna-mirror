@@ -516,7 +516,7 @@ public class Function extends Pointer {
                     StringArray buf = (StringArray)args[i];
                     String[] array = (String[])arg;
                     for (int si=0;si < array.length;si++) {
-                        array[si] = buf.getPointer(si * Pointer.SIZE).getString(0, false);
+                        array[si] = buf.getPointer(si * Pointer.SIZE).getString(0);
                     }
                 }
                 else if (isStructureArray(arg.getClass())) {
@@ -650,7 +650,10 @@ public class Function extends Pointer {
         Pointer ptr = invokePointer(callingConvention, args);
         String s = null;
         if (ptr != null) {
-            s = ptr.getString(0, wide);
+            if (wide) 
+                s = ptr.getString(0, wide);
+            else
+                s = ptr.getString(0);
         }
         return s;
     }

@@ -21,7 +21,7 @@ import java.util.Map;
 /**
  * Represents a native structure with a Java peer class. 
  * <p>
- * See the <a href=overview.html>overview</a> for supported type mappings.
+ * See the <a href={@docRoot}/overview-summary.html>overview</a> for supported type mappings.
  * <p>
  * NOTE: Strings are used to represent native C strings because usage of 
  * <code>char *</code> is generally more common than <code>wchar_t *</code>.<p>
@@ -260,7 +260,7 @@ public abstract class Structure {
         }
         else if (nativeType == String.class) {
             Pointer p = memory.getPointer(offset);
-            result = p != null ? p.getString(0, false) : null;
+            result = p != null ? p.getString(0) : null;
         }
         else if (nativeType == WString.class) {
             Pointer p = memory.getPointer(offset);
@@ -711,7 +711,9 @@ public abstract class Structure {
             Memory m = (Memory)memory;
             int requiredSize = array.length * size();
             if (m.getSize() < requiredSize) {
-                useMemory(new Memory(requiredSize));
+                m = new Memory(requiredSize);
+                m.clear();
+                useMemory(m);
             }
         }
         array[0] = this;
