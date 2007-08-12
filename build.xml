@@ -352,6 +352,12 @@
       <zipfileset src="${dist}/sunos-x86.jar" 
                   includes="*jnidispatch*"
                   prefix="com/sun/jna/sunos-x86"/>
+      <zipfileset src="${dist}/sunos-sparc.jar" 
+                  includes="*jnidispatch*"
+                  prefix="com/sun/jna/sunos-sparc"/>        
+      <zipfileset src="${dist}/sunos-sparcv9.jar" 
+                  includes="*jnidispatch*"
+                  prefix="com/sun/jna/sunos-sparcv9"/>
     </jar>
     <copy todir="${dist}">
       <fileset dir="${build}">
