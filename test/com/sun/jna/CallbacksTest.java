@@ -36,6 +36,14 @@ public class CallbacksTest extends TestCase {
             boolean callback(boolean arg, boolean arg2);
         }
         boolean callBooleanCallback(BooleanCallback c, boolean arg, boolean arg2);
+        interface ByteCallback extends Callback {
+            byte callback(byte arg, byte arg2);
+        }
+        byte callByteCallback(ByteCallback c, byte arg, byte arg2);
+        interface ShortCallback extends Callback {
+            short callback(short arg, short arg2);
+        }
+        short callShortCallback(ShortCallback c, short arg, short arg2);
         interface Int32Callback extends Callback {
             int callback(int arg, int arg2);
         }
@@ -122,6 +130,44 @@ public class CallbacksTest extends TestCase {
         assertEquals("Callback trampoline not freed", 0, cbstruct.peer);
     }
     
+    public void testCallByteCallback() {
+        final byte MAGIC = 0x11;
+        final boolean[] called = { false };
+        TestLibrary.ByteCallback cb = new TestLibrary.ByteCallback() {
+            public byte callback(byte arg, byte arg2) {
+                called[0] = true;
+                return (byte)(arg + arg2);
+            }
+        };
+        final short EXPECTED = MAGIC*3;
+        byte value = lib.callByteCallback(cb, MAGIC, (byte)(MAGIC*2));
+        assertTrue("Callback not called", called[0]);
+        assertEquals("Wrong callback value", Integer.toHexString(EXPECTED), 
+                     Integer.toHexString(value));
+        
+        value = lib.callByteCallback(cb, (byte)-1, (byte)-2);
+        assertEquals("Wrong callback return", -3, value);
+    }
+    
+    public void testCallShortCallback() {
+        final short MAGIC = 0x1111;
+        final boolean[] called = { false };
+        TestLibrary.ShortCallback cb = new TestLibrary.ShortCallback() {
+            public short callback(short arg, short arg2) {
+                called[0] = true;
+                return (short)(arg + arg2);
+            }
+        };
+        final short EXPECTED = MAGIC*3;
+        short value = lib.callShortCallback(cb, MAGIC, (short)(MAGIC*2));
+        assertTrue("Callback not called", called[0]);
+        assertEquals("Wrong callback value", Integer.toHexString(EXPECTED), 
+                     Integer.toHexString(value));
+        
+        value = lib.callShortCallback(cb, (short)-1, (short)-2);
+        assertEquals("Wrong callback return", -3, value);
+    }
+       
     public void testCallInt32Callback() {
         final int MAGIC = 0x11111111;
         final boolean[] called = { false };
