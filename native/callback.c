@@ -2,13 +2,16 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <stdint.h> /* for intptr_t */
 #include <jni.h>
 #include <ffi.h>
 
 #if !defined(_WIN32)
 #  include <sys/types.h>
 #  include <sys/param.h>
-#  include <sys/user.h> /* for PAGE_SIZE */
+#  if defined(__linux__)
+#    include <sys/user.h> /* for PAGE_SIZE */
+#  endif
 #  include <sys/mman.h>
 #  ifdef sun
 #    include <sys/sysmacros.h>
@@ -578,7 +581,7 @@ alloc_closure(JNIEnv* env)
             pthread_mutex_unlock(&closure_lock);
             return NULL;
         }
-        for (i = 0; i <= (PAGE_SIZE - clsize); i += clsize) {
+        for (i = 0; i <= (int)(PAGE_SIZE - clsize); i += clsize) {
             closure = (struct closure *)(ptr + i);
             LIST_INSERT_HEAD(&closure_list, closure, list);            
         }

@@ -60,7 +60,7 @@ STRIP=strip -x
 # end defaults
 
 ifeq ($(OS),win32)
-CC=cl
+CC=gcc
 ARCH=i386
 
 ifeq ($(CC),cl)
@@ -175,7 +175,7 @@ $(TESTLIB): $(BUILD)/testlib.o $(SPECS)
 
 $(FFI_OBJS):		
 	@mkdir -p $(BUILD)/libffi
-	if [ ! -f $(BUILD)/libffi/Makefile ]; then \
+	@if [ ! -f $(BUILD)/libffi/Makefile ]; then \
 	    echo "Configuring libffi"; \
 	    cd $(BUILD)/libffi && \
 		CC="$(CC)" $(SRCDIR)/libffi/configure --disable-static --with-pic=yes > /dev/null; \
