@@ -531,7 +531,6 @@ EXPORT wchar_t*
 callWideStringCallback(wchar_t* (*func)(wchar_t* arg), wchar_t* arg) {
   return (*func)(arg);
 }
-
 struct cbstruct {
   void (*func)();
 };
@@ -540,6 +539,20 @@ EXPORT void
 callCallbackInStruct(struct cbstruct *cb) {
   (*cb->func)();
 }
+
+struct cbstruct2 {
+    int (*callback)(int arg1, int arg2);
+};
+
+static int structCallbackTest(int arg1, int arg2) {
+  return arg1 + arg2;
+}
+
+EXPORT void
+setCallbackInStruct(struct cbstruct2* cb) {
+  cb->callback = structCallbackTest;
+}
+
 
 EXPORT int32 
 fillInt8Buffer(char *buf, int len, char value) {

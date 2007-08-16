@@ -39,6 +39,7 @@ import java.util.WeakHashMap;
  */
 public class Native {
     private static Map libraries  = Collections.synchronizedMap(new WeakHashMap());
+    private static Map nativeLibraries  = Collections.synchronizedMap(new WeakHashMap());
     private static Map typeMappers = Collections.synchronizedMap(new WeakHashMap());
     private static Map alignments = Collections.synchronizedMap(new WeakHashMap());
     
@@ -139,6 +140,7 @@ public class Native {
             typeMappers.put(interfaceClass, options.get(Library.OPTION_TYPE_MAPPER));
         if (options.containsKey(Library.OPTION_STRUCTURE_ALIGNMENT))
             alignments.put(interfaceClass, options.get(Library.OPTION_STRUCTURE_ALIGNMENT));
+        nativeLibraries.put(interfaceClass, NativeLibrary.getInstance(name));
         return proxy;
     }
     
@@ -235,7 +237,9 @@ public class Native {
         Integer value = (Integer)alignments.get(interfaceClass);
         return value != null ? value.intValue() : Structure.ALIGN_DEFAULT;
     }
-
+    static NativeLibrary getNativeLibrary(Class interfaceClass) {
+        return (NativeLibrary) nativeLibraries.get(interfaceClass);
+    }
     /** Return an byte array corresponding to the given String.  If the
      * system property <code>jna.encoding</code> is set, it will override
      * the default platform encoding (if supported).

@@ -338,4 +338,22 @@ public class StructureTest extends TestCase {
         lib.callCallbackInStruct(s);
         assertTrue("Callback not invoked", flag[0]);
     }
+    static interface CbStruct2Callback extends Callback {
+        public int callback(int arg1, int arg2);
+    }
+    
+    static interface CbStruct2Test extends Library {
+        static class CbStruct extends Structure {
+            public CbStruct2Callback cb;            
+        }
+        public void setCallbackInStruct(CbStruct struct);
+    }
+    public void testStructureCallbackInvoke() {
+        
+        final CbStruct2Test.CbStruct s = new CbStruct2Test.CbStruct();
+        
+        CbStruct2Test lib = (CbStruct2Test)Native.loadLibrary("testlib", CbStruct2Test.class);
+        lib.setCallbackInStruct(s);        
+        assertEquals("Wrong return value", 3, s.cb.callback(1, 2));        
+    }
 }

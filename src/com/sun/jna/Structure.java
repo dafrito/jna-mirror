@@ -12,7 +12,10 @@ package com.sun.jna;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -267,11 +270,41 @@ public abstract class Structure {
             result = p != null ? new WString(p.getString(0, true)) : null;
         }
         else if (Callback.class.isAssignableFrom(nativeType)) {
-            // ignore; Callback members are write-only (don't try to convert
-            // a native function pointer to a Java Callback)
-            // TODO: may want to warn if the value has been changed by
-            // native code
-            return;
+            Object value;
+            try {
+                value = structField.field.get(this);
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
+            if (value != null && !(Proxy.isProxyClass(value.getClass()) 
+                    && Proxy.getInvocationHandler(value) instanceof CallbackHandler)) {
+                // ignore; Callback members are write-only (don't try to convert
+                // a native function pointer to a Java Callback)
+                // TODO: may want to warn if the value has been changed by
+                // native code
+                return;
+            }
+            Pointer address = memory.getPointer(offset);
+            // Re-create the proxy if the value has changed
+            if (value != null) {
+                CallbackHandler handler = (CallbackHandler) Proxy.getInvocationHandler(value);
+
+                // Same address, just re-use the existing value
+                if (handler.function.peer == address.peer) {
+                    return;
+                }
+            }
+            Class callbackClass = nativeType;
+            if (!callbackClass.isInterface()) {
+                throw new IllegalArgumentException("Callback field of Structure must be an interface");
+            }
+            Class interfaceClass = getClass().getEnclosingClass();
+            if (!Library.class.isAssignableFrom(interfaceClass)) {
+                throw new IllegalArgumentException("To use a Callback in a Structure, the Structure must be declared inside a Library sub-interface");
+            }
+            CallbackHandler handler = new CallbackHandler(interfaceClass, address);
+            result = Proxy.newProxyInstance(getClass().getClassLoader(), 
+                    new Class[] { callbackClass }, handler);            
         }
         else if (nativeType.isArray()) {
             Class cls = nativeType.getComponentType();
@@ -781,4 +814,40 @@ public abstract class Structure {
                 + "=" + value;
         }
     }    
+    static class CallbackHandler implements InvocationHandler {
+        
+        private static final Method OBJECT_TOSTRING;
+        
+        static {
+            try {
+                OBJECT_TOSTRING = Object.class.getMethod("toString", null);
+            }
+            catch (Exception e) {
+                throw new Error("Error retrieving Object.toString() method");
+            }
+        }
+
+        private NativeLibrary nativeLibrary;
+        private Class interfaceClass;        
+        private Function function;
+        
+        public CallbackHandler(Class interfaceClass, Pointer address) {
+            this.nativeLibrary = Native.getNativeLibrary(interfaceClass);
+            this.interfaceClass = interfaceClass;
+            this.function = new Function(nativeLibrary, address, Function.C_CONVENTION);
+        }
+        
+        public Object invoke(Object proxy, Method method, Object[] inArgs)
+            throws Throwable {
+            
+            // Check for any toString() calls on the proxy
+            if (method == OBJECT_TOSTRING) {
+                return "Proxy interface to " + function.toString();
+            }
+            if (!method.getName().equals("callback") && !method.getName().equals("call")) {
+                throw new NoSuchMethodError("Unknown method: " + method.getName());
+            }
+            return function.invoke(method.getReturnType(), inArgs);
+        }
+    }
 }

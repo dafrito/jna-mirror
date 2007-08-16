@@ -122,6 +122,29 @@ public class Function extends Pointer {
      *
      * @param  library
      *                 {@link NativeLibrary} in which to find the function
+     * @param  functionName
+     *                 Name of the native function to be linked with
+     * @param  callingConvention
+     *                 Calling convention used by the native function
+     */
+    Function(NativeLibrary library, Pointer address, int callingConvention) {
+        checkCallingConvention(callingConvention);
+        this.library = library;
+        this.functionName = address.toString();
+        this.callingConvention = callingConvention;
+        this.peer = address.peer;
+    }
+    
+    /**
+     * Create a new @{link Function} that is linked with a native 
+     * function that follows a given calling convention.
+     * 
+     * <p>The allocated instance represents a pointer to the named native 
+     * function from the supplied library, called with the named calling 
+     * convention.
+     *
+     * @param  library
+     *                 {@link NativeLibrary} in which to find the function
      * @param  method
      *                 @{link Method} in the Library that this method represents
      * @param  callingConvention
