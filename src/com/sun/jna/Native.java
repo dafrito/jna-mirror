@@ -14,6 +14,7 @@ package com.sun.jna;
 
 import java.awt.Window;
 import java.io.UnsupportedEncodingException;
+import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Modifier;
@@ -140,7 +141,7 @@ public class Native {
             typeMappers.put(interfaceClass, options.get(Library.OPTION_TYPE_MAPPER));
         if (options.containsKey(Library.OPTION_STRUCTURE_ALIGNMENT))
             alignments.put(interfaceClass, options.get(Library.OPTION_STRUCTURE_ALIGNMENT));
-        nativeLibraries.put(interfaceClass, NativeLibrary.getInstance(name));
+        nativeLibraries.put(interfaceClass, new WeakReference(NativeLibrary.getInstance(name)));
         return proxy;
     }
     
@@ -237,9 +238,15 @@ public class Native {
         Integer value = (Integer)alignments.get(interfaceClass);
         return value != null ? value.intValue() : Structure.ALIGN_DEFAULT;
     }
+    
     static NativeLibrary getNativeLibrary(Class interfaceClass) {
-        return (NativeLibrary) nativeLibraries.get(interfaceClass);
+        WeakReference ref = (WeakReference)nativeLibraries.get(interfaceClass);
+        if (ref != null) {
+            return (NativeLibrary)ref.get();
+        }
+        return null;
     }
+    
     /** Return an byte array corresponding to the given String.  If the
      * system property <code>jna.encoding</code> is set, it will override
      * the default platform encoding (if supported).
