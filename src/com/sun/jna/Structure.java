@@ -290,7 +290,7 @@ public abstract class Structure {
                 CallbackHandler handler = (CallbackHandler) Proxy.getInvocationHandler(value);
 
                 // Same address, just re-use the existing value
-                if (handler.function.peer == address.peer) {
+                if (address != null && address.equals(handler.function)) {
                     return;
                 }
             }
@@ -302,9 +302,14 @@ public abstract class Structure {
             if (!Library.class.isAssignableFrom(interfaceClass)) {
                 throw new IllegalArgumentException("To use a Callback in a Structure, the Structure must be declared inside a Library sub-interface");
             }
-            CallbackHandler handler = new CallbackHandler(interfaceClass, address);
-            result = Proxy.newProxyInstance(getClass().getClassLoader(), 
-                    new Class[] { callbackClass }, handler);            
+            if (address != null) {
+                CallbackHandler handler = new CallbackHandler(interfaceClass, address);
+                result = Proxy.newProxyInstance(getClass().getClassLoader(), 
+                    new Class[] { callbackClass }, handler);
+            }
+            else {
+                result = null;
+            }
         }
         else if (nativeType.isArray()) {
             Class cls = nativeType.getComponentType();
@@ -499,7 +504,7 @@ public abstract class Structure {
         }
         else if (Callback.class.isAssignableFrom(nativeType)) {
             Pointer p = null;
-            if (value != null) {
+            if (value != null && !Proxy.isProxyClass(value.getClass())) {
                 CallbackReference cbref = CallbackReference.getInstance((Callback)value);
                 p = cbref.getTrampoline();
             }
@@ -840,14 +845,25 @@ public abstract class Structure {
         public Object invoke(Object proxy, Method method, Object[] inArgs)
             throws Throwable {
             
+            if (method.getName().equals("callback") || method.getName().equals("call")) {
+                return function.invoke(method.getReturnType(), inArgs);
+            }
             // Check for any toString() calls on the proxy
             if (method == OBJECT_TOSTRING) {
                 return "Proxy interface to " + function.toString();
             }
-            if (!method.getName().equals("callback") && !method.getName().equals("call")) {
-                throw new NoSuchMethodError("Unknown method: " + method.getName());
+            
+            if (method.getName().equals("equals")) {
+                if (inArgs[0] instanceof Proxy && Proxy.getInvocationHandler(inArgs[0]) instanceof CallbackHandler) {
+                    CallbackHandler rhs = (CallbackHandler)Proxy.getInvocationHandler(inArgs[0]);
+                    return Boolean.valueOf(function.equals(rhs.function));
+                }
+                return Boolean.valueOf(function.equals(inArgs[0]));
             }
-            return function.invoke(method.getReturnType(), inArgs);
+            if (method.getName().equals("hashCode")) {
+                return method.invoke(function, inArgs);
+            }
+            throw new NoSuchMethodError("Unknown method: " + method.getName());            
         }
     }
 }

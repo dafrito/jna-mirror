@@ -346,6 +346,9 @@ public class StructureTest extends TestCase {
         static class CbStruct extends Structure {
             public CbStruct2Callback cb;            
         }
+        static class PtrStruct extends Structure {
+            public Pointer ptr;
+        }
         public void setCallbackInStruct(CbStruct struct);
     }
     public void testStructureCallbackInvoke() {
@@ -354,6 +357,16 @@ public class StructureTest extends TestCase {
         
         CbStruct2Test lib = (CbStruct2Test)Native.loadLibrary("testlib", CbStruct2Test.class);
         lib.setCallbackInStruct(s);        
-        assertEquals("Wrong return value", 3, s.cb.callback(1, 2));        
+        assertEquals("Wrong return value", 3, s.cb.callback(1, 2));
+        CbStruct2Test.PtrStruct ptrStruct = new CbStruct2Test.PtrStruct();
+        ptrStruct.useMemory(s.getPointer());
+        ptrStruct.read();
+        assertEquals("hashCode does not equal Pointer hashCode", ptrStruct.ptr.hashCode(), s.cb.hashCode());
+        s.cb.hashCode();
+        assertTrue("Callback not equal to itself", s.cb.equals(s.cb));
+        ptrStruct.ptr = null;
+        ptrStruct.write();
+        s.read();
+        assertEquals("Callback not set to null when pointer is", null, s.cb);
     }
 }
