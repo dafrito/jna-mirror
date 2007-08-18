@@ -18,6 +18,7 @@ OS=$(shell uname | sed -e 's/CYGWIN.*/win32/g' \
                         -e 's/Darwin.*/darwin/g' \
                         -e 's/Linux.*/linux/g')
 
+VERSION=$(shell sed -n 's/^.*version. value="\(.*\)".*/\1/p' ../build.xml)
 JAVA_INCLUDES=-I"$(JAVA_HOME)/include" \
               -I"$(JAVA_HOME)/include/$(OS)"
 SRCDIR=$(shell pwd)
@@ -35,7 +36,7 @@ TESTLIB=$(BUILD)/$(LIBPFX)testlib$(LIBSFX)
 # Reasonable defaults based on GCC
 LIBPFX=lib
 LIBSFX=.so
-JNISFX=.so
+JNISFX=$(LIBSFX)
 CC=gcc
 LD=gcc
 # Default to Sun recommendations for JNI compilation
@@ -79,27 +80,26 @@ CASM=-FAs
 LDFLAGS=/pdb:$(subst .dll,,$@).pdb /implib:$(subst .dll,,$@).lib /debug /machine:i386 /pdbtype:sept /dll /nologo /opt:REF /incremental:no /out:$@ 
 LIBDIR=/libpath:"$(JAVA_HOME)/lib" 
 LIBS=$(LIBDIR) jawt.lib
-TESTDEF=/def:$(subst .dll,,$(@F)).def
 STRIP=@echo
 else
 CDEFINES=-D__int64="long long" -D_JNI_IMPLEMENTATION
 PCFLAGS=-mno-cygwin
 # NOTE: have to recreate specs or dllcrt2.o isn't found
 SPECS=$(BUILD)/specs.new
-LDFLAGS+=-mno-cygwin -Wl,--add-stdcall-alias -specs $(BUILD)/specs.new -L /lib/mingw 
+LDFLAGS+=-mno-cygwin -Wl,--add-stdcall-alias -specs $(SPECS) -L /lib/mingw 
 LIBDIR="$(JAVA_HOME)/lib"
 LIBS=$(LIBDIR)/jawt.lib
 endif
 
 LIBPFX=
 LIBSFX=.dll
-JNISFX=.dll
 endif
 
 ifeq ($(OS),linux)
 ARCH=i386
-# Avoid 1.5/1.6 bug linking directly to -ljawt
-CDEFINES+=-DNEED_JAWT_HACK -fPIC
+PCFLAGS+=-fPIC
+# Avoid 1.5/1.6 bug caused by linking directly to -ljawt
+CDEFINES+=-DNEED_JAWT_HACK
 LIBS=
 endif
 
@@ -109,8 +109,9 @@ ifeq ($(ARCH),)
   ARCH=$(shell uname -n)
 endif
 
-# Avoid 1.5/1.6 bug linking directly to -ljawt
-CDEFINES+=-DNEED_JAWT_HACK -fPIC
+# Avoid 1.5/1.6 bug caused by linking directly to -ljawt
+PCFLAGS+=-fPIC
+CDEFINES+=-DNEED_JAWT_HACK
 LDFLAGS=-o $@ -G
 LIBS=
 ifeq ($(ARCH), sparcv9)
@@ -127,16 +128,24 @@ LIBSFX=.dylib
 JNISFX=.jnilib
 # Use universal binary when updated to work with gcc 4
 ifneq ($(SDKROOT),)
+SYSLIBROOT=-Wl,-syslibroot,$(SDKROOT)
+ISYSROOT=-isysroot $(SDKROOT)
 ifneq ($(UNIVERSAL),)
-ARCHFLAGS=-arch ppc -arch i386 -isysroot $(SDKROOT)
+ARCHFLAGS=-arch ppc -arch i386
 else
-ARCHFLAGS=-arch $(ARCH) -isysroot $(SDKROOT)
+ARCHFLAGS=-arch $(ARCH)
 endif
 endif
-PCFLAGS+=$(ARCHFLAGS)
+PCFLAGS+=$(ARCHFLAGS) $(ISYSROOT) -x objective-c
 CDEFINES=-DTARGET_RT_MAC_CFM=0
-LDFLAGS=$(ARCHFLAGS) -dynamiclib -o $@ -framework JavaVM 
-LIBDIR=$(SDKROOT)/System/Library/Frameworks/JavaVM.framework/Versions/CurrentJDK/Libraries
+LDFLAGS=$(ARCHFLAGS) -dynamiclib -o $@ -framework JavaVM \
+  -compatibility_version $(shell echo ${VERSION}|sed 's/^\([0-9][0-9]*\).*/\1/g') \
+  -current_version $(VERSION) \
+  -mmacosx-version-min=10.3 \
+  -install_name ${@F} \
+  $(SYSLIBROOT)
+# JAWT linkage handled by -framework JavaVM
+LIBS=
 endif
 
 $(BUILD)/%.o : %.c
@@ -153,7 +162,6 @@ $(BUILD)/%.asm: %.c
 	$(CC) $(CFLAGS) $(CASM) -c $< 
 	@if [ -f $*.asm ]; then mv $*.asm $@; fi
 	@rm -f $*.obj ${@D}/$*.o
-
 
 all: $(LIBRARY) $(TESTLIB)
 
