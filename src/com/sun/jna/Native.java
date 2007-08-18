@@ -12,6 +12,7 @@
  */
 package com.sun.jna;
 
+import java.awt.Component;
 import java.awt.Window;
 import java.io.UnsupportedEncodingException;
 import java.lang.ref.WeakReference;
@@ -51,16 +52,8 @@ public class Native {
      * This method is primarily for X11-based systems, which use an opaque
      * <code>XID</code> (usually <code>long int</code>) to identify windows. 
      */
-    public static long getWindowID(Window w) {
-        if (!w.isDisplayable()) 
-            throw new IllegalStateException("Window is not yet displayable");
-        // On X11 VMs prior to 1.5, the window must be visible
-        if (System.getProperty("java.version").matches("^1\\.4\\..*")) {
-            if (!w.isVisible()) {
-                throw new IllegalStateException("Window is not yet visible");
-            }
-        }
-        return getWindowHandle0(w);
+    public static long getWindowID(Window w) {        
+        return getComponentID(w);
     }
     
     /** Utility method to get the native window pointer for a Java 
@@ -68,13 +61,42 @@ public class Native {
      * Windows, which uses the <code>HANDLE</code> type (actually 
      * <code>void *</code>) to identify windows. 
      */
-    public static Pointer getWindowPointer(Window w) {
-        if (!w.isDisplayable())
-            throw new IllegalStateException("Window is not yet displayable");
-        return new Pointer(getWindowHandle0(w));
+    public static Pointer getWindowPointer(Window w) {        
+        return getComponentPointer(w);        
     }
     
-    private static native long getWindowHandle0(Window w);
+    /** Utility method to get the native window pointer for a Java 
+     * {@link Component} as a {@link Pointer} value.  This method is primarily for 
+     * Windows, which uses the <code>HANDLE</code> type (actually 
+     * <code>void *</code>) to identify windows. 
+     */
+    public static Pointer getComponentPointer(Component c) {
+        if (!c.isDisplayable())
+            throw new IllegalStateException("Component is not yet displayable");
+        return new Pointer(getComponentID(c));
+    }
+    
+    /** Utility method to get the native window ID for a Java {@link Component}
+     * as a <code>long</code> value.
+     * This method is primarily for X11-based systems, which use an opaque
+     * <code>XID</code> (usually <code>int32</code>) to identify windows. 
+     */
+    public static long getComponentID(Component c) {
+        if (c.isLightweight()) {
+            throw new IllegalArgumentException("Component cannot be lightweight");
+        }
+        if (!c.isDisplayable()) {
+            throw new IllegalStateException("Component is not yet displayable");
+        }
+        // On X11 VMs prior to 1.5, the component must be visible
+        if (System.getProperty("java.version").matches("^1\\.4\\..*")) {
+            if (!c.isVisible()) {
+                throw new IllegalStateException("Component is not yet visible");
+            }
+        }
+        return getWindowHandle0(c);
+    }
+    private static native long getWindowHandle0(Component c);
     
     /** Convert a direct {@link ByteBuffer} into a {@link Pointer}. 
      * @throws IllegalArgumentException if the byte buffer is not direct.
