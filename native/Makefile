@@ -19,6 +19,7 @@ OS=$(shell uname | sed -e 's/CYGWIN.*/win32/g' \
                         -e 's/Linux.*/linux/g')
 
 VERSION=$(shell sed -n 's/^.*version. value="\(.*\)".*/\1/p' ../build.xml)
+VERSION:=$(shell echo $(VERSION) | sed -n 's/^\([0-9][0-9]*\)\.\([0-9][0-9]*\)\.\([0-9][0-9]*\).*/\1\.\2\.\3/p')
 JAVA_INCLUDES=-I"$(JAVA_HOME)/include" \
               -I"$(JAVA_HOME)/include/$(OS)"
 SRCDIR=$(shell pwd)
