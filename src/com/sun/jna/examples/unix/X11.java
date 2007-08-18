@@ -78,19 +78,20 @@ public interface X11 extends Library {
         }   
     }
     public class WindowTypeConverter extends XIDTypeConverter {
-        public Object fromNative(Object value, Class returnType) {
+        public Object fromNative(Object value, FromNativeContext context) {
             return new Window((Integer)value);
         }
     }
     public class PixmapTypeConverter extends XIDTypeConverter {
-        public Object fromNative(Object value, Class returnType) {
+        public Object fromNative(Object value, FromNativeContext context) {
+            System.out.println("returning Pixmap");
             return new Pixmap((Integer)value);
         }
     }
     public abstract static class PointerTypeConverter implements TypeConverter {
 
         public Object toNative(Object value) {
-            return ((PointerType)value).ptr;
+            return value != null ? ((PointerType)value).ptr : null;
         }
 
         public Class nativeType() {
@@ -99,17 +100,17 @@ public interface X11 extends Library {
     }
     
     public static class DisplayTypeConverter extends PointerTypeConverter {
-        public Object fromNative(Object value,FromNativeContext context) {
+        public Object fromNative(Object value, FromNativeContext context) {
             return value != null ? new Display((Pointer)value) : null;
         }
     }
     public static class VisualTypeConverter extends PointerTypeConverter {
-        public Object fromNative(Object value,FromNativeContext context) {
+        public Object fromNative(Object value, FromNativeContext context) {
             return value != null ? new Visual((Pointer)value) : null;
         }
     }
     public static class GCTypeConverter extends PointerTypeConverter {
-        public Object fromNative(Object value,FromNativeContext context) {
+        public Object fromNative(Object value, FromNativeContext context) {
             return value != null ? new GC((Pointer)value) : null;
         }
     }
@@ -118,6 +119,7 @@ public interface X11 extends Library {
             DefaultTypeMapper mapper = new DefaultTypeMapper();
             mapper.addTypeConverter(Window.class, new WindowTypeConverter());
             mapper.addTypeConverter(Pixmap.class, new PixmapTypeConverter());
+            mapper.addTypeConverter(XID.class, new XIDTypeConverter());
             mapper.addTypeConverter(Display.class, new DisplayTypeConverter());
             mapper.addTypeConverter(Visual.class, new VisualTypeConverter());
             mapper.addTypeConverter(GC.class, new GCTypeConverter());
