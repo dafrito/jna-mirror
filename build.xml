@@ -30,7 +30,7 @@
 
   <!-- Software release version -->            
   <property name="version" value="3.0.0-experimental"/>
-  <property name="jdk" value="1.4"/>
+  <property name="jdk" value="1.5"/>
 
   <!-- Miscellaneous -->
   <property name="build.compiler.emacs" value="true"/>

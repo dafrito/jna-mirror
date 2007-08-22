@@ -838,8 +838,8 @@ public class WindowUtils {
                         // X11GraphicsConfig.getVisual
                         try {
                             Object o = configs[j].getClass()
-                                                 .getMethod("getVisual", null)
-                                                 .invoke(configs[j], null);
+                                                 .getMethod("getVisual", new Class[] { })
+                                                 .invoke(configs[j], new Object[] { });
                             int visual = ((Integer)o).intValue();
                             for (int k = 0; k < alphaVisuals.length; k++) {
                                 if (visual == alphaVisuals[k])

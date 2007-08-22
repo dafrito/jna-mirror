@@ -825,7 +825,7 @@ public abstract class Structure {
         
         static {
             try {
-                OBJECT_TOSTRING = Object.class.getMethod("toString", null);
+                OBJECT_TOSTRING = Object.class.getMethod("toString", new Class[] { });
             }
             catch (Exception e) {
                 throw new Error("Error retrieving Object.toString() method");
