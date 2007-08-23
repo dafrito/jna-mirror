@@ -29,6 +29,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * An abstraction for a native function pointer.  An instance of 
@@ -413,33 +415,7 @@ public class Function extends Pointer {
                 }
             }
             else if (arg instanceof Buffer) {
-                //
-                // Direct ByteBuffers are handled by the native code, so don't 
-                // do anything with them here
-                //
-                if (!(arg instanceof ByteBuffer) || !((ByteBuffer)arg).isDirect()) {
-                    if (arg instanceof ByteBuffer) {
-                        args[i] = ((ByteBuffer)arg).array();
-                    }
-                    else if (arg instanceof ShortBuffer) {
-                        args[i] = ((ShortBuffer)arg).array();
-                    }
-                    else if (arg instanceof IntBuffer) {
-                        args[i] = ((IntBuffer)arg).array();
-                    }
-                    else if (arg instanceof LongBuffer) {
-                        args[i] = ((LongBuffer)arg).array();
-                    }
-                    else if (arg instanceof FloatBuffer) {
-                        args[i] = ((FloatBuffer)arg).array();
-                    }
-                    else if (arg instanceof DoubleBuffer) {
-                        args[i] = ((DoubleBuffer)arg).array();
-                    }
-                    else {
-                        throw new IllegalArgumentException("Unsupported Buffer argument of type " + argClass);
-                    }
-                }
+                args[i] = getBufferArg(arg);                
             }
             else if (argClass.isArray()){
                 throw new IllegalArgumentException("Unsupported array argument type: " 
@@ -625,6 +601,76 @@ public class Function extends Pointer {
             && argClass.getComponentType().isPrimitive();
     }
     
+    private Object getBufferArg(Object arg) throws IllegalArgumentException {
+        if (arg instanceof ByteBuffer) {
+            ByteBuffer buf = (ByteBuffer)arg;
+            //
+            // Direct Buffers are handled by the native code, so don't
+            // do anything with them here
+            //
+            if (buf.isDirect()) {
+                return buf;
+            }
+            if (buf.hasArray() && buf.arrayOffset() == 0) {
+                return buf.array();
+            }
+        }
+        else if (arg instanceof ShortBuffer) {
+            ShortBuffer buf = (ShortBuffer)arg;
+            if (buf.isDirect()) {
+                return buf;
+            }
+            if (buf.hasArray() && buf.arrayOffset() == 0) {
+                return buf.array();
+            }            
+        }
+        else if (arg instanceof IntBuffer) {
+            IntBuffer buf = (IntBuffer)arg;
+            if (buf.isDirect()) {
+                return buf;
+            }
+            if (buf.hasArray() && buf.arrayOffset() == 0) {
+                return buf.array();
+            }
+        }
+        else if (arg instanceof LongBuffer) {
+            LongBuffer buf = (LongBuffer)arg;
+            if (buf.isDirect()) {
+                return buf;
+            }
+            if (buf.hasArray() && buf.arrayOffset() == 0) {
+                return buf.array();
+            }
+        }
+        else if (arg instanceof FloatBuffer) {
+            FloatBuffer buf = (FloatBuffer)arg;
+            if (buf.isDirect()) {
+                return buf;
+            }
+            if (buf.hasArray() && buf.arrayOffset() == 0) {
+                return buf.array();
+            }
+        }
+        else if (arg instanceof DoubleBuffer) {
+            DoubleBuffer buf = (DoubleBuffer)arg;
+            if (buf.isDirect()) {
+                return buf;
+            }
+            if (buf.hasArray() && buf.arrayOffset() == 0) {
+                return buf.array();
+            }
+        }
+        else {
+            throw new IllegalArgumentException("Unsupported Buffer argument of type " + arg.getClass());
+        }
+        //
+        // If we get to here, it means either it had no backing array, or 
+        // the offset was non-zero, in which case we can't pass it down to JNI
+        // as a primitive array.
+        //
+        throw new IllegalArgumentException("Buffer argument must have backing array with offset=0");
+
+    }
     /**
      * Call the native function being represented by this object
      *
