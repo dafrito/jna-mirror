@@ -614,7 +614,7 @@ public class Function extends Pointer {
             if (buf.hasArray() && buf.arrayOffset() == 0) {
                 return buf.array();
             }
-        }
+        }        
         else if (arg instanceof ShortBuffer) {
             ShortBuffer buf = (ShortBuffer)arg;
             if (buf.isDirect()) {
@@ -659,6 +659,15 @@ public class Function extends Pointer {
             if (buf.hasArray() && buf.arrayOffset() == 0) {
                 return buf.array();
             }
+        }
+        else if (arg instanceof CharBuffer) {
+            CharBuffer buf = (CharBuffer)arg;
+            if (buf.isDirect()) {
+                return buf;
+            }
+            if (buf.hasArray() && buf.arrayOffset() == 0) {
+                return buf.array();
+            }            
         }
         else {
             throw new IllegalArgumentException("Unsupported Buffer argument of type " + arg.getClass());
