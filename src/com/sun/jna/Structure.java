@@ -10,6 +10,11 @@
  */
 package com.sun.jna;
 
+import java.lang.annotation.Annotation;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
@@ -36,6 +41,13 @@ import java.util.Map;
  * @author twall@users.sf.net
  */
 public abstract class Structure {
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    public static @interface Readonly {}
+    
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    public static @interface Opaque {}
     
     private static class MemberOrder {
         public int first;
@@ -205,7 +217,10 @@ public abstract class Structure {
     public void read() {
         // Read all fields
         for (Iterator i=structFields.values().iterator();i.hasNext();) {
-            readField((StructField)i.next());
+            StructField field = (StructField)i.next();
+            if (!field.opaque) {
+                readField(field);
+            }
         }
     }
 
@@ -384,7 +399,10 @@ public abstract class Structure {
         }
         // Write all fields
         for (Iterator i=structFields.values().iterator();i.hasNext();) {
-            writeField((StructField)i.next());
+            StructField field = (StructField)i.next();
+            if (!field.readonly) {
+                writeField(field);
+            }
         }
     }
 
@@ -553,7 +571,15 @@ public abstract class Structure {
             structField.field = field;
             structField.name = field.getName();
             structField.type = type;
-            
+            for (Annotation a : field.getDeclaredAnnotations()) {
+                if (a instanceof Readonly) {
+                    structField.readonly = true;
+                } 
+                if (a instanceof Opaque) {
+                    structField.readonly = true;
+                    structField.opaque = true;
+                }
+            }
             int fieldAlignment = 1;
             try {
                 Object value = field.get(this);
@@ -806,6 +832,8 @@ public abstract class Structure {
         public Field field;
         public int size = -1;
         public int offset = -1;
+        boolean readonly = false;
+        boolean opaque = false;
         public FromNativeConverter readConverter;
         public ToNativeConverter writeConverter;
         public FromNativeContext context;

@@ -369,4 +369,32 @@ public class StructureTest extends TestCase {
         s.read();
         assertEquals("Callback not set to null when pointer is", null, s.cb);
     }
+    static class ReadOnlyStruct extends Structure {
+        @Readonly
+        public int i;
+    }
+    public void testReadonlyFields() {
+        final int MAGIC = 0xABEDCF23;
+        ReadOnlyStruct s = new ReadOnlyStruct();
+        s.getPointer().setInt(0, MAGIC);
+        s.read();
+        assertEquals("Integer value not read", MAGIC, s.i);
+        s.i = 0;
+        s.write();
+        assertEquals("Integer value not readonly", MAGIC, s.getPointer().getInt(0));
+    }
+    static class OpaqueStruct extends Structure {        
+        @Opaque
+        public int i;
+    }
+    public void testOpaqueFields() {
+        final int MAGIC = 0xABEDCF23;
+        OpaqueStruct s = new OpaqueStruct();
+        s.getPointer().setInt(0, 0);
+        s.i = MAGIC;
+        s.read();
+        assertEquals("Integer value was read when it should not be", MAGIC, s.i);        
+        s.write();
+        assertEquals("Integer value not readonly", 0, s.getPointer().getInt(0));
+    }
 }
