@@ -15,8 +15,14 @@ import com.sun.jna.types.NativeValue;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
+import java.nio.DoubleBuffer;
+import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
+import java.nio.LongBuffer;
+import java.nio.ShortBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetEncoder;
 import java.util.ArrayList;
@@ -406,13 +412,33 @@ public class Function extends Pointer {
                     args[i] = base;
                 }
             }
-            else if (arg instanceof ByteBuffer && !((ByteBuffer)arg).isDirect()) {
-                ByteBuffer buf = (ByteBuffer)arg;
-                if (buf.hasArray()) {
-                    args[i] = buf.array();
-                }
-                else {
-                    throw new IllegalArgumentException("Unsupported non-direct ByteBuffer with no array");
+            else if (arg instanceof Buffer) {
+                //
+                // Direct ByteBuffers are handled by the native code, so don't 
+                // do anything with them here
+                //
+                if (!(arg instanceof ByteBuffer) || !((ByteBuffer)arg).isDirect()) {
+                    if (arg instanceof ByteBuffer) {
+                        args[i] = ((ByteBuffer)arg).array();
+                    }
+                    else if (arg instanceof ShortBuffer) {
+                        args[i] = ((ShortBuffer)arg).array();
+                    }
+                    else if (arg instanceof IntBuffer) {
+                        args[i] = ((IntBuffer)arg).array();
+                    }
+                    else if (arg instanceof LongBuffer) {
+                        args[i] = ((LongBuffer)arg).array();
+                    }
+                    else if (arg instanceof FloatBuffer) {
+                        args[i] = ((FloatBuffer)arg).array();
+                    }
+                    else if (arg instanceof DoubleBuffer) {
+                        args[i] = ((DoubleBuffer)arg).array();
+                    }
+                    else {
+                        throw new IllegalArgumentException("Unsupported Buffer argument of type " + argClass);
+                    }
                 }
             }
             else if (argClass.isArray()){
