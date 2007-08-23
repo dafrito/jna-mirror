@@ -71,7 +71,7 @@ static jclass classFloat, classPrimitiveFloat;
 static jclass classDouble, classPrimitiveDouble;
 static jclass classString;
 static jclass classPointer;
-static jclass classByteBuffer;
+static jclass classByteBuffer, classBuffer;
 
 static jmethodID MID_Class_getComponentType;
 static jmethodID MID_String_getBytes;
@@ -217,12 +217,12 @@ static void dispatch(JNIEnv *env, jobject self, jint callconv,
 	ffi_args[i] = &ffi_type_pointer;
 	ffi_values[i] = &c_args[i];
       }
-      else if ((*env)->IsInstanceOf(env, arg, classByteBuffer)) {
+      else if ((*env)->IsInstanceOf(env, arg, classBuffer)) {
         c_args[i].p = (*env)->GetDirectBufferAddress(env, arg);
         if (c_args[i].p == NULL) {
           // TODO: treat as byte[]?
           throwByName(env,"java/lang/IllegalArgumentException",
-                      "Non-direct ByteBuffer is not supported");
+                      "Non-direct Buffer is not supported");
           goto cleanup;
         }
 	ffi_args[i] = &ffi_type_pointer;
@@ -1190,15 +1190,19 @@ Java_com_sun_jna_Native_getWindowHandle0(JNIEnv *env, jobject classp, jobject w)
 
   return handle;
 }
+JNIEXPORT jobject JNICALL
+Java_com_sun_jna_Native_getDirectBufferPointer(JNIEnv *env, jobject classp, jobject buffer) {
+  void* addr = (*env)->GetDirectBufferAddress(env, buffer);
+  if (addr == NULL) {
+    throwByName(env,"java/lang/IllegalArgumentException",
+                "Non-direct Buffer is not supported");
+  }
+  return newJavaPointer(env, addr);
+}
 
 JNIEXPORT jobject JNICALL
 Java_com_sun_jna_Native_getByteBufferPointer(JNIEnv *env, jobject classp, jobject byteBuffer) {
-  void* addr = (*env)->GetDirectBufferAddress(env, byteBuffer);
-  if (addr == NULL) {
-    throwByName(env,"java/lang/IllegalArgumentException",
-                "Non-direct ByteBuffer is not supported");
-  }
-  return newJavaPointer(env, addr);
+  return Java_com_sun_jna_Native_getDirectBufferPointer(env, classp, byteBuffer);
 }
 
 static jboolean 
@@ -1305,6 +1309,7 @@ jnidispatch_init(JavaVM* jvm) {
     if (!LOAD_CREF(env, Method, "java/lang/reflect/Method")) return 0;
     if (!LOAD_CREF(env, String, "java/lang/String")) return 0;
     if (!LOAD_CREF(env, ByteBuffer, "java/nio/ByteBuffer")) return 0;
+    if (!LOAD_CREF(env, Buffer, "java/nio/Buffer")) return 0;
 
     if (!LOAD_CREF(env, Pointer, "com/sun/jna/Pointer")) return 0;
     
