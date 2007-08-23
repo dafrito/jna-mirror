@@ -185,6 +185,22 @@ static void dispatch(JNIEnv *env, jobject self, jint callconv,
 	ffi_args[i] = &ffi_type_double;
 	ffi_values[i] = &c_args[i];
       }
+      else if ((*env)->IsInstanceOf(env, arg, classPointer)) {
+        c_args[i].p = getNativeAddress(env, arg);
+	ffi_args[i] = &ffi_type_pointer;
+	ffi_values[i] = &c_args[i];
+      }
+      else if ((*env)->IsInstanceOf(env, arg, classBuffer)) {
+        c_args[i].p = (*env)->GetDirectBufferAddress(env, arg);
+        if (c_args[i].p == NULL) {
+          // TODO: treat as byte[]?
+          throwByName(env,"java/lang/IllegalArgumentException",
+                      "Non-direct Buffer is not supported");
+          goto cleanup;
+        }
+	ffi_args[i] = &ffi_type_pointer;
+	ffi_values[i] = &c_args[i];
+      }
       else if ((array_pt = getArrayComponentType(env, arg)) != 0
                && array_pt != 'L') {
         void *ptr = NULL;
@@ -211,23 +227,7 @@ static void dispatch(JNIEnv *env, jobject self, jint callconv,
         array_elements[array_count].type = array_pt;
         array_elements[array_count].array = arg;
         array_elements[array_count++].elems = ptr;
-      }
-      else if ((*env)->IsInstanceOf(env, arg, classPointer)) {
-        c_args[i].p = getNativeAddress(env, arg);
-	ffi_args[i] = &ffi_type_pointer;
-	ffi_values[i] = &c_args[i];
-      }
-      else if ((*env)->IsInstanceOf(env, arg, classBuffer)) {
-        c_args[i].p = (*env)->GetDirectBufferAddress(env, arg);
-        if (c_args[i].p == NULL) {
-          // TODO: treat as byte[]?
-          throwByName(env,"java/lang/IllegalArgumentException",
-                      "Non-direct Buffer is not supported");
-          goto cleanup;
-        }
-	ffi_args[i] = &ffi_type_pointer;
-	ffi_values[i] = &c_args[i];
-      }
+      }      
       else {
         char buf[1024];
         sprintf(buf, "Unsupported type at parameter %d", i);
