@@ -13,6 +13,7 @@
 
 package com.sun.jna;
 
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.DoubleBuffer;
@@ -210,6 +211,16 @@ public class PointerTest extends TestCase {
                 System.setProperties(newProps);
             }
         }
+    }
+    public void testDirectBufferPointer() throws Exception {
+        Pointer p = new Memory(1024);
+        ByteBuffer b = p.getByteBuffer(0, 1024);
+        assertEquals("ByteBuffer Pointer does not match", p, Native.getDirectBufferPointer(b));
+        assertEquals("ShortBuffer Pointer does not match", p, Native.getDirectBufferPointer(b.asShortBuffer()));
+        assertEquals("IntBuffer Pointer does not match", p, Native.getDirectBufferPointer(b.asIntBuffer()));
+        assertEquals("LongBuffer Pointer does not match", p, Native.getDirectBufferPointer(b.asLongBuffer()));
+        assertEquals("FloatBuffer Pointer does not match", p, Native.getDirectBufferPointer(b.asFloatBuffer()));
+        assertEquals("DoubleBuffer Pointer does not match", p, Native.getDirectBufferPointer(b.asDoubleBuffer()));
     }
     public static void main(java.lang.String[] argList) {
         junit.textui.TestRunner.run(PointerTest.class);
