@@ -38,9 +38,8 @@
 #include <jawt.h>
 // OSX needs to compile as objc for this to work; don't do that until
 // OSX actually needs or can use a native window ID (NSView*)
-#ifndef __APPLE__
 #include <jawt_md.h>
-#endif
+
 
 static JAWT awt;
 static int jawt_initialized;
@@ -1166,8 +1165,18 @@ Java_com_sun_jna_Native_getWindowHandle0(JNIEnv *env, jobject classp, jobject w)
         throwByName(env, "java/lang/Error", "Can't get w32 platform info");
       }
 #elif __APPLE__
-      throwByName(env, "java/lang/UnsupportedOperationException",
+      JAWT_MacOSXDrawingSurfaceInfo* mdsi = 
+        (JAWT_MacOSXDrawingSurfaceInfo*)dsi->platformInfo;
+      if (mdsi != NULL) {
+        handle = (jlong)(intptr_t)mdsi->cocoaViewRef;
+        if (!handle) {
+          throwByName(env, "java/lang/IllegalStateException",
+                      "Cannot get Cocoa View");
+        }
+      } else {
+        throwByName(env, "java/lang/UnsupportedOperationException",
                   "Native window handle access not supported on this platform");
+      }
 #else 
       JAWT_X11DrawingSurfaceInfo* xdsi =
         (JAWT_X11DrawingSurfaceInfo*)dsi->platformInfo;
@@ -1190,6 +1199,7 @@ Java_com_sun_jna_Native_getWindowHandle0(JNIEnv *env, jobject classp, jobject w)
 
   return handle;
 }
+
 JNIEXPORT jobject JNICALL
 Java_com_sun_jna_Native_getDirectBufferPointer(JNIEnv *env, jobject classp, jobject buffer) {
   void* addr = (*env)->GetDirectBufferAddress(env, buffer);
@@ -1198,11 +1208,6 @@ Java_com_sun_jna_Native_getDirectBufferPointer(JNIEnv *env, jobject classp, jobj
                 "Non-direct Buffer is not supported");
   }
   return newJavaPointer(env, addr);
-}
-
-JNIEXPORT jobject JNICALL
-Java_com_sun_jna_Native_getByteBufferPointer(JNIEnv *env, jobject classp, jobject byteBuffer) {
-  return Java_com_sun_jna_Native_getDirectBufferPointer(env, classp, byteBuffer);
 }
 
 static jboolean 
