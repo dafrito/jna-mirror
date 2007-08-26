@@ -365,8 +365,18 @@ public class ArgumentsMarshalTest extends TestCase {
     public void testByteBufferArgument() {
         ByteBuffer buf  = ByteBuffer.allocate(1024).order(ByteOrder.nativeOrder());
         final byte MAGIC = (byte)0xED;
-        lib.fillInt8Buffer(buf, 1024, MAGIC);
+        lib.fillInt8Buffer(buf, buf.remaining(), MAGIC);
         for (int i=0;i < buf.capacity();i++) {
+            assertEquals("Bad value at index " + i, MAGIC, buf.get(i));
+        }
+    }
+    public void testByteBufferWithOffsetArgument() {
+        ByteBuffer buf  = ByteBuffer.allocate(1024).order(ByteOrder.nativeOrder());
+        final byte MAGIC = (byte)0xED;
+        buf.put((byte)0xDE);
+        lib.fillInt8Buffer(buf.slice(), 1023, MAGIC);
+        assertEquals("Value at position 0 overwritten", (byte)0xde, buf.get(0));
+        for (int i=buf.position();i < buf.capacity();i++) {
             assertEquals("Bad value at index " + i, MAGIC, buf.get(i));
         }
     }
@@ -378,11 +388,31 @@ public class ArgumentsMarshalTest extends TestCase {
             assertEquals("Bad value at index " + i, MAGIC, buf.get(i));
         }
     }
+    public void testShortBufferWithOffsetArgument() {        
+        ShortBuffer buf = ShortBuffer.allocate(1024);
+        final short MAGIC = (short)0xABED;
+        buf.put((short)0xDEAD);
+        lib.fillInt16Buffer(buf.slice(), 1023, MAGIC);
+        assertEquals("Value at position 0 overwritten", (short)0xdead, buf.get(0));
+        for (int i=1;i < buf.capacity();i++) {
+            assertEquals("Bad value at index " + i, MAGIC, buf.get(i));
+        }
+    }
     public void testIntBufferArgument() {        
         IntBuffer buf = IntBuffer.allocate(1024);
         final int MAGIC = 0xABEDCF23;
         lib.fillInt32Buffer(buf, 1024, MAGIC);
         for (int i=0;i < buf.capacity();i++) {
+            assertEquals("Bad value at index " + i, MAGIC, buf.get(i));
+        }
+    }
+    public void testIntBufferWithOffsetArgument() {        
+        IntBuffer buf = IntBuffer.allocate(1024);
+        final int MAGIC = 0xABEDCF23;
+        buf.put(0xdeadbeef);
+        lib.fillInt32Buffer(buf.slice(), 1023, MAGIC);
+        assertEquals("Value at position 0 overwritten", 0xdeadbeef, buf.get(0));
+        for (int i=1;i < buf.capacity();i++) {
             assertEquals("Bad value at index " + i, MAGIC, buf.get(i));
         }
     }
@@ -394,7 +424,16 @@ public class ArgumentsMarshalTest extends TestCase {
             assertEquals("Bad value at index " + i, MAGIC, buf.get(i));
         }
     }
-    
+    public void testLongBufferWithOffsetArgument() {        
+        LongBuffer buf = LongBuffer.allocate(1024);
+        final long MAGIC = 0x1234567887654321L;
+        buf.put(0xdeadbeefL);
+        lib.fillInt64Buffer(buf.slice(), 1023, MAGIC);
+        assertEquals("Value at position 0 overwritten", 0xdeadbeefL, buf.get(0));
+        for (int i=1;i < buf.capacity();i++) {
+            assertEquals("Bad value at index " + i, MAGIC, buf.get(i));
+        }
+    }
     public void testDirectByteBufferArgument() {
         ByteBuffer buf  = ByteBuffer.allocateDirect(1024).order(ByteOrder.nativeOrder());
         final byte MAGIC = (byte)0xED;
