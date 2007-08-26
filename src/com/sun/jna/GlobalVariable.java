@@ -16,8 +16,12 @@ package com.sun.jna;
 
 public class GlobalVariable<T> {
     Pointer valuePointer;
+    
+    // Hold a reference to the native library so it does not get unloaded
+    private NativeLibrary nativeLibrary;
     FromNativeConverter fromNative;
     ToNativeConverter toNative;
+     
     Class<T> type;
     public GlobalVariable(Class<T> type, Class<? extends Library> libClass, String name) {
         this(type, getVariablePointer(libClass, name), libClass, name);
@@ -25,6 +29,7 @@ public class GlobalVariable<T> {
     GlobalVariable(Class<T> type, Pointer ptr, Class<? extends Library> libClass, String name) {
         valuePointer = ptr;
         this.type = type;
+        nativeLibrary = Native.getNativeLibrary(libClass);
         TypeMapper mapper = Native.getTypeMapper(libClass);
         if (mapper != null) {
             fromNative = mapper.getFromNativeConverter(type);
@@ -48,7 +53,7 @@ public class GlobalVariable<T> {
     }
     protected static Pointer getVariablePointer(Class<? extends Library> libClass, String name) {
         NativeLibrary l = Native.getNativeLibrary(libClass);
-        Pointer p= l.getFunction(name);
+        Pointer p = l.getFunction(name);
         if (p == null) {
             throw new IllegalArgumentException("Cannot locate symbol " + name);
         }
@@ -122,9 +127,6 @@ public class GlobalVariable<T> {
         else if (nativeValue instanceof Pointer) {
             valuePointer.setPointer(0, (Pointer)nativeValue);
         }
-//        else if (nativeValue instanceof String) {
-//            valuePointer.setString(0, (String)nativeValue);
-//        }
         else {
             throw new IllegalArgumentException("Cannot set global variable of type: " + value.getClass());
         }

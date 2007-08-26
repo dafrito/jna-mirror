@@ -70,6 +70,13 @@ static void nonleaf() {
     printf("%c", 0);
 }
 
+// Add some globals to test global variable reading/writing
+char *globalString = "A Global String";
+int32 globalInt = MAGIC32;
+int64 globalLong = MAGIC64;
+float globalFloat = MAGICFLOAT;
+double globalDouble = MAGICDOUBLE;
+
 EXPORT int
 callCount() {
   return ++_callCount;
