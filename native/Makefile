@@ -143,15 +143,12 @@ JNISFX=.jnilib
 ifneq ($(SDKROOT),)
 SYSLIBROOT=-Wl,-syslibroot,$(SDKROOT)
 ISYSROOT=-isysroot $(SDKROOT)
-ifneq ($(UNIVERSAL),)
-ARCHFLAGS=-arch ppc -arch i386
-else
-ARCHFLAGS=-arch $(ARCH)
-endif
+ARCHFLAGS=
+#endif
 endif
 PCFLAGS+=$(ARCHFLAGS) $(ISYSROOT) -x objective-c
 CDEFINES=-DTARGET_RT_MAC_CFM=0
-LDFLAGS=$(ARCHFLAGS) -dynamiclib -o $@ -framework JavaVM \
+LDFLAGS=-arch i386 -arch ppc -dynamiclib -o $@ -framework JavaVM \
   -compatibility_version $(shell echo ${VERSION}|sed 's/^\([0-9][0-9]*\).*/\1/g') \
   -current_version $(VERSION) \
   -mmacosx-version-min=10.3 \
@@ -161,20 +158,17 @@ LDFLAGS=$(ARCHFLAGS) -dynamiclib -o $@ -framework JavaVM \
 LIBS=
 endif
 
+ifeq ($(OS),darwin)
+$(BUILD)/%.o : %.c
+	@mkdir -p $(BUILD)
+	$(CC) -arch i386 -I$(BUILD)/libffi-i386/include $(CFLAGS) -c $< -o $@.i386
+	$(CC) -arch ppc -I$(BUILD)/libffi-ppc/include $(CFLAGS) -c $< -o $@.ppc
+	lipo -create -output $@ $@.i386 $@.ppc
+else
 $(BUILD)/%.o : %.c
 	@mkdir -p $(BUILD)
 	$(CC) $(CFLAGS) -c $< $(COUT)
-
-$(BUILD)/%.o: %.s
-	@mkdir -p $(BUILD)
-	$(AS) $(ASFLAGS) $< -o $@
-
-# Generate assembly listing 
-$(BUILD)/%.asm: %.c
-	@mkdir -p $(BUILD)
-	$(CC) $(CFLAGS) $(CASM) -c $< 
-	@if [ -f $*.asm ]; then mv $*.asm $@; fi
-	@rm -f $*.obj ${@D}/$*.o
+endif
 
 all: $(LIBRARY) $(TESTLIB)
 
@@ -194,6 +188,33 @@ $(LIBRARY): $(FFI_OBJS) $(JNIDISPATCH_OBJS) $(SPECS)
 $(TESTLIB): $(BUILD)/testlib.o $(SPECS)
 	$(LD) $(LDFLAGS) $< $(TESTDEF) 
 
+ifeq ($(OS),darwin)
+$(FFI_OBJS):		
+	@mkdir -p $(BUILD)/libffi-ppc
+	@if [ ! -f $(BUILD)/libffi-ppc/Makefile ]; then \
+	    echo "Configuring libffi for powerpc"; \
+	    cd $(BUILD)/libffi-ppc && \
+	      env CFLAGS="-O -g -isysroot /Developer/SDKs/MacOSX10.4u.sdk -arch ppc" \
+                LDFLAGS="-arch ppc" $(SRCDIR)/libffi/configure --disable-static --with-pic=yes \
+                --build=powerpc-apple-darwin --disable-dependency-tracking > /dev/null; \
+	fi
+	$(MAKE) -C $(BUILD)/libffi-ppc
+	
+	@mkdir -p $(BUILD)/libffi-i386
+	@if [ ! -f $(BUILD)/libffi-i386/Makefile ]; then \
+	    echo "Configuring libffi for i386"; \
+	    cd $(BUILD)/libffi-i386 && \
+	      env CFLAGS="-O -g -isysroot /Developer/SDKs/MacOSX10.4u.sdk -arch i386" \
+                LDFLAGS="-arch i386" $(SRCDIR)/libffi/configure --disable-static --with-pic=yes \
+                --build=i386-apple-darwin --disable-dependency-tracking > /dev/null; \
+	fi
+	$(MAKE) -C $(BUILD)/libffi-i386
+	
+	# Assemble into a FAT (both ppc & i386) library
+	@mkdir -p $(BUILD)/libffi/.libs
+	/usr/bin/libtool -static -o $@ $(BUILD)/libffi-i386/.libs/libffi_convenience.a \
+            $(BUILD)/libffi-ppc/.libs/libffi_convenience.a 	
+else
 $(FFI_OBJS):		
 	@mkdir -p $(BUILD)/libffi
 	@if [ ! -f $(BUILD)/libffi/Makefile ]; then \
@@ -202,6 +223,6 @@ $(FFI_OBJS):
 		CC="$(CC)" $(SRCDIR)/libffi/configure --disable-static --with-pic=yes > /dev/null; \
 	fi
 	$(MAKE) -C $(BUILD)/libffi
-
+endif
 clean:
 	$(RM) -rf $(BUILD)

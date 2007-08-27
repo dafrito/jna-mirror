@@ -52,7 +52,7 @@
     <condition property="os.prefix" value="linux-${os.arch}">
       <os name="Linux"/>
     </condition>
-    <condition property="os.prefix" value="darwin-${os.arch}">
+    <condition property="os.prefix" value="darwin-universal">
       <os family="mac"/>
     </condition>
     <condition property="os.prefix" value="sunos-${os.arch}">
@@ -114,6 +114,7 @@
            destdir="${classes}" 
            deprecation="on" debug="${debug}">
       <src path="${src}"/>
+      <!-- <compilerarg line="-Xlint:unchecked"/> -->      
     </javac>
   </target>
 
@@ -346,12 +347,9 @@
       <zipfileset src="${dist}/win32-x86.jar" 
                   includes="*jnidispatch*"
                   prefix="com/sun/jna/win32-x86"/>
-      <zipfileset src="${dist}/darwin-i386.jar" 
+      <zipfileset src="${dist}/darwin-universal.jar" 
                   includes="*jnidispatch*"
-                  prefix="com/sun/jna/darwin-i386"/>
-      <zipfileset src="${dist}/darwin-ppc.jar" 
-                  includes="*jnidispatch*"
-                  prefix="com/sun/jna/darwin-ppc"/>
+                  prefix="com/sun/jna/darwin-universal"/>      
       <zipfileset src="${dist}/linux-i386.jar" 
                   includes="*jnidispatch*"
                   prefix="com/sun/jna/linux-i386"/>

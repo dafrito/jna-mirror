@@ -66,7 +66,7 @@ public class Pointer {
             osPrefix = "win32-" + arch;
         }
         else if (Platform.isMac()) {
-            osPrefix = "darwin-" + arch;
+            osPrefix = "darwin-universal";
         }
         else if (Platform.isSolaris()) {
             osPrefix = "sunos-" + arch;
