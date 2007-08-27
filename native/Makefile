@@ -17,6 +17,7 @@ OS=$(shell uname | sed -e 's/CYGWIN.*/win32/g' \
                         -e 's/MINGW32.*/win32/g' \
                         -e 's/SunOS.*/solaris/g' \
                         -e 's/Darwin.*/darwin/g' \
+                        -e 's/FreeBSD.*/freebsd/g' \
                         -e 's/Linux.*/linux/g')
 
 VERSION=$(shell sed -n 's/^.*version. value="\(.*\)".*/\1/p' ../build.xml)
@@ -100,6 +101,16 @@ endif
 ifeq ($(OS),linux)
 ARCH=i386
 PCFLAGS+=-fPIC
+# Avoid 1.5/1.6 bug caused by linking directly to -ljawt
+CDEFINES+=-DNEED_JAWT_HACK
+LIBS=
+endif
+
+ifeq ($(OS),freebsd)
+ARCH=i386
+PCFLAGS+=-fPIC
+CINCLUDES+=-I/usr/X11R6/include
+LDFLAGS=-o $@ -shared -pthread
 # Avoid 1.5/1.6 bug caused by linking directly to -ljawt
 CDEFINES+=-DNEED_JAWT_HACK
 LIBS=

@@ -70,7 +70,7 @@ typedef struct _callback {
 #define alloca _alloca
 #endif
 #else
-#include <alloca.h>
+#include <stdlib.h> /* for alloca(3) */
 #endif
 
 /* Convenience macros */

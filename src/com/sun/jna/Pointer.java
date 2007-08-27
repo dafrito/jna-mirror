@@ -74,6 +74,9 @@ public class Pointer {
         else if (Platform.isSolaris()) {
             osPrefix = "sunos-" + arch;
         }
+        else if (Platform.isFreeBSD()) {
+            osPrefix = "freebsd-" + arch;
+        }
         else {
             osPrefix = System.getProperty("os.name");
         }

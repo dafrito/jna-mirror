@@ -58,6 +58,9 @@
     <condition property="os.prefix" value="sunos-${os.arch}">
       <os name="SunOS"/>
     </condition>
+    <condition property="os.prefix" value="freebsd-${os.arch}">
+      <os name="FreeBSD"/>
+    </condition>
     <fail unless="os.prefix" message="OS/arch not supported (${os.name}/${os.arch})"/>
     <condition property="jdk.home" value="${java.home}">
       <available file="${java.home}/include"/>
@@ -196,8 +199,14 @@
     <condition property="make.BUILD" value="BUILD=../build/native" else="BUILD=${build.native}">
       <os family="windows"/>
     </condition>
-    <condition property="make.exe" value="/usr/sfw/bin/gmake" else="make">
+    <condition property="make.exe" value="/usr/sfw/bin/gmake">
       <os name="SunOS"/>
+    </condition>
+    <condition property="make.exe" value="gmake">
+      <os name="FreeBSD"/>
+    </condition>
+    <condition property="make.exe" value="make">
+      <not><isset property="make.exe"/></not>
     </condition>
     <condition property="make.PATH" value="PATH=/usr/sfw/bin:/usr/bin:/usr/ccs/bin" else="IGNORE=">
       <os name="SunOS"/>
@@ -358,6 +367,9 @@
       <zipfileset src="${dist}/sunos-sparcv9.jar" 
                   includes="*jnidispatch*"
                   prefix="com/sun/jna/sunos-sparcv9"/>
+      <zipfileset src="${dist}/freebsd-i386.jar" 
+                  includes="*jnidispatch*"
+                  prefix="com/sun/jna/freebsd-i386"/>
     </jar>
     <copy todir="${dist}">
       <fileset dir="${build}">
