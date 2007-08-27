@@ -324,17 +324,15 @@ public class NativeLibrary {
     static {
         
         librarySearchPath.addAll(initPaths("jna.library.path"));
-        if (Platform.isLinux() || Platform.isSolaris() || Platform.isMac()) {
+        if (Platform.isUnix()) {
             //
             // Explicitly add the system search path next, so fallback searching
             // for libfoo.so.* works
             //
-            String[] paths32 = { "/usr/lib", "/lib" };
-            String[] paths64 = { "/usr/lib64", "/lib64" };
-            librarySearchPath.addAll(Arrays.asList(Pointer.SIZE == 8 ? paths64 : paths32));
-        }
-        // Using these breaks Linux/64bit support, as it includes the 32bit paths
-        //librarySearchPath.addAll(initPaths("java.library.path"));
-        //librarySearchPath.addAll(initPaths("sun.boot.library.path"));
+            librarySearchPath.add("/usr/lib");
+            if (Platform.isLinux()) {
+                librarySearchPath.add("/lib");
+            }            
+        }        
     }
 }

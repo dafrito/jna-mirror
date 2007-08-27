@@ -68,17 +68,12 @@ public class Pointer {
         else if (Platform.isMac()) {
             osPrefix = "darwin-" + arch;
         }
-        else if (Platform.isLinux()) {
-            osPrefix = "linux-" + arch;
-        }
         else if (Platform.isSolaris()) {
             osPrefix = "sunos-" + arch;
         }
-        else if (Platform.isFreeBSD()) {
-            osPrefix = "freebsd-" + arch;
-        }
         else {
-            osPrefix = System.getProperty("os.name");
+            String name = System.getProperty("os.name").split(" ", 1)[0];
+            osPrefix = name.toLowerCase() + "-" + arch;
         }
         return "/com/sun/jna/" + osPrefix;
     }

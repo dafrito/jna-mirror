@@ -56,6 +56,9 @@ public final class Platform {
     public static final boolean isFreeBSD() {
         return osType == FREEBSD;
     }
+    public static final boolean isUnix() {
+        return !isWindows();
+    }
     public static final boolean isX11() {
         // TODO: check FS or do some other X11-specific test
         return !Platform.isWindows() && !Platform.isMac();
