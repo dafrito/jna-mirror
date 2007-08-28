@@ -20,8 +20,8 @@ public class VarArgsTest extends TestCase {
     public static interface TestLibrary extends Library {
         TestLibrary INSTANCE = (TestLibrary)
                 Native.loadLibrary("testlib", TestLibrary.class);
-        public int addInt32VarArgs(String fmt, Number[] args);
-        public String returnStringVarArgs(String fmt, Object[] args);
+        public int addInt32VarArgs(String fmt, Number... args);
+        public String returnStringVarArgs(String fmt, String... args);
     }
     public void testIntVarArgs() {
         Integer[] args = new Integer[2];
@@ -51,7 +51,7 @@ public class VarArgsTest extends TestCase {
                 TestLibrary.INSTANCE.addInt32VarArgs("ll", args));
     }
     public void testStringVarArgs() {
-        Object[] args = new Object[] { "Test" };
+        String[] args = new String[] { "Test" };
         assertEquals("Did not return correct string", args[0],
                 TestLibrary.INSTANCE.returnStringVarArgs("", args));
     }
