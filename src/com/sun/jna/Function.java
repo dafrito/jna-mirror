@@ -248,25 +248,19 @@ public class Function extends Pointer {
         // If the final argument is an array of Object, treat it as
         // varargs and concatenate the previous arguments with the varargs 
         // elements.
-        if (inArgs != null && inArgs.length > 0) {
-            Object lastArg = inArgs[inArgs.length-1];
-            if (lastArg != null
-                && lastArg.getClass().isArray() 
-                && !isPrimitiveArray(lastArg.getClass())
-                && !isStructureArray(lastArg.getClass())
-                && String[].class != lastArg.getClass()) {
-                Object[] varArgs = (Object[])lastArg;
-                Object[] fullArgs = new Object[inArgs.length+varArgs.length];
-                System.arraycopy(inArgs, 0, fullArgs, 0, inArgs.length-1);
-                System.arraycopy(varArgs, 0, fullArgs, inArgs.length-1, varArgs.length);
-                // For convenience, always append a NULL argument to the end
-                // of varargs, whether the called API requires it or not. If
-                // it is not needed, it will be ignored, but if it *is* 
-                // required, it avoids forcing the Java client to always
-                // explicitly add it.
-                fullArgs[fullArgs.length-1] = null;
-                inArgs = fullArgs;
-            }
+        if (isVarArgs()) {
+            Object lastArg = inArgs[inArgs.length-1];            
+            Object[] varArgs = (Object[]) lastArg;
+            Object[] fullArgs = new Object[inArgs.length + varArgs.length];
+            System.arraycopy(inArgs, 0, fullArgs, 0, inArgs.length - 1);
+            System.arraycopy(varArgs, 0, fullArgs, inArgs.length - 1, varArgs.length);
+            // For convenience, always append a NULL argument to the end
+            // of varargs, whether the called API requires it or not. If
+            // it is not needed, it will be ignored, but if it *is*
+            // required, it avoids forcing the Java client to always
+            // explicitly add it.
+            fullArgs[fullArgs.length - 1] = null;
+            inArgs = fullArgs;
         }
 
         // Clone the argument array to obtain a scratch space for modified
@@ -597,7 +591,9 @@ public class Function extends Pointer {
         return argClass.isArray() 
             && argClass.getComponentType().isPrimitive();
     }
-        
+    private boolean isVarArgs() {
+        return method != null && method.isVarArgs();
+    }
     /**
      * Call the native function being represented by this object
      *
