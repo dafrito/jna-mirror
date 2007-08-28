@@ -248,7 +248,7 @@ public class Function extends Pointer {
         // If the final argument is an array of Object, treat it as
         // varargs and concatenate the previous arguments with the varargs 
         // elements.
-        if (isVarArgs()) {
+        if (isVarArgs() && inArgs.length > 0) {
             Object lastArg = inArgs[inArgs.length-1];            
             Object[] varArgs = (Object[]) lastArg;
             Object[] fullArgs = new Object[inArgs.length + varArgs.length];
