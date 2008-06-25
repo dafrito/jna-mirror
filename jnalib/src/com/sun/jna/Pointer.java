@@ -112,8 +112,25 @@ public class Pointer {
     }
     
     private static native long _indexOf(long addr, byte value);
-    
-    /**
+
+	/**
+	 * Indirect the native pointer, copying <em>from</em> memory pointed to by
+	 * native pointer, into the specified array.
+	 *
+	 * @param offset   byte offset from pointer into which data is copied
+	 * @param buf    <code>boolean</code> array into which data is copied
+	 * @param index  array index from which to start copying
+	 * @param length number of elements from native pointer that must be copied
+	 */
+	public void read(long offset, boolean[] buf, int index, int length) {
+		int[] intBuf = new int[buf.length];
+		_read(peer + offset, intBuf, index, length);
+		for (int i = 0; i < intBuf.length; i++) {
+			buf[i] = intBuf[i] != 0;
+		}
+	}
+
+	/**
      * Indirect the native pointer, copying <em>from</em> memory pointed to by 
      * native pointer, into the specified array.
      *
@@ -222,6 +239,21 @@ public class Pointer {
     private static native void _read(long addr, double[] buf, int index, int length);
 
     /**
+     * Indirect the native pointer, copying <em>from</em> memory pointed to by
+     * native pointer, into the specified array.
+     *
+     * @param offset   byte offset from pointer from which data is copied
+     * @param buf    {@link NativeLong} array into which data is copied
+     * @param index  array index to which data is copied
+     * @param length number of elements from native pointer that must be copied
+     */
+    public void read(long offset, NativeLong[] buf, int index, int length) {
+        for (int i=0;i < length;i++) {
+            buf[i + index] = getNativeLong(offset + i*NativeLong.SIZE);
+        }
+    }
+
+    /**
      * Indirect the native pointer, copying <em>from</em> memory pointed to by 
      * native pointer, into the specified array.
      *
@@ -241,7 +273,25 @@ public class Pointer {
     // Raw write methods
     //////////////////////////////////////////////////////////////////////////
 
-    /**
+	/**
+	 * Indirect the native pointer, copying <em>into</em> memory pointed to by
+	 * native pointer, from the specified array.
+	 *
+	 * @param offset   byte offset from pointer into which data is copied
+	 * @param buf    <code>boolean</code> array from which to copy
+	 * @param index  array index from which to start copying
+	 * @param length number of elements from <code>buf</code> that must be
+	 *               copied
+	 */
+	public void write(long offset, boolean[] buf, int index, int length) {
+		int[] intBuf = new int[buf.length];
+		for (int i = 0; i < intBuf.length; i++) {
+			intBuf[i] = buf[i] ? -1 : 0;
+		}
+		_write(peer + offset, intBuf, index, length);
+	}
+
+	/**
      * Indirect the native pointer, copying <em>into</em> memory pointed to by 
      * native pointer, from the specified array.
      *
@@ -354,16 +404,29 @@ public class Pointer {
 
     private static native void _write(long addr, double[] buf, int index, int length);
 
+    /** Write the given array of NativeLong to native memory.
+     * @param offset byte offset from pointer into which data is copied
+     * @param buf    <code>NativeLong</code> array from which to copy
+     * @param index  array index from which to start copying
+     * @param length number of elements from <code>buf</code> that must be
+     *               copied
+    */
+    public void write(long offset, NativeLong[] buf, int index, int length) {
+        for (int i=0; i < length - index; i++) {
+            setNativeLong(offset + i * NativeLong.SIZE, buf[index + i]);
+        }
+    }
+
     /** Write the given array of Pointer to native memory. 
-     * @param bOff   byte offset from pointer into which data is copied
+     * @param offset byte offset from pointer into which data is copied
      * @param buf    <code>Pointer</code> array from which to copy
      * @param index  array index from which to start copying
      * @param length number of elements from <code>buf</code> that must be
      *               copied
     */
-    public void write(long bOff, Pointer[] buf, int index, int length) {
+    public void write(long offset, Pointer[] buf, int index, int length) {
         for (int i=0;i < length;i++) {
-            setPointer(bOff + i * Pointer.SIZE, buf[index + i]);
+            setPointer(offset + i * Pointer.SIZE, buf[index + i]);
         }
     }
     

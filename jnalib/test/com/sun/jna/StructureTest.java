@@ -96,13 +96,13 @@ public class StructureTest extends TestCase {
 
 	public void testDefaultAlignmentWithAllNativeFields() {
 		class NativeStruct extends Structure {
-			public boolean b;
-			public byte c;
-			public short s;
-			public int i;
-			public NativeLong l;
-			public float f;
-			public double d;
+			public boolean b;      // native Bool
+			public byte c;         // native char
+			public short s;        // native short
+			public int i;          // native int
+			public NativeLong l;   // native long
+			public float f;        // native float
+			public double d;       // native double
 			public boolean[] ba = new boolean[3];
 			public byte[] ca = new byte[3];
 			public short[] sa = new short[3];
@@ -111,6 +111,7 @@ public class StructureTest extends TestCase {
 			public float[] fa = new float[3];
 			public double[] da = new double[3];
 		}
+		// create an instance and test the size
 		NativeStruct s = new NativeStruct();
 		boolean isSPARC = "sparc".equals(System.getProperty("os.arch"));
 		int size;
@@ -123,6 +124,50 @@ public class StructureTest extends TestCase {
 			size = 144;
 		}
 		assertEquals("Wrong structure size", size, s.size());
+		// set content of the structure
+		s.b = true;
+		s.c = 2;
+		s.s = 3;
+		s.i = 4;
+		s.l = new NativeLong(5);
+		s.f = 6.0f;
+		s.d = 7.0;
+		s.ba[0] = true;
+		s.ba[1] = false;
+		s.ba[2] = true;
+		for (int i = 0; i < 3; i++) {
+			s.ca[i] = (byte) (8 + i);
+			s.sa[i] = (short) (11 + i);
+			s.ia[i] = 14 + i;
+			s.la[i] = new NativeLong(17 + i);
+			s.fa[i] = 20 + i;
+			s.da[i] = 23 + i;
+		}
+		// write content to memory
+		s.write();
+		Pointer p = s.getPointer();
+		s = new NativeStruct();
+		s.useMemory(p);
+		// read content from memory and compare field values
+		s.read();
+		assertEquals(s.b,true);
+		assertEquals(s.c, 2);
+		assertEquals(s.s, 3);
+		assertEquals(s.i, 4);
+		assertEquals(s.l, new NativeLong(5));
+		assertEquals(s.f, 6.0f);
+		assertEquals(s.d, 7.0);
+		assertEquals(s.ba[0], true);
+		assertEquals(s.ba[1], false);
+		assertEquals(s.ba[2], true);
+		for (int i = 0; i < 3; i++) {
+			assertEquals(s.ca[i], (byte) (8 + i));
+			assertEquals(s.sa[i], (short) (11 + i));
+			assertEquals(s.ia[i], 14 + i);
+			assertEquals(s.la[i], new NativeLong(17 + i));
+			assertEquals(s.fa[i], (float) 20 + i);
+			assertEquals(s.da[i], (double) 23 + i);
+		}
 	}
 
     public static class FilledStructure extends Structure {
