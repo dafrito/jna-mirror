@@ -94,6 +94,37 @@ public class StructureTest extends TestCase {
         assertEquals("Wrong structure size", 32, s.size());
     }
 
+	public void testDefaultAlignmentWithAllNativeFields() {
+		class NativeStruct extends Structure {
+			public boolean b;
+			public byte c;
+			public short s;
+			public int i;
+			public NativeLong l;
+			public float f;
+			public double d;
+			public boolean[] ba = new boolean[3];
+			public byte[] ca = new byte[3];
+			public short[] sa = new short[3];
+			public int[] ia = new int[3];
+			public NativeLong[] la = new NativeLong[3];
+			public float[] fa = new float[3];
+			public double[] da = new double[3];
+		}
+		NativeStruct s = new NativeStruct();
+		boolean isSPARC = "sparc".equals(System.getProperty("os.arch"));
+		int size;
+		if (NativeLong.SIZE == 4) {
+			// 32 bit
+			// TODO: size may differ on sparc
+			size = !isSPARC ? 112 : 112;
+		} else {
+			// 64 bit
+			size = 144;
+		}
+		assertEquals("Wrong structure size", size, s.size());
+	}
+
     public static class FilledStructure extends Structure {
         public FilledStructure() {
             for (int i=0;i < size();i++) {
