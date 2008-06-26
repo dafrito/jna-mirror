@@ -306,13 +306,6 @@ public class Function extends Pointer {
             String s = invokeString(callingConvention, args, true);
             result = s != null ? new WString(s) : null;
         }
-        else if (NativeLong.class.isAssignableFrom(returnType)) {
-            if (NativeLong.SIZE == 4) {
-              result = new NativeLong(invokeInt(callingConvention, args));
-            } else {
-              result = new NativeLong(invokeLong(callingConvention, args));
-            }
-        }
         else if (Pointer.class.isAssignableFrom(returnType)) {
             result = invokePointer(callingConvention, args);
         }
