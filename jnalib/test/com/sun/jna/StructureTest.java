@@ -94,82 +94,6 @@ public class StructureTest extends TestCase {
         assertEquals("Wrong structure size", 32, s.size());
     }
 
-	public void testDefaultAlignmentWithAllNativeFields() {
-		class NativeStruct extends Structure {
-			public boolean b;      // native Bool
-			public byte c;         // native char
-			public short s;        // native short
-			public int i;          // native int
-			public NativeLong l;   // native long
-			public float f;        // native float
-			public double d;       // native double
-			public boolean[] ba = new boolean[3];
-			public byte[] ca = new byte[3];
-			public short[] sa = new short[3];
-			public int[] ia = new int[3];
-			public NativeLong[] la = new NativeLong[3];
-			public float[] fa = new float[3];
-			public double[] da = new double[3];
-		}
-		// create an instance and test the size
-		NativeStruct s = new NativeStruct();
-		boolean isSPARC = "sparc".equals(System.getProperty("os.arch"));
-		int size;
-		if (NativeLong.SIZE == 4) {
-			// 32 bit
-			// TODO: size may differ on sparc
-			size = !isSPARC ? 112 : 112;
-		} else {
-			// 64 bit
-			size = 144;
-		}
-		assertEquals("Wrong structure size", size, s.size());
-		// set content of the structure
-		s.b = true;
-		s.c = 2;
-		s.s = 3;
-		s.i = 4;
-		s.l = new NativeLong(5);
-		s.f = 6.0f;
-		s.d = 7.0;
-		s.ba[0] = true;
-		s.ba[1] = false;
-		s.ba[2] = true;
-		for (int i = 0; i < 3; i++) {
-			s.ca[i] = (byte) (8 + i);
-			s.sa[i] = (short) (11 + i);
-			s.ia[i] = 14 + i;
-			s.la[i] = new NativeLong(17 + i);
-			s.fa[i] = 20 + i;
-			s.da[i] = 23 + i;
-		}
-		// write content to memory
-		s.write();
-		Pointer p = s.getPointer();
-		s = new NativeStruct();
-		s.useMemory(p);
-		// read content from memory and compare field values
-		s.read();
-		assertEquals(s.b,true);
-		assertEquals(s.c, 2);
-		assertEquals(s.s, 3);
-		assertEquals(s.i, 4);
-		assertEquals(s.l, new NativeLong(5));
-		assertEquals(s.f, 6.0f);
-		assertEquals(s.d, 7.0);
-		assertEquals(s.ba[0], true);
-		assertEquals(s.ba[1], false);
-		assertEquals(s.ba[2], true);
-		for (int i = 0; i < 3; i++) {
-			assertEquals(s.ca[i], (byte) (8 + i));
-			assertEquals(s.sa[i], (short) (11 + i));
-			assertEquals(s.ia[i], 14 + i);
-			assertEquals(s.la[i], new NativeLong(17 + i));
-			assertEquals(s.fa[i], (float) 20 + i);
-			assertEquals(s.da[i], (double) 23 + i);
-		}
-	}
-
     public static class FilledStructure extends Structure {
         public FilledStructure() {
             for (int i=0;i < size();i++) {
@@ -370,65 +294,83 @@ public class StructureTest extends TestCase {
                 // Have to do this due to inline primitive arrays
                 allocateMemory();
             }
-            public boolean z;
-            public byte b;
-            public char c;
-            public short s;
-            public int i;
-            public long j;
-            public float f;
-            public double d;
-            public byte[] ba = new byte[8];
-            public char[] ca = new char[8];
-            public short[] sa = new short[8];
-            public int[] ia = new int[8];
-            public long[] ja = new long[8];
-            public float[] fa = new float[8];
-            public double[] da = new double[8];
+            public boolean z;       // native Bool
+            public byte b;          // native char
+            public char c;          // native wchar_t
+            public short s;         // native short
+            public int i;           // native int
+            public NativeLong n;    // native long
+            public long l;          // native long long
+            public float f;         // native float
+            public double d;        // native double
+            public boolean[] za = new boolean[3];
+            public byte[] ba = new byte[3];
+            public char[] ca = new char[3];
+            public short[] sa = new short[3];
+            public int[] ia = new int[3];
+            public NativeLong[] na = new NativeLong[3];
+            public long[] la = new long[3];
+            public float[] fa = new float[3];
+            public double[] da = new double[3];
             public PublicTestStructure nested;
         }
         TestStructure s = new TestStructure();
+		// set content of the structure
         s.z = true;
         s.b = 1;
-        s.s = 2;
-        s.c = 'a';
-        s.i = 3;
-        s.j = 4;
-        s.f = 5;
-        s.d = 6;
+		s.c = 2;
+        s.s = 3;
+        s.i = 4;
+        s.n = new NativeLong(5);
+        s.l = 5;
+        s.f = 6.0f;
+        s.d = 7.0;
         s.nested.x = 1;
         s.nested.y = 2;
-        s.ba[0] = 3;
+		s.za[0] = true;
+		s.za[1] = false;
+		s.za[2] = true;
+		for (int i = 0; i < 3; i++) {
+			s.ba[i] = (byte) (8 + i);
+			s.ca[i] = (char) (11 + i);
+			s.sa[i] = (short) (14 + i);
+			s.ia[i] = 17 + i;
+			s.na[i] = new NativeLong(20 + i);
+			s.la[i] = 23 + i;
+			s.fa[i] = (float) 26 + i;
+			s.da[i] = (double) 29 + i;
+		}
+		// write content to memory
         s.write();
-        s.z = false;
-        s.b = 0;
-        s.c = 0;
-        s.s = 0;
-        s.i = 0;
-        s.j = 0;
-        s.f = 0;
-        s.d = 0;
-        s.nested.x = s.nested.y = 0;
-        s.ba[0] = 0;
-        byte[] ref = s.ba;
-        s.read();
-        assertTrue("Wrong boolean field value after write/read", s.z);
-        assertEquals("Wrong byte field value after write/read", (byte)1, s.b);
-        assertEquals("Wrong char field value after write/read",
-                     "'a' (0x" + Integer.toHexString('a') + ")",
-                     "'" + s.c + "' (0x" + Integer.toHexString(s.c) + ")");
-        assertEquals("Wrong short field value after write/read", 2, s.s);
-        assertEquals("Wrong int field value after write/read", 3, s.i);
-        assertEquals("Wrong long field value after write/read", 4, s.j);
-        assertEquals("Wrong float field value after write/read", 5.0f, s.f);
-        assertEquals("Wrong double field value after write/read", 6.0d, s.d);
-        assertEquals("Wrong nested struct field value after write/read (x)",
-                     1, s.nested.x);
-        assertEquals("Wrong nested struct field value after write/read (y)",
-                     2, s.nested.y);
-        assertEquals("Wrong nested array element value after write/read",
-                     3, s.ba[0]);
-        assertSame("Array field reference should be unchanged", ref, s.ba);
+		Pointer p = s.getPointer();
+		s = new TestStructure();
+		s.useMemory(p);
+		// read content from memory and compare field values
+		s.read();
+		assertEquals("Wrong boolean field value after write/read", s.z, true);
+		assertEquals("Wrong byte field value after write/read", s.b, 1);
+		assertEquals("Wrong char field value after write/read", s.c, 2);
+		assertEquals("Wrong short field value after write/read", s.s, 3);
+		assertEquals("Wrong int field value after write/read", s.i, 4);
+		assertEquals("Wrong NativeLong field value after write/read", s.n, new NativeLong(5));
+		assertEquals("Wrong long field value after write/read", s.l, 5);
+		assertEquals("Wrong float field value after write/read", s.f, 6.0f);
+		assertEquals("Wrong double field value after write/read", s.d, 7.0);
+		assertEquals("Wrong nested struct field value after write/read (x)", s.nested.x, 1);
+		assertEquals("Wrong nested struct field value after write/read (y)", s.nested.y, 2);
+		assertEquals("Wrong boolean array field value after write/read", s.za[0], true);
+		assertEquals("Wrong boolean array field value after write/read", s.za[1], false);
+		assertEquals("Wrong boolean array field value after write/read", s.za[2], true);
+		for (int i = 0; i < 3; i++) {
+			assertEquals("Wrong byte array field value after write/read", s.ba[i], (byte) (8 + i));
+			assertEquals("Wrong char array field value after write/read", s.ca[i], (char) (11 + i));
+			assertEquals("Wrong short array field value after write/read", s.sa[i], (short) (14 + i));
+			assertEquals("Wrong int array field value after write/read", s.ia[i], 17 + i);
+			assertEquals("Wrong NativeLong array field value after write/read", s.na[i], new NativeLong(20 + i));
+			assertEquals("Wrong long array field value after write/read", s.la[i], 23 + i);
+			assertEquals("Wrong float array field value after write/read", s.fa[i], (float) 26 + i);
+			assertEquals("Wrong double array field value after write/read", s.da[i], (double) 29 + i);
+		}
     }
 
     public void testNativeLongSize() throws Exception {
