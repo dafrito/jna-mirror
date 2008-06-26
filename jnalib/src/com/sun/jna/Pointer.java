@@ -117,7 +117,7 @@ public class Pointer {
 	 * Indirect the native pointer, copying <em>from</em> memory pointed to by
 	 * native pointer, into the specified array.
 	 *
-	 * @param offset   byte offset from pointer into which data is copied
+	 * @param offset byte offset from pointer into which data is copied
 	 * @param buf    <code>boolean</code> array into which data is copied
 	 * @param index  array index from which to start copying
 	 * @param length number of elements from native pointer that must be copied
@@ -134,7 +134,7 @@ public class Pointer {
      * Indirect the native pointer, copying <em>from</em> memory pointed to by 
      * native pointer, into the specified array.
      *
-     * @param offset   byte offset from pointer into which data is copied
+     * @param offset byte offset from pointer into which data is copied
      * @param buf    <code>byte</code> array into which data is copied
      * @param index  array index from which to start copying
      * @param length number of elements from native pointer that must be copied
@@ -150,7 +150,7 @@ public class Pointer {
      * Indirect the native pointer, copying <em>from</em> memory pointed to by 
      * native pointer, into the specified array.
      *
-     * @param offset   byte offset from pointer from which data is copied
+     * @param offset byte offset from pointer from which data is copied
      * @param buf    <code>short</code> array into which data is copied
      * @param index  array index to which data is copied
      * @param length number of elements from native pointer that must be copied
@@ -166,7 +166,7 @@ public class Pointer {
      * Indirect the native pointer, copying <em>from</em> memory pointed to by 
      * native pointer, into the specified array.
      *
-     * @param offset   byte offset from pointer from which data is copied
+     * @param offset byte offset from pointer from which data is copied
      * @param buf    <code>char</code> array into which data is copied
      * @param index  array index to which data is copied
      * @param length number of elements from native pointer that must be copied
@@ -182,7 +182,7 @@ public class Pointer {
      * Indirect the native pointer, copying <em>from</em> memory pointed to by 
      * native pointer, into the specified array.
      *
-     * @param offset   byte offset from pointer from which data is copied
+     * @param offset byte offset from pointer from which data is copied
      * @param buf    <code>int</code> array into which data is copied
      * @param index  array index to which data is copied
      * @param length number of elements from native pointer that must be copied
@@ -197,7 +197,7 @@ public class Pointer {
      * Indirect the native pointer, copying <em>from</em> memory pointed to by 
      * native pointer, into the specified array.
      *
-     * @param offset   byte offset from pointer from which data is copied
+     * @param offset byte offset from pointer from which data is copied
      * @param buf    <code>long</code> array into which data is copied
      * @param index  array index to which data is copied
      * @param length number of elements from native pointer that must be copied
@@ -212,7 +212,7 @@ public class Pointer {
      * Indirect the native pointer, copying <em>from</em> memory pointed to by 
      * native pointer, into the specified array.
      *
-     * @param offset   byte offset from pointer from which data is copied
+     * @param offset byte offset from pointer from which data is copied
      * @param buf    <code>float</code> array into which data is copied
      * @param index  array index to which data is copied
      * @param length number of elements from native pointer that must be copied
@@ -227,7 +227,7 @@ public class Pointer {
      * Indirect the native pointer, copying <em>from</em> memory pointed to by 
      * native pointer, into the specified array.
      *
-     * @param offset   byte offset from pointer from which data is copied
+     * @param offset byte offset from pointer from which data is copied
      * @param buf    <code>double</code> array into which data is copied
      * @param index  array index to which data is copied
      * @param length number of elements from native pointer that must be copied
@@ -242,7 +242,7 @@ public class Pointer {
      * Indirect the native pointer, copying <em>from</em> memory pointed to by
      * native pointer, into the specified array.
      *
-     * @param offset   byte offset from pointer from which data is copied
+     * @param offset byte offset from pointer from which data is copied
      * @param buf    {@link NativeLong} array into which data is copied
      * @param index  array index to which data is copied
      * @param length number of elements from native pointer that must be copied
@@ -257,7 +257,7 @@ public class Pointer {
      * Indirect the native pointer, copying <em>from</em> memory pointed to by 
      * native pointer, into the specified array.
      *
-     * @param offset   byte offset from pointer from which data is copied
+     * @param offset byte offset from pointer from which data is copied
      * @param buf    {@link Pointer} array into which data is copied
      * @param index  array index to which data is copied
      * @param length number of elements from native pointer that must be copied
@@ -277,7 +277,7 @@ public class Pointer {
 	 * Indirect the native pointer, copying <em>into</em> memory pointed to by
 	 * native pointer, from the specified array.
 	 *
-	 * @param offset   byte offset from pointer into which data is copied
+	 * @param offset byte offset from pointer into which data is copied
 	 * @param buf    <code>boolean</code> array from which to copy
 	 * @param index  array index from which to start copying
 	 * @param length number of elements from <code>buf</code> that must be
@@ -295,7 +295,7 @@ public class Pointer {
      * Indirect the native pointer, copying <em>into</em> memory pointed to by 
      * native pointer, from the specified array.
      *
-     * @param offset   byte offset from pointer into which data is copied
+     * @param offset byte offset from pointer into which data is copied
      * @param buf    <code>byte</code> array from which to copy
      * @param index  array index from which to start copying
      * @param length number of elements from <code>buf</code> that must be
@@ -312,7 +312,7 @@ public class Pointer {
      * Indirect the native pointer, copying <em>into</em> memory pointed to by 
      * native pointer, from the specified array.
      *
-     * @param offset   byte offset from pointer into which data is copied
+     * @param offset byte offset from pointer into which data is copied
      * @param buf    <code>short</code> array from which to copy
      * @param index  array index from which to start copying
      * @param length number of elements from <code>buf</code> that must be
@@ -328,7 +328,7 @@ public class Pointer {
      * Indirect the native pointer, copying <em>into</em> memory pointed to by 
      * native pointer, from the specified array.
      *
-     * @param offset   byte offset from pointer into which data is copied
+     * @param offset byte offset from pointer into which data is copied
      * @param buf    <code>char</code> array from which to copy
      * @param index  array index from which to start copying
      * @param length number of elements from <code>buf</code> that must be
@@ -344,7 +344,7 @@ public class Pointer {
      * Indirect the native pointer, copying <em>into</em> memory pointed to by 
      * native pointer, from the specified array.
      *
-     * @param offset   byte offset from pointer into which data is copied
+     * @param offset byte offset from pointer into which data is copied
      * @param buf    <code>int</code> array from which to copy
      * @param index  array index from which to start copying
      * @param length number of elements from <code>buf</code> that must be
@@ -360,7 +360,7 @@ public class Pointer {
      * Indirect the native pointer, copying <em>into</em> memory pointed to by 
      * native pointer, from the specified array.
      *
-     * @param offset   byte offset from pointer into which data is copied
+     * @param offset byte offset from pointer into which data is copied
      * @param buf    <code>long</code> array from which to copy
      * @param index  array index from which to start copying
      * @param length number of elements from <code>buf</code> that must be
@@ -376,7 +376,7 @@ public class Pointer {
      * Indirect the native pointer, copying <em>into</em> memory pointed to by 
      * native pointer, from the specified array.
      *
-     * @param offset   byte offset from pointer into which data is copied
+     * @param offset byte offset from pointer into which data is copied
      * @param buf    <code>float</code> array from which to copy
      * @param index  array index from which to start copying
      * @param length number of elements from <code>buf</code> that must be
@@ -392,7 +392,7 @@ public class Pointer {
      * Indirect the native pointer, copying <em>into</em> memory pointed to by 
      * native pointer, from the specified array.
      *
-     * @param offset   byte offset from pointer into which data is copied
+     * @param offset byte offset from pointer into which data is copied
      * @param buf    <code>double</code> array from which to copy
      * @param index  array index from which to start copying
      * @param length number of elements from <code>buf</code> that must be
@@ -575,7 +575,7 @@ public class Pointer {
     /**
      * Get a direct ByteBuffer mapped to the memory pointed to by the pointer.
      *
-     * @param offset byte offset from pointer to start the buffer
+     * @param addr byte offset from pointer to start the buffer
      * @param length Length of ByteBuffer
      * @return a direct ByteBuffer that accesses the memory being pointed to, 
      */
