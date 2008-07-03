@@ -393,9 +393,6 @@ public abstract class Structure {
         else if (nativeType == double.class || nativeType == Double.class) {
             result = new Double(memory.getDouble(offset));
         }
-        else if (nativeType == NativeLong.class) {
-            result = memory.getNativeLong(offset);
-        }
         else if (nativeType == Pointer.class) {
             result = memory.getPointer(offset);
         }
@@ -433,10 +430,7 @@ public abstract class Structure {
             length = Array.getLength(o);
             result = o;
 
-			if (cls == boolean.class) {
-				memory.read(offset, (boolean[])result, 0, length);
-			}
-            else if (cls == byte.class) {
+            if (cls == byte.class) {
                 memory.read(offset, (byte[])result, 0, length);
             }
             else if (cls == short.class) {
@@ -456,9 +450,6 @@ public abstract class Structure {
             }
             else if (cls == double.class) {
                 memory.read(offset, (double[])result, 0, length);
-            }
-            else if (NativeLong.class.isAssignableFrom(cls)) {
-                memory.read(offset, (NativeLong[])result, 0, length);
             }
             else if (Pointer.class.isAssignableFrom(cls)) {
                 memory.read(offset, (Pointer[])result, 0, length);
@@ -602,13 +593,6 @@ public abstract class Structure {
         else if (nativeType == double.class || nativeType == Double.class) {
             memory.setDouble(offset, ((Double)value).doubleValue());
         }
-        else if (nativeType == NativeLong.class) {
-            if (value instanceof Long) {
-                memory.setLong(offset, ((Long)value).longValue());
-            } else {
-                throw new IllegalArgumentException("Long value is ecStructure field of type NativeLong expects a Long value to write out!");
-            }
-        }
         else if (nativeType == Pointer.class) {
             memory.setPointer(offset, (Pointer)value);
         }
@@ -620,11 +604,7 @@ public abstract class Structure {
         }
         else if (nativeType.isArray()) {
             Class cls = nativeType.getComponentType();
-			if (cls == boolean.class) {
-				boolean[] buf = (boolean[])value;
-				memory.write(offset, buf, 0, buf.length);
-			}
-            else if (cls == byte.class) {
+            if (cls == byte.class) {
                 byte[] buf = (byte[])value;
                 memory.write(offset, buf, 0, buf.length);
             }
@@ -650,10 +630,6 @@ public abstract class Structure {
             }
             else if (cls == double.class) {
                 double[] buf = (double[])value;
-                memory.write(offset, buf, 0, buf.length);
-            }
-            else if (NativeLong.class.isAssignableFrom(cls)) {
-                NativeLong[] buf = (NativeLong[])value;
                 memory.write(offset, buf, 0, buf.length);
             }
             else if (Pointer.class.isAssignableFrom(cls)) {
@@ -796,10 +772,7 @@ public abstract class Structure {
             Class nativeType = type;
             if (NativeMapped.class.isAssignableFrom(type)) {
                 NativeMappedConverter tc = NativeMappedConverter.getInstance(type);
-                // TODO: Do we really need to initialize all fields?
-                if (value == null) {
-                    value = tc.defaultValue();
-                }
+                value = tc.defaultValue();
                 nativeType = tc.nativeType();
                 structField.writeConverter = tc;
                 structField.readConverter = tc;
