@@ -18,7 +18,7 @@ public interface FromNativeConverter {
     /** Convert the given native object into its Java representation using
      * the given context. 
      */
-    Object fromNative(Object nativeValue, Object field, FromNativeContext context);
+    Object fromNative(Object nativeValue, FromNativeContext context);
     /** Indicate the native type used by this converter. */
     Class nativeType();
 }

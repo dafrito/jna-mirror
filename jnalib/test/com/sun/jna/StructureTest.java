@@ -396,6 +396,10 @@ public class StructureTest extends TestCase {
         assertEquals("Wrong value", 1, s.la[0]);
         assertEquals("Wrong value", 2, s.la[1]);
         assertEquals("Wrong value", 3, s.la[2]);
+        // test constancy of references after read
+        long[] la = s.la;
+        s.read();
+        assertTrue("Array field reference should be unchanged", la == s.la);
     }
 
     public void testNativeLongSize() throws Exception {

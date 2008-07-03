@@ -120,7 +120,7 @@ public class TypeMapperTest extends TestCase {
             }
         });
         mapper.addFromNativeConverter(Boolean.class, new FromNativeConverter() {
-            public Object fromNative(Object value, Object field, FromNativeContext context) {
+            public Object fromNative(Object value, FromNativeContext context) {
                 return Boolean.valueOf(((Integer) value).intValue() == MAGIC);
             }
             public Class nativeType() { 
@@ -149,7 +149,7 @@ public class TypeMapperTest extends TestCase {
             public Object toNative(Object value, ToNativeContext ctx) {
                 return new Integer(Boolean.TRUE.equals(value) ? 1 : 0);
             }
-            public Object fromNative(Object value, Object field, FromNativeContext context) {
+            public Object fromNative(Object value, FromNativeContext context) {
                 return new Boolean(((Integer)value).intValue() == 1);
             }
             public Class nativeType() {
@@ -189,7 +189,7 @@ public class TypeMapperTest extends TestCase {
             Native.loadLibrary("testlib", CallbackTestLibrary.class, options);
         // Convert java floats into native integers and back
         TypeConverter converter = new TypeConverter() {
-            public Object fromNative(Object value, Object field, FromNativeContext context) {
+            public Object fromNative(Object value, FromNativeContext context) {
                 return new Float(((Integer)value).intValue());
             }
             public Class nativeType() {
@@ -228,7 +228,7 @@ public class TypeMapperTest extends TestCase {
                 hasAnnotation[0] = mcontext.getMethod().getAnnotation(FooBoolean.class) != null;
                 return new Integer(Boolean.TRUE.equals(value) ? MAGIC : 0);
             }
-            public Object fromNative(Object value, Object field, FromNativeContext context) {
+            public Object fromNative(Object value, FromNativeContext context) {
                 MethodResultContext mcontext = (MethodResultContext)context;                
                 hasAnnotation[1] = mcontext.getMethod().getAnnotation(FooBoolean.class) != null;
                 return Boolean.valueOf(((Integer) value).intValue() == MAGIC);

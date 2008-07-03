@@ -45,18 +45,27 @@ public abstract class NativeTypeConverter implements TypeConverter {
             return nativeType;
         }
 
-        public Object fromNative(Object nativeValue, Object field, FromNativeContext context) {
+        public Object fromNative(Object nativeValue, FromNativeContext context) {
             if (d64) return nativeValue;
 
             if (!array) {
                 return new Long((Integer) nativeValue);
             } else {
                 int[] ints = (int[]) nativeValue;
-                long[] longs = (long[]) field;
+                long[] longs = getLongs(context, ints.length);
                 for (int i = 0; i < longs.length; i++) {
                     longs[i] = ints[i];
                 }
                 return longs;
+            }
+        }
+
+        private long[] getLongs(FromNativeContext context, int length) {
+            try {
+                StructureReadContext c = (StructureReadContext) context;
+                return (long[]) c.getField().get(c.getStructure());
+            } catch (Exception e) {
+                return new long[length];
             }
         }
 

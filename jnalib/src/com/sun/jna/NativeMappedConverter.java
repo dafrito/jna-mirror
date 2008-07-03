@@ -57,7 +57,7 @@ public class NativeMappedConverter implements TypeConverter {
             throw new IllegalArgumentException(msg);
         }
     }
-    public Object fromNative(Object nativeValue, Object field, FromNativeContext context) {
+    public Object fromNative(Object nativeValue, FromNativeContext context) {
         return instance.fromNative(nativeValue, context);
     }
 

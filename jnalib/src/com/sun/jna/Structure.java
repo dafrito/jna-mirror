@@ -488,7 +488,7 @@ public abstract class Structure {
         }
 
         if (readConverter != null) {
-            result = readConverter.fromNative(result, getField(structField), structField.context);
+            result = readConverter.fromNative(result, structField.context);
         }
 
         // Update the value on the field

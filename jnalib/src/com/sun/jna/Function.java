@@ -227,7 +227,7 @@ public class Function extends Pointer {
             } else {
                 context = new FunctionResultContext(returnType, this, inArgs);
             }
-            result = resultConverter.fromNative(result, null, context);
+            result = resultConverter.fromNative(result, context);
         }
 
         // Sync all memory which might have been modified by the native call
