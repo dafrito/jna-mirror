@@ -360,6 +360,44 @@ public class StructureTest extends TestCase {
         }
     }
 
+    public void testNativeTypeConversion() {
+        class TestStructure extends Structure {
+            @TypeConversion(converter = NativeTypeConverter.NativeLong.class)
+            public long l;
+        }
+        TestStructure s = new TestStructure();
+        assertEquals("Wrong size", NativeLong.SIZE, s.size());
+        // test read/write
+        s.l = 0xDEADBEEF;
+        s.write();
+        Pointer p = s.getPointer();
+        s = new TestStructure();
+        s.useMemory(p);
+        s.read();
+        assertEquals("Wrong value", 0xDEADBEEF, s.l);
+    }
+
+    public void testNativeArrayTypeConversion() {
+        class TestStructure extends Structure {
+            @TypeConversion(converter = NativeTypeConverter.NativeLong.class)
+            public long[] la = new long[3];
+        }
+        TestStructure s = new TestStructure();
+        assertEquals("Wrong size", 3 * NativeLong.SIZE, s.size());
+        // test read/write
+        s.la[0] = 1;
+        s.la[1] = 2;
+        s.la[2] = 3;
+        s.write();
+        Pointer p = s.getPointer();
+        s = new TestStructure();
+        s.useMemory(p);
+        s.read();
+        assertEquals("Wrong value", 1, s.la[0]);
+        assertEquals("Wrong value", 2, s.la[1]);
+        assertEquals("Wrong value", 3, s.la[2]);
+    }
+
     public void testNativeLongSize() throws Exception {
         class TestStructure extends Structure {
             public NativeLong l;

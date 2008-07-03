@@ -430,6 +430,11 @@ public abstract class Structure {
             length = Array.getLength(o);
             result = o;
 
+            // if Java type and native type differ -> create an temporary array for the native type
+            if (nativeType.getComponentType() != o.getClass().getComponentType()) {
+                result = Array.newInstance(nativeType.getComponentType(), length);
+            }
+
             if (cls == byte.class) {
                 memory.read(offset, (byte[])result, 0, length);
             }
@@ -483,7 +488,7 @@ public abstract class Structure {
         }
 
         if (readConverter != null) {
-            result = readConverter.fromNative(result, structField.context);
+            result = readConverter.fromNative(result, getField(structField), structField.context);
         }
 
         // Update the value on the field
@@ -770,9 +775,19 @@ public abstract class Structure {
                 }
             }
             Class nativeType = type;
-            if (NativeMapped.class.isAssignableFrom(type)) {
+            if (field.isAnnotationPresent(TypeConversion.class)) {
+                TypeConversion nativeMapping = field.getAnnotation(TypeConversion.class);
+                NativeTypeConverter tc = NativeTypeConverter.getInstance(nativeMapping.converter(), nativeType);
+                nativeType = tc.nativeType();
+                structField.writeConverter = tc;
+                structField.readConverter = tc;
+                structField.context = new StructureReadContext(this, field);
+            }
+            else if (NativeMapped.class.isAssignableFrom(type)) {
                 NativeMappedConverter tc = NativeMappedConverter.getInstance(type);
-                value = tc.defaultValue();
+                if (value == null) {
+                    value = tc.defaultValue();
+                }
                 nativeType = tc.nativeType();
                 structField.writeConverter = tc;
                 structField.readConverter = tc;

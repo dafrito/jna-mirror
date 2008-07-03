@@ -48,7 +48,7 @@
   <property name="impl.vendor" value="${spec.vendor}"/>
   <property name="impl.version" value="${jna.version} b${jna.build}"/>
 
-  <property name="compatibility" value="1.4"/>
+  <property name="compatibility" value="1.5"/>
   <property name="test.compatibility" value="1.5"/>
 
   <!-- Miscellaneous -->

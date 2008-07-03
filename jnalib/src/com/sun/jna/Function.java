@@ -13,7 +13,6 @@ package com.sun.jna;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -228,7 +227,7 @@ public class Function extends Pointer {
             } else {
                 context = new FunctionResultContext(returnType, this, inArgs);
             }
-            result = resultConverter.fromNative(result, context);
+            result = resultConverter.fromNative(result, null, context);
         }
 
         // Sync all memory which might have been modified by the native call

@@ -14,7 +14,6 @@ package com.sun.jna.win32;
 
 import com.sun.jna.DefaultTypeMapper;
 import com.sun.jna.FromNativeContext;
-import com.sun.jna.Pointer;
 import com.sun.jna.StringArray;
 import com.sun.jna.ToNativeContext;
 import com.sun.jna.TypeConverter;
@@ -45,7 +44,7 @@ public class W32APITypeMapper extends DefaultTypeMapper {
                     }
                     return new WString(value.toString());
                 }
-                public Object fromNative(Object value, FromNativeContext context) {
+                public Object fromNative(Object value, Object field, FromNativeContext context) {
                     if (value == null)
                         return null;
                     return value.toString();
@@ -61,7 +60,7 @@ public class W32APITypeMapper extends DefaultTypeMapper {
             public Object toNative(Object value, ToNativeContext context) {
                 return new Integer(Boolean.TRUE.equals(value) ? 1 : 0);
             }
-            public Object fromNative(Object value, FromNativeContext context) {
+            public Object fromNative(Object value, Object field, FromNativeContext context) {
                 return ((Integer)value).intValue() != 0 ? Boolean.TRUE : Boolean.FALSE;
             }
             public Class nativeType() {

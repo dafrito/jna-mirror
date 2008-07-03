@@ -260,7 +260,7 @@ class CallbackReference extends WeakReference {
                 if (fromNative[i] != null) {
                     FromNativeContext context = 
                         new CallbackParameterContext(type, callbackMethod, args, i);
-                    arg = fromNative[i].fromNative(arg, context);
+                    arg = fromNative[i].fromNative(arg, null, context);
                 }
                 callbackArgs[i] = convertArgument(arg, type);
             }
