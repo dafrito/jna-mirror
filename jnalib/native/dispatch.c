@@ -1723,11 +1723,8 @@ Java_com_sun_jna_Native_getWindowHandle0(JNIEnv *env, jclass classp, jobject w) 
         if (java_home != NULL) {
           if ((prop = newWideCString(env, java_home)) != NULL) {
             const wchar_t* suffix = L"/bin/jawt.dll";
-            int len = (int)
-              (wcslen(prop) + wcslen(suffix) + 1) * sizeof(wchar_t);
-            path = (wchar_t*)alloca(len);
-            // FIXME make sure this is the proper format string for win64
-            snprintf((char*)path, len, "%ls%ls", prop, suffix);
+            path = (wchar_t*)alloca((wcslen(prop) + wcslen(suffix) + 1) * sizeof(wchar_t));
+            swprintf(path, L"%s%s", prop, suffix);
             free(prop);
           }
         }
@@ -2092,9 +2089,6 @@ get_ffi_rtype(JNIEnv* env, jclass cls, char jtype) {
   default:
     return get_ffi_type(env, cls, jtype);
   }
-}
-
-void happy() {
 }
 
 #ifdef __cplusplus
