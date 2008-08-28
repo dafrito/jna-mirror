@@ -214,12 +214,14 @@ void ffi_call(ffi_cif *cif, void (*fn)(), void *rvalue, void **avalue)
   
   switch (cif->abi) 
     {
-    case FFI_SYSV:
 #ifdef X86_WIN64
+    case FFI_UNIX64:
       /* Function call needs at least 40 bytes stack size, on win64 AMD64 */
       ffi_call_AMD64(ffi_prep_args, &ecif, cif->bytes ? cif->bytes : 40,
                      cif->flags, ecif.rvalue, fn);
+      break;
 #else
+    case FFI_SYSV:
       ffi_call_SYSV(ffi_prep_args, &ecif, cif->bytes, cif->flags, ecif.rvalue,
 		    fn);
       break;

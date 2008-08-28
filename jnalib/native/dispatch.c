@@ -237,6 +237,7 @@ dispatch(JNIEnv *env, jobject self, jint callconv, jobjectArray arr,
     throwByName(env, EUnsupportedOperation, msg);
     return;
   }
+
   c_args = (jvalue*)alloca(nargs * sizeof(jvalue));
   array_elements = (struct _array_elements*)
     alloca(nargs * sizeof(struct _array_elements));
@@ -376,7 +377,7 @@ dispatch(JNIEnv *env, jobject self, jint callconv, jobjectArray arr,
   case CALLCONV_C:
     abi = FFI_DEFAULT_ABI;
     break;
-#if defined(_WIN32)  && !defined(__x86_64__)
+#if defined(_WIN32)  && !defined(_WIN64)
   case CALLCONV_STDCALL:
     abi = FFI_STDCALL;
     break;
@@ -387,6 +388,7 @@ dispatch(JNIEnv *env, jobject self, jint callconv, jobjectArray arr,
     throwByName(env, EIllegalArgument, msg);
     goto cleanup;
   }
+
   status = ffi_prep_cif(&cif, abi, nargs, ffi_return_type, ffi_types);
   switch(status) {
   case FFI_BAD_ABI:

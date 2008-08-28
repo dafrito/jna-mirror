@@ -97,15 +97,16 @@ else
 # vista doesn't recognize ld (32 or 64-bit) as gnu ld; XP does
 
 # cross 64:
-# final link succeeds, won't load do to library init error
+# final link succeeds, won't load unless testlib.o is added to head of objs
 
-CC = x86_64-pc-mingw32-gcc -m64 -mno-cygwin
+CC = x86_64-pc-mingw32-gcc -m64 -mno-cygwin -g
 LD = x86_64-pc-mingw32-ld
+CFLAGS += -g
 LDFLAGS=-o $@ -shared
 LIBS= -lmingwex -lkernel32 -lmsvcrt
 #FFI_LIB=
 WINDRES=x86_64-pc-mingw32-windres
-FFI_CONFIG += --host=x86_64-pc-mingw32
+FFI_CONFIG += --host=x86_64-pc-mingw32 --enable-debug
 JNIDISPATCH_OBJS=$(BUILD)/testlib.o $(BUILD)/dispatch.o $(BUILD)/callback.o
 #FFI_SRC=c:/users/twall/ws/jna/native/libffi
 #; rm -f include/ffitarget.h; cp $(FFI_SRC)/include/*.h $(FFI_SRC)/src/x86/ffitarget.h include
