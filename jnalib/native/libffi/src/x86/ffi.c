@@ -3,7 +3,7 @@
            Copyright (c) 2002  Ranjit Mathew
            Copyright (c) 2002  Bo Thorsen
            Copyright (c) 2002  Roger Sayle
-           Copyright (c) 2007  Timothy Wall
+           Copyright (c) 2007,2008  Timothy Wall
    
    x86 Foreign Function Interface 
 
@@ -27,7 +27,7 @@
    OTHER DEALINGS IN THE SOFTWARE.
    ----------------------------------------------------------------------- */
 
-#ifndef __x86_64__
+#if !defined(__x86_64__) || defined(_WIN64)
 
 #include <ffi.h>
 #include <ffi_common.h>
@@ -49,7 +49,7 @@ void ffi_prep_args(char *stack, extended_cif *ecif)
   if (ecif->cif->flags == FFI_TYPE_STRUCT)
     {
       *(void **) argp = ecif->rvalue;
-      argp += 4;
+      argp += sizeof(void*);
     }
 
   p_argv = ecif->avalue;
@@ -61,8 +61,8 @@ void ffi_prep_args(char *stack, extended_cif *ecif)
       size_t z;
 
       /* Align if necessary */
-      if ((sizeof(int) - 1) & (unsigned) argp)
-	argp = (char *) ALIGN(argp, sizeof(int));
+      if ((sizeof(void*) - 1) & (size_t) argp)
+	argp = (char *) ALIGN(argp, sizeof(void*));
 
       z = (*p_arg)->size;
       if (z < sizeof(int))
@@ -136,6 +136,9 @@ ffi_status ffi_prep_cif_machdep(ffi_cif *cif)
       break;
 
     case FFI_TYPE_UINT64:
+#ifdef X86_WIN64
+    case FFI_TYPE_POINTER:
+#endif
       cif->flags = FFI_TYPE_SINT64;
       break;
 
@@ -184,6 +187,11 @@ extern void ffi_call_STDCALL(void (*)(char *, extended_cif *), extended_cif *,
 			  unsigned, unsigned, unsigned *, void (*fn)());
 
 #endif /* X86_WIN32 */
+#ifdef X86_WIN64
+extern int
+ffi_call_AMD64(void (*)(char *, extended_cif *), extended_cif *,
+		 unsigned, unsigned, unsigned *, void (*fn)());
+#endif
 
 void ffi_call(ffi_cif *cif, void (*fn)(), void *rvalue, void **avalue)
 {
@@ -207,6 +215,11 @@ void ffi_call(ffi_cif *cif, void (*fn)(), void *rvalue, void **avalue)
   switch (cif->abi) 
     {
     case FFI_SYSV:
+#ifdef X86_WIN64
+      /* Function call needs at least 40 bytes stack size, on win64 AMD64 */
+      ffi_call_AMD64(ffi_prep_args, &ecif, cif->bytes ? cif->bytes : 40,
+                     cif->flags, ecif.rvalue, fn);
+#else
       ffi_call_SYSV(ffi_prep_args, &ecif, cif->bytes, cif->flags, ecif.rvalue,
 		    fn);
       break;
@@ -216,6 +229,7 @@ void ffi_call(ffi_cif *cif, void (*fn)(), void *rvalue, void **avalue)
 		       ecif.rvalue, fn);
       break;
 #endif /* X86_WIN32 */
+#endif
     default:
       FFI_ASSERT(0);
       break;
@@ -235,6 +249,10 @@ void FFI_HIDDEN ffi_closure_raw_SYSV (ffi_raw_closure *)
      __attribute__ ((regparm(1)));
 #ifdef X86_WIN32
 void FFI_HIDDEN ffi_closure_STDCALL (ffi_closure *)
+     __attribute__ ((regparm(1)));
+#endif /* X86_WIN32 */
+#ifdef X86_WIN64
+void FFI_HIDDEN ffi_closure_OUTER (ffi_closure *)
      __attribute__ ((regparm(1)));
 #endif
 
@@ -263,6 +281,7 @@ ffi_closure_SYSV_inner (closure, respp, args)
 
   (closure->fun) (cif, *respp, arg_area, closure->user_data);
 
+
   return cif->flags;
 }
 
@@ -279,7 +298,7 @@ ffi_prep_incoming_args_SYSV(char *stack, void **rvalue, void **avalue,
 
   if ( cif->flags == FFI_TYPE_STRUCT ) {
     *rvalue = *(void **) argp;
-    argp += 4;
+    argp += sizeof(void*);
   }
 
   p_argv = avalue;
@@ -289,8 +308,8 @@ ffi_prep_incoming_args_SYSV(char *stack, void **rvalue, void **avalue,
       size_t z;
 
       /* Align if necessary */
-      if ((sizeof(int) - 1) & (unsigned) argp) {
-	argp = (char *) ALIGN(argp, sizeof(int));
+      if ((sizeof(void*) - 1) & (size_t) argp) {
+	argp = (char *) ALIGN(argp, sizeof(void*));
       }
 
       z = (*p_arg)->size;
@@ -307,6 +326,24 @@ ffi_prep_incoming_args_SYSV(char *stack, void **rvalue, void **avalue,
 }
 
 /* How to make a trampoline.  Derived from gcc/config/i386/i386.c. */
+
+#define FFI_INIT_TRAMPOLINE_WIN64(TRAMP,FUN,CTX,MASK) \
+({ unsigned char *__tramp = (unsigned char*)(TRAMP); \
+   void*  __fun = (void*)(FUN); \
+   void*  __ctx = (void*)(CTX); \
+   *(unsigned char*) &__tramp[0] = 0x41; \
+   *(unsigned char*) &__tramp[1] = 0xbb; \
+   *(unsigned int*) &__tramp[2] = MASK; /* mov $mask, %r11d */ \
+   *(unsigned char*) &__tramp[6] = 0x48; \
+   *(unsigned char*) &__tramp[7] = 0xb8; \
+   *(void**) &__tramp[8] = __ctx; /* mov __ctx, %rax */ \
+   *(unsigned char *)  &__tramp[16] = 0x49; \
+   *(unsigned char *)  &__tramp[17] = 0xba; \
+   *(void**) &__tramp[18] = __fun; /* mov __fun, %r10 */ \
+   *(unsigned char *)  &__tramp[26] = 0x41; \
+   *(unsigned char *)  &__tramp[27] = 0xff; \
+   *(unsigned char *)  &__tramp[28] = 0xe2; /* jmp%r10 */ \
+ })
 
 #define FFI_INIT_TRAMPOLINE(TRAMP,FUN,CTX) \
 ({ unsigned char *__tramp = (unsigned char*)(TRAMP); \
@@ -343,6 +380,16 @@ ffi_prep_closure_loc (ffi_closure* closure,
 		      void *codeloc)
 {
   if (cif->abi == FFI_SYSV)
+#ifdef X86_WIN64
+#define ISFLOAT(IDX) (cif->arg_types[IDX]->type == FFI_TYPE_FLOAT || cif->arg_types[IDX]->type == FFI_TYPE_DOUBLE)
+#define FLAG(IDX) (cif->nargs>(IDX)&&ISFLOAT(IDX)?(1<<(IDX)):0)
+    {
+      int mask = FLAG(0)|FLAG(1)|FLAG(2)|FLAG(3);
+      FFI_INIT_TRAMPOLINE_WIN64 (&closure->tramp[0],
+                                 &ffi_closure_OUTER,
+                                 codeloc, mask);
+    }
+#else
     {
       FFI_INIT_TRAMPOLINE (&closure->tramp[0], 
                            &ffi_closure_SYSV,  
@@ -355,7 +402,8 @@ ffi_prep_closure_loc (ffi_closure* closure,
                                    &ffi_closure_STDCALL,  
                                    codeloc, cif->bytes);
     }
-#endif
+#endif /* X86_WIN32 */
+#endif /* !X86_WIN64 */
   else
     {
       return FFI_BAD_ABI;
@@ -370,7 +418,7 @@ ffi_prep_closure_loc (ffi_closure* closure,
 
 /* ------- Native raw API support -------------------------------- */
 
-#if !FFI_NO_RAW_API
+#if !FFI_NO_RAW_API && !defined(X86_WIN64)
 
 ffi_status
 ffi_prep_raw_closure_loc (ffi_raw_closure* closure,
@@ -467,4 +515,4 @@ ffi_raw_call(ffi_cif *cif, void (*fn)(), void *rvalue, ffi_raw *fake_avalue)
 
 #endif
 
-#endif /* __x86_64__  */
+#endif /* !__x86_64__  || X86_WIN64 */

@@ -399,8 +399,12 @@
     <property name="results.junit" location="${build}/junit-results"/>
     <mkdir dir="${results.junit}"/>
     <echo>Saving test results in ${results.junit}</echo>
+    <property name="tests.stdcall" value="**/win32/*StdCallTest.java"/>
     <condition property="tests.platform" value="**/win32/*Test.java">
       <os family="windows"/>
+    </condition>
+    <condition property="tests.exclude" value="**/win32/*StdCallTest.java">
+      <and><os family="windows"/><not><os arch="x86"/></not></and>
     </condition>
     <condition property="tests.platform" value="**/unix/*Test.java">
       <and>
@@ -409,12 +413,17 @@
       </and>
     </condition>
     <condition property="vmopt.arch" value="-d64" else="-Dignore">
-      <equals arg1="${vm.arch}" arg2="-d64" trim="true"/>
+      <and>
+        <!-- Sun 64-bit VM for windows doesn't support the -d64 switch -->
+        <not><os family="windows"/></not>
+        <equals arg1="${vm.arch}" arg2="-d64" trim="true"/>
+      </and>
     </condition>
     <condition property="dir.build.suffix" value="-d64" else="">
       <equals arg1="${vm.arch}" arg2="-d64" trim="true"/>
     </condition>
     <property name="tests.platform" value=""/>
+    <property name="tests.exclude" value=""/>
     <junit printsummary="yes" fork="${test.fork}" failureproperty="testfailure">
       <jvmarg value="-Djna.library.path=${build.native}"/>
       <!-- Avoid VM crashes, if possible -->

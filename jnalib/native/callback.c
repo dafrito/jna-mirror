@@ -64,13 +64,13 @@ create_callback(JNIEnv* env, jobject obj, jobject method,
     cb->param_jtypes[i] = get_jtype(env, cls);
     cb->ffi_args[i] = get_ffi_type(env, cls, cb->param_jtypes[i]);
     if (!cb->param_jtypes[i]) {
-      sprintf(msg, "Unsupported type at parameter %d", i);
+      snprintf(msg, sizeof(msg), "Unsupported type at parameter %d", i);
       throwByName(env, EIllegalArgument, msg);
       goto failure_cleanup;
     }
   }
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(_WIN64)
   if (calling_convention == CALLCONV_STDCALL) {
     abi = FFI_STDCALL;
   }
@@ -86,11 +86,13 @@ create_callback(JNIEnv* env, jobject obj, jobject method,
                         &cb->ffi_args[0]);
   switch(status) {
   case FFI_BAD_ABI:
-    sprintf(msg, "Invalid calling convention: %d", (int)calling_convention);
+    snprintf(msg, sizeof(msg),
+             "Invalid calling convention: %d", (int)calling_convention);
     throwByName(env, EIllegalArgument, msg);
     break;
   case FFI_BAD_TYPEDEF:
-    sprintf(msg, "Invalid structure definition (native typedef error)");
+    snprintf(msg, sizeof(msg),
+             "Invalid structure definition (native typedef error)");
     throwByName(env, EIllegalArgument, msg);
     break;
   case FFI_OK: 
@@ -98,13 +100,15 @@ create_callback(JNIEnv* env, jobject obj, jobject method,
                          cb->x_closure);
     return cb;
   default:
-    sprintf(msg, "Native callback setup failure: error code %d", status);
+    snprintf(msg, sizeof(msg),
+             "Native callback setup failure: error code %d", status);
     throwByName(env, EIllegalArgument, msg);
     break;
   }
 
  failure_cleanup:
   free_callback(env, cb);
+
   return NULL;
 }
 void 

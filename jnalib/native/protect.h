@@ -41,7 +41,17 @@
 
 #else
 #ifdef _WIN32
+#ifdef _MSC_VER
+// from mingw
+typedef EXCEPTION_DISPOSITION (*PEXCEPTION_HANDLER)
+  (struct _EXCEPTION_RECORD*, void*, struct _CONTEXT*, void*);
+typedef struct _EXCEPTION_REGISTRATION {
+  struct _EXCEPTION_REGISTRATION*	prev;
+  PEXCEPTION_HANDLER                    handler;
+} EXCEPTION_REGISTRATION, *PEXCEPTION_REGISTRATION;
+#else
 #include <excpt.h>
+#endif
 #include <setjmp.h>
 
 typedef struct _exc_rec {

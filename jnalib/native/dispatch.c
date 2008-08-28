@@ -22,6 +22,9 @@
  */
 
 #if defined(_WIN32)
+#ifndef UNICODE
+#define UNICODE
+#endif
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #ifdef _MSC_VER
@@ -39,8 +42,8 @@
 #define SET_LAST_ERROR(CODE) SetLastError(CODE)
 static char*
 w32_format_error(char* buf, int len) {
-  FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, GetLastError(),
-                0, buf, len, NULL);
+  FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM, NULL, GetLastError(),
+                 0, buf, len, NULL);
   return buf;
 }
 #else
@@ -53,7 +56,7 @@ w32_format_error(char* buf, int len) {
 #define LIBNAME2CSTR(ENV,JSTR) newCString(ENV,JSTR)
 #endif
 #define LOAD_LIBRARY(NAME) dlopen(NAME, RTLD_LAZY)
-#define LOAD_ERROR(BUF,LEN) (sprintf(BUF, "%s", dlerror()), BUF)
+#define LOAD_ERROR(BUF,LEN) (snprintf(BUF, LEN, "%s", dlerror()), BUF)
 #define FREE_LIBRARY(HANDLE) dlclose(HANDLE)
 #define FIND_ENTRY(HANDLE, NAME) dlsym(HANDLE, NAME)
 #define GET_LAST_ERROR() errno
@@ -191,6 +194,7 @@ static void *getStructureAddress(JNIEnv *, jobject);
 static ffi_type* getStructureType(JNIEnv *, jobject);
 static void update_last_error(JNIEnv*, int);
 
+/** Invokes System.out.println (for debugging only). */
 static void
 println(JNIEnv* env, const char* msg) {
   jclass cls = (*env)->FindClass(env, "java/lang/System");
@@ -229,7 +233,7 @@ dispatch(JNIEnv *env, jobject self, jint callconv, jobjectArray arr,
   nargs = (*env)->GetArrayLength(env, arr);
 
   if (nargs > MAX_NARGS) {
-    sprintf(msg, "Too many arguments (max %ld)", MAX_NARGS);
+    snprintf(msg, sizeof(msg), "Too many arguments (max %ld)", MAX_NARGS);
     throwByName(env, EUnsupportedOperation, msg);
     return;
   }
@@ -277,7 +281,7 @@ dispatch(JNIEnv *env, jobject self, jint callconv, jobjectArray arr,
         ffi_values[i] = &c_args[i].i;
       }
       else {
-        sprintf(msg, "Unsupported wchar_t size (%d)", (int)sizeof(wchar_t));
+        snprintf(msg, sizeof(msg), "Unsupported wchar_t size (%d)", (int)sizeof(wchar_t));
         throwByName(env, EUnsupportedOperation, msg);
         goto cleanup;
       }
@@ -312,7 +316,8 @@ dispatch(JNIEnv *env, jobject self, jint callconv, jobjectArray arr,
       ffi_types[i] = getStructureType(env, arg);
       ffi_values[i] = c_args[i].l;
       if (!ffi_types[i]) {
-        sprintf(msg, "Structure type info not initialized at argument %d", i);
+        snprintf(msg, sizeof(msg),
+                 "Structure type info not initialized at argument %d", i);
         throwByName(env, EIllegalState, msg);
         goto cleanup;
       }
@@ -361,7 +366,7 @@ dispatch(JNIEnv *env, jobject self, jint callconv, jobjectArray arr,
       array_elements[array_count++].elems = ptr;
     }
     else {
-      sprintf(msg, "Unsupported type at parameter %d", i);
+      snprintf(msg, sizeof(msg), "Unsupported type at parameter %d", i);
       throwByName(env,EIllegalArgument, msg);
       goto cleanup;
     }
@@ -371,24 +376,27 @@ dispatch(JNIEnv *env, jobject self, jint callconv, jobjectArray arr,
   case CALLCONV_C:
     abi = FFI_DEFAULT_ABI;
     break;
-#if defined(_WIN32)
+#if defined(_WIN32)  && !defined(__x86_64__)
   case CALLCONV_STDCALL:
     abi = FFI_STDCALL;
     break;
 #endif // _WIN32
   default:
-    sprintf(msg, "Unrecognized calling convention: %d", (int)callconv);
+    snprintf(msg, sizeof(msg), 
+            "Unrecognized calling convention: %d", (int)callconv);
     throwByName(env, EIllegalArgument, msg);
     goto cleanup;
   }
   status = ffi_prep_cif(&cif, abi, nargs, ffi_return_type, ffi_types);
   switch(status) {
   case FFI_BAD_ABI:
-    sprintf(msg, "Invalid calling convention: %d", (int)callconv); 
+    snprintf(msg, sizeof(msg),
+            "Invalid calling convention: %d", (int)callconv); 
     throwByName(env, EIllegalArgument, msg);
     break;
   case FFI_BAD_TYPEDEF:
-    sprintf(msg, "Invalid structure definition (native typedef error)");
+    snprintf(msg, sizeof(msg),
+             "Invalid structure definition (native typedef error)");
     throwByName(env, EIllegalArgument, msg);
     break;
   case FFI_OK: {
@@ -401,7 +409,8 @@ dispatch(JNIEnv *env, jobject self, jint callconv, jobjectArray arr,
     break;
   }
   default:
-    sprintf(msg, "Native call setup failure: error code %d", status);
+    snprintf(msg, sizeof(msg),
+             "Native call setup failure: error code %d", status);
     throwByName(env, EIllegalArgument, msg);
     break;
   }
@@ -1379,7 +1388,7 @@ newJavaString(JNIEnv *env, const char *ptr, jboolean wide)
 
     if (wide) {
         // TODO: proper conversion from native wchar_t to jchar
-        int len = wcslen((const wchar_t*)ptr);
+        int len = (int)wcslen((const wchar_t*)ptr);
         if (sizeof(jchar) != sizeof(wchar_t)) {
             jchar* buf = (jchar*)alloca(len * sizeof(jchar));
             int i;
@@ -1394,7 +1403,7 @@ newJavaString(JNIEnv *env, const char *ptr, jboolean wide)
     }
     else {
         jbyteArray bytes = 0;
-        int len = strlen(ptr);
+        int len = (int)strlen(ptr);
 
         bytes = (*env)->NewByteArray(env, len);
         if (bytes != 0) {
@@ -1652,7 +1661,7 @@ Java_com_sun_jna_Native_initIDs(JNIEnv *env, jclass cls) {
       return;
     }
     for (i=0;i < sizeof(fields)/sizeof(fields[0]);i++) {
-      sprintf(field, "ffi_type_%s", fields[i]);
+      snprintf(field, sizeof(field), "ffi_type_%s", fields[i]);
       fid = (*env)->GetStaticFieldID(env, cls, field, "Lcom/sun/jna/Pointer;");
       if (!fid) {
         throwByName(env, EUnsatisfiedLink, field);
@@ -1667,13 +1676,13 @@ Java_com_sun_jna_Native_initIDs(JNIEnv *env, jclass cls) {
 #define JAWT_HEADLESS_HACK
 #ifdef _WIN32
 #define JAWT_NAME "jawt.dll"
-#define METHOD_NAME (sizeof(void*)==4?"_JAWT_GetAWT@8":"_JAWT_GetAWT@16")
+#define METHOD_NAME (sizeof(void*)==4?"_JAWT_GetAWT@8":"JAWT_GetAWT")
 #else
 #define JAWT_NAME "libjawt.so"
 #define METHOD_NAME "JAWT_GetAWT"
 #endif
 static void* jawt_handle = NULL;
-static jboolean JNICALL (*pJAWT_GetAWT)(JNIEnv*,JAWT*);
+static jboolean (JNICALL *pJAWT_GetAWT)(JNIEnv*,JAWT*);
 #define JAWT_GetAWT (*pJAWT_GetAWT)
 #endif
 
@@ -1714,9 +1723,11 @@ Java_com_sun_jna_Native_getWindowHandle0(JNIEnv *env, jclass classp, jobject w) 
         if (java_home != NULL) {
           if ((prop = newWideCString(env, java_home)) != NULL) {
             const wchar_t* suffix = L"/bin/jawt.dll";
-            path = (wchar_t*)alloca((wcslen(prop) + wcslen(suffix) + 1)
-                                    * sizeof(wchar_t));
-            swprintf(path, L"%s%s", prop, suffix);
+            int len = (int)
+              (wcslen(prop) + wcslen(suffix) + 1) * sizeof(wchar_t);
+            path = (wchar_t*)alloca(len);
+            // FIXME make sure this is the proper format string for win64
+            snprintf((char*)path, len, "%ls%ls", prop, suffix);
             free(prop);
           }
         }
@@ -1732,7 +1743,7 @@ Java_com_sun_jna_Native_getWindowHandle0(JNIEnv *env, jclass classp, jobject w) 
     }
     if ((pJAWT_GetAWT = (void*)FIND_ENTRY(jawt_handle, METHOD_NAME)) == NULL) {
       char msg[1024], buf[1024];
-      sprintf(msg, "Error looking up %s: %s",
+      snprintf(msg, sizeof(msg), "Error looking up %s: %s",
               METHOD_NAME, LOAD_ERROR(buf, sizeof(buf)));
       throwByName(env, EUnsatisfiedLink, msg);
       return -1;
@@ -1768,7 +1779,7 @@ Java_com_sun_jna_Native_getWindowHandle0(JNIEnv *env, jclass classp, jobject w) 
         // FIXME this kills the VM if the window is not realized;
         // if not, wdsi might be a bogus, non-null value
         // TODO: fix JVM (right) or ensure window is realized (done in Java)
-        handle = (jint)wdsi->hwnd;
+        handle = A2L(wdsi->hwnd);
         if (!handle) {
           throwByName(env, EIllegalState, "Can't get HWND");
         }
@@ -2082,7 +2093,10 @@ get_ffi_rtype(JNIEnv* env, jclass cls, char jtype) {
     return get_ffi_type(env, cls, jtype);
   }
 }
-  
+
+void happy() {
+}
+
 #ifdef __cplusplus
 }
 #endif
