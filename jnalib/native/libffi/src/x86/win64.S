@@ -1,8 +1,8 @@
 #ifdef _MSC_VER
-PUBLIC	ffi_call_AMD64
+PUBLIC	ffi_call_win64
 
 EXTRN	__chkstk:NEAR
-EXTRN	ffi_closure_inner:NEAR
+EXTRN	ffi_closure_win64_inner:NEAR
 
 _TEXT	SEGMENT
 
@@ -12,9 +12,9 @@ _TEXT	SEGMENT
 ;;;    first four parameters are float or double
 ;;;
 ;;; It must move the parameters passed in registers to their stack location,
-;;; call ffi_closure_inner for the actual work, then return the result.
+;;; call ffi_closure_win64_inner for the actual work, then return the result.
 ;;; 
-ffi_closure_OUTER PROC FRAME
+ffi_closure_win64 PROC FRAME
 	;; save actual arguments to their stack space.
 	test	r11, 1
 	jne	first_is_float	
@@ -54,16 +54,16 @@ done:
 	mov	rcx, rax	; context is first parameter
 	mov	rdx, rsp	; stack is second parameter
 	add	rdx, 40		; correct our own area
-	mov	rax, ffi_closure_inner
+	mov	rax, ffi_closure_win64_inner
 	call	rax		; call the real closure function
 	;; Here, code is missing that handles float return values
 	add	rsp, 40
 	movd	xmm0, rax	; In case the closure returned a float.
 	ret	0
-ffi_closure_OUTER ENDP
+ffi_closure_win64 ENDP
 
 
-;;; ffi_call_AMD64
+;;; ffi_call_win64
 
 stack$ = 0
 prepfunc$ = 32
@@ -73,7 +73,7 @@ flags$ = 56
 rvalue$ = 64
 fn$ = 72
 
-ffi_call_AMD64 PROC FRAME
+ffi_call_win64 PROC FRAME
 
 	mov	QWORD PTR [rsp+32], r9
 	mov	QWORD PTR [rsp+24], r8
@@ -152,7 +152,7 @@ ret_nothing$:
 	lea	rsp, QWORD PTR [rbp+16]
 	pop	rbp
 	ret	0
-ffi_call_AMD64 ENDP
+ffi_call_win64 ENDP
 _TEXT	ENDS
 END
 #else        
@@ -162,18 +162,18 @@ END
 .text
 
 .extern ___chkstk
-.extern _ffi_closure_inner
+.extern _ffi_closure_win64_inner
 
-# ffi_closure_OUTER will be called with these registers set:
+# ffi_closure_win64 will be called with these registers set:
 #    rax points to 'closure'
 #    r11 contains a bit mask that specifies which of the
 #    first four parameters are float or double
 #
 # It must move the parameters passed in registers to their stack location,
-# call ffi_closure_inner for the actual work, then return the result.
+# call ffi_closure_win64_inner for the actual work, then return the result.
 # 
-.globl _ffi_closure_OUTER	
-_ffi_closure_OUTER:     
+.globl _ffi_closure_win64	
+_ffi_closure_win64:     
 	# save actual arguments to their stack space.
 	test	$1,%r11
 	jne	.Lfirst_is_float	
@@ -213,13 +213,13 @@ _ffi_closure_OUTER:
 	mov	%rax, %rcx	# context is first parameter
 	mov	%rsp, %rdx	# stack is second parameter
 	add	$40, %rdx	# correct our own area
-	mov	_ffi_closure_inner, %rax
+	mov	_ffi_closure_win64_inner, %rax
 	callq	*%rax		# call the real closure function
 	## Here, code is missing that handles float return values
 	add	$40, %rsp
 	movq	%rax, %xmm0	# In case the closure returned a float.
 	retq
-.ffi_closure_OUTER_end:
+.ffi_closure_win64_end:
 
 
 #define STACK 0
@@ -230,9 +230,9 @@ _ffi_closure_OUTER:
 #define RVALUE 64
 #define FN 72
 
-.globl	_ffi_call_AMD64
+.globl	_ffi_call_win64
 	.balign 16
-_ffi_call_AMD64:        
+_ffi_call_win64:        
 
 	mov	%r9,32(%rsp)
 	mov	%r8,24(%rsp)
@@ -311,5 +311,5 @@ _ffi_call_AMD64:
 	lea	16(%rbp), %rsp
 	pop	%rbp
 	retq
-.ffi_call_AMD64_end:
-#endif /* _MSC_VER */
+.ffi_call_win64_end:
+#endif /* !_MSC_VER */

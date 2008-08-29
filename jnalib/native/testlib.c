@@ -33,7 +33,7 @@ extern "C" {
 #define int64 long long
 #define LONG(X) X ## LL
 #else
-#error 64-bit type not defined for this platform
+#error 64-bit type not defined for this compiler
 #endif
 
 #define MAGICSTRING "magic";
@@ -659,7 +659,7 @@ returnStringVarArgs(const char *fmt, ...) {
   return cp;
 }
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(_WIN64)
 ///////////////////////////////////////////////////////////////////////
 // stdcall tests
 ///////////////////////////////////////////////////////////////////////
@@ -695,7 +695,7 @@ callInt32StdCallCallback(int32 (__stdcall *func)(int32 arg, int32 arg2),
   }
   return value;
 }
-#endif /* _WIN32 */
+#endif /* _WIN32 && !_WIN64 */
 
 #ifdef __cplusplus
 }

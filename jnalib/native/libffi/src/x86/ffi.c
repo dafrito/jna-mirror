@@ -191,8 +191,8 @@ extern void ffi_call_STDCALL(void (*)(char *, extended_cif *), extended_cif *,
 #endif /* X86_WIN32 */
 #ifdef X86_WIN64
 extern int
-ffi_call_AMD64(void (*)(char *, extended_cif *), extended_cif *,
-		 unsigned, unsigned, unsigned *, void (*fn)());
+ffi_call_win64(void (*)(char *, extended_cif *), extended_cif *,
+               unsigned, unsigned, unsigned *, void (*fn)());
 #endif
 
 void ffi_call(ffi_cif *cif, void (*fn)(), void *rvalue, void **avalue)
@@ -219,7 +219,7 @@ void ffi_call(ffi_cif *cif, void (*fn)(), void *rvalue, void **avalue)
 #ifdef X86_WIN64
     case FFI_DEFAULT_ABI:
       /* Function call needs at least 40 bytes stack size, on win64 AMD64 */
-      ffi_call_AMD64(ffi_prep_args, &ecif, cif->bytes ? cif->bytes : 40,
+      ffi_call_win64(ffi_prep_args, &ecif, cif->bytes ? cif->bytes : 40,
                      cif->flags, ecif.rvalue, fn);
       break;
 #else
@@ -256,9 +256,9 @@ void FFI_HIDDEN ffi_closure_STDCALL (ffi_closure *)
      __attribute__ ((regparm(1)));
 #endif /* X86_WIN32 */
 #ifdef X86_WIN64
-void FFI_HIDDEN ffi_closure_OUTER (ffi_closure *)
+void FFI_HIDDEN ffi_closure_win64 (ffi_closure *)
      __attribute__ ((regparm(1)));
-void * FFI_HIDDEN ffi_closure_inner (ffi_closure *, int *argp)
+void * FFI_HIDDEN ffi_closure_win64_inner (ffi_closure *, int *argp)
      __attribute__ ((regparm(1)));
 #endif
 
@@ -266,7 +266,7 @@ void * FFI_HIDDEN ffi_closure_inner (ffi_closure *, int *argp)
 
 #ifdef X86_WIN64
 void * FFI_HIDDEN
-ffi_closure_inner (ffi_closure *closure, int *argp) {
+ffi_closure_win64_inner (ffi_closure *closure, int *argp) {
   // this is our return value storage
   long double    res;
 
@@ -431,7 +431,7 @@ ffi_prep_closure_loc (ffi_closure* closure,
     {
       int mask = FLAG(0)|FLAG(1)|FLAG(2)|FLAG(3);
       FFI_INIT_TRAMPOLINE_WIN64 (&closure->tramp[0],
-                                 &ffi_closure_OUTER,
+                                 &ffi_closure_win64,
                                  codeloc, mask);
     }
 #else

@@ -3,7 +3,7 @@
 # ld-compatible wrapper for link.exe
 #
 #args="/pdbtype:sept"
-args="/nologo /nodefaultlib:msvcrtd /opt:REF /incremental:no"
+args="/nologo /opt:REF /incremental:no /subsystem:console /nodefaultlib:msvcrtd"
 link="/c/Program Files (x86)/Microsoft Visual Studio 9.0/vc/bin/link"
 while [ $# -gt 0 ]
 do

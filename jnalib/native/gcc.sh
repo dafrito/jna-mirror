@@ -3,7 +3,9 @@
 # GCC-compatible wrapper for cl.exe
 #
 args="/nologo /EHsc /W3" # /WX
-md=/MD
+# FIXME is this equivalent to --static-libgcc? links to msvcrt.lib
+#md=/MD
+md=/LD
 cl="/c/Program Files (x86)/Microsoft Visual Studio 9.0/vc/bin/cl"
 ml="/c/Program Files (x86)/Microsoft Visual Studio 9.0/vc/bin/ml"
 output=
@@ -101,7 +103,11 @@ do
       else
         output="/Fe$2"
       fi
-      args="$args $output /Fd$dir/$base /Fp$dir/$base /Fa$dir/$base"
+      if [ -n "$assembly" ]; then
+        args="$args $output"
+      else
+        args="$args $output /Fd$dir/$base /Fp$dir/$base /Fa$dir/$base"
+      fi
       shift 2
     ;;
     *.S)
@@ -110,7 +116,9 @@ do
       "$cl" /nologo /EP $includes $defines $1 > $src
       md=""
       cl="$ml"
-      args="/nologo $single $src"
+      output="$(echo $output | sed 's%/F[dpa][^ ]*%%g')"
+      args="/nologo $single $src $output"
+      assembly="true"
       shift 1
     ;;
     *.c)
@@ -127,3 +135,7 @@ done
 args="$md $args"
 echo "$cl $args"
 eval "\"$cl\" $args"
+# @#!%@!# ml64 broken output
+if [ -n "$assembly" ]; then
+    mv *.obj $(dirname $(echo $output|sed 's%/Fo%%g'))
+fi
