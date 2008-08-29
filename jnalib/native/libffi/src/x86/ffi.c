@@ -131,7 +131,9 @@ ffi_status ffi_prep_cif_machdep(ffi_cif *cif)
     case FFI_TYPE_SINT64:
     case FFI_TYPE_FLOAT:
     case FFI_TYPE_DOUBLE:
+#ifndef _MSC_VER
     case FFI_TYPE_LONGDOUBLE:
+#endif
       cif->flags = (unsigned) cif->rtype->type;
       break;
 
@@ -215,7 +217,7 @@ void ffi_call(ffi_cif *cif, void (*fn)(), void *rvalue, void **avalue)
   switch (cif->abi) 
     {
 #ifdef X86_WIN64
-    case FFI_UNIX64:
+    case FFI_DEFAULT_ABI:
       /* Function call needs at least 40 bytes stack size, on win64 AMD64 */
       ffi_call_AMD64(ffi_prep_args, &ecif, cif->bytes ? cif->bytes : 40,
                      cif->flags, ecif.rvalue, fn);
@@ -256,9 +258,48 @@ void FFI_HIDDEN ffi_closure_STDCALL (ffi_closure *)
 #ifdef X86_WIN64
 void FFI_HIDDEN ffi_closure_OUTER (ffi_closure *)
      __attribute__ ((regparm(1)));
+void * FFI_HIDDEN ffi_closure_inner (ffi_closure *, int *argp)
+     __attribute__ ((regparm(1)));
 #endif
 
 /* This function is jumped to by the trampoline */
+
+#ifdef X86_WIN64
+void * FFI_HIDDEN
+ffi_closure_inner (ffi_closure *closure, int *argp) {
+  // this is our return value storage
+  long double    res;
+
+  // our various things...
+  ffi_cif       *cif;
+  void         **arg_area;
+  unsigned short rtype;
+  void          *resp = (void*)&res;
+  void *args = &argp[1];
+
+  cif         = closure->cif;
+  arg_area    = (void**) alloca (cif->nargs * sizeof (void*));  
+
+  /* this call will initialize ARG_AREA, such that each
+   * element in that array points to the corresponding 
+   * value on the stack; and if the function returns
+   * a structure, it will re-set RESP to point to the
+   * structure return address.  */
+
+  ffi_prep_incoming_args_SYSV(args, (void**)&resp, arg_area, cif);
+  
+  (closure->fun) (cif, resp, arg_area, closure->user_data);
+
+  rtype = cif->flags;
+
+  /* The result is returned in rax.  This does the right thing for
+     result types except for floats; we have to 'mov xmm0, rax' in the
+     caller to correct this.
+  */
+  return *(void **)resp;
+}
+
+#else
 
 unsigned int FFI_HIDDEN
 ffi_closure_SYSV_inner (closure, respp, args)
@@ -286,6 +327,8 @@ ffi_closure_SYSV_inner (closure, respp, args)
 
   return cif->flags;
 }
+
+#endif /* !X86_WIN64 */
 
 static void
 ffi_prep_incoming_args_SYSV(char *stack, void **rvalue, void **avalue,
@@ -330,7 +373,7 @@ ffi_prep_incoming_args_SYSV(char *stack, void **rvalue, void **avalue,
 /* How to make a trampoline.  Derived from gcc/config/i386/i386.c. */
 
 #define FFI_INIT_TRAMPOLINE_WIN64(TRAMP,FUN,CTX,MASK) \
-({ unsigned char *__tramp = (unsigned char*)(TRAMP); \
+{ unsigned char *__tramp = (unsigned char*)(TRAMP); \
    void*  __fun = (void*)(FUN); \
    void*  __ctx = (void*)(CTX); \
    *(unsigned char*) &__tramp[0] = 0x41; \
@@ -345,7 +388,7 @@ ffi_prep_incoming_args_SYSV(char *stack, void **rvalue, void **avalue,
    *(unsigned char *)  &__tramp[26] = 0x41; \
    *(unsigned char *)  &__tramp[27] = 0xff; \
    *(unsigned char *)  &__tramp[28] = 0xe2; /* jmp%r10 */ \
- })
+ }
 
 #define FFI_INIT_TRAMPOLINE(TRAMP,FUN,CTX) \
 ({ unsigned char *__tramp = (unsigned char*)(TRAMP); \

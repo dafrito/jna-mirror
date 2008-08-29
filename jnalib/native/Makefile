@@ -88,35 +88,36 @@ ARCH=$(shell uname -m | sed 's/i.86/i386/g')
 CC += -mno-cygwin
 LD += -mno-cygwin -Wl,--add-stdcall-alias
 WINDRES=windres
+EXTRAOBJS=$(RSRC)
 ifneq ($(ARCH),amd64)
 CDEFINES=-DHAVE_PROTECTION
 else
-# mingw64 preliminary
+# MINGW64
 # native 64:
 # include paths are cygwin, compiler not cygwin, uses symlinks
 # vista doesn't recognize ld (32 or 64-bit) as gnu ld; XP does
-
 # cross 64:
 # final link succeeds, won't load unless testlib.o is added to head of objs
-
-CC = x86_64-pc-mingw32-gcc -m64 -mno-cygwin -g
+CC = x86_64-pc-mingw32-gcc -m64 -mno-cygwin
 LD = x86_64-pc-mingw32-ld
-CFLAGS += -g
-LDFLAGS=-o $@ -shared
-LIBS= -lmingwex -lkernel32 -lmsvcrt
-#FFI_LIB=
-WINDRES=x86_64-pc-mingw32-windres
-FFI_CONFIG += --host=x86_64-pc-mingw32 --enable-debug
-JNIDISPATCH_OBJS=$(BUILD)/testlib.o $(BUILD)/dispatch.o $(BUILD)/callback.o
+#LDFLAGS=-o $@ -shared
+#LIBS= -lmingwex -lkernel32 -lmsvcrt
+#WINDRES=x86_64-pc-mingw32-windres
+#FFI_CONFIG += --host=x86_64-pc-mingw32 --enable-debug
+#JNIDISPATCH_OBJS=$(BUILD)/testlib.o $(BUILD)/dispatch.o $(BUILD)/callback.o
 #FFI_SRC=c:/users/twall/ws/jna/native/libffi
 #; rm -f include/ffitarget.h; cp $(FFI_SRC)/include/*.h $(FFI_SRC)/src/x86/ffitarget.h include
 #FFI_ENV=NM=nm
 
 # MSVC wrappers
-# copy ffitarget.h instead of symlink
-# Lots of compilation errors (ACK!)
-#CC=/home/twall/ws/jna/native/gcc.sh -m64
-#LD=/home/twall/ws/jna/native/ld.sh -m64
+# fix up headers after configure (no symlinks, please)
+# Lots of compilation warnings (ACK!)
+# link succeeds, testlib needs source fixing for msvc
+CC=/home/twall/ws/jna/native/gcc.sh -m64
+LD=/home/twall/ws/jna/native/ld.sh -m64
+FFI_CONFIG += --host=x86_64-pc-mingw32; rm -f include/ffitarget.h; cp $(FFI_SRC)/include/*.h $(FFI_SRC)/src/x86/ffitarget.h include
+EXTRAOBJS=
+FFI_LIB=$(FFI_BUILD)/.libs/libffi_convenience.lib
 endif
 
 #LDFLAGS=/pdb:$(subst .dll,,$@).pdb /implib:$(subst .dll,,$@).lib /debug /machine:i386 /pdbtype:sept /dll /nologo /opt:REF /incremental:no /out:$@ 
@@ -124,7 +125,6 @@ STRIP=@echo
 
 LIBPFX=
 LIBSFX=.dll
-#EXTRAOBJS=$(RSRC)
 endif
 
 ifeq ($(OS),linux)

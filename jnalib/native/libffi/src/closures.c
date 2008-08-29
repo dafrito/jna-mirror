@@ -66,7 +66,9 @@
 
 #define USE_LOCKS 1
 #define USE_DL_PREFIX 1
+#ifndef _MSC_VER
 #define USE_BUILTIN_FFS 1
+#endif
 
 /* We need to use mmap, not sbrk.  */
 #define HAVE_MORECORE 0
@@ -96,7 +98,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#ifndef _MSC_VER
 #include <unistd.h>
+#endif
 #include <string.h>
 #include <stdio.h>
 #if !defined(X86_WIN32) && !defined(X86_WIN64)

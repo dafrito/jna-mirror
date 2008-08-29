@@ -29,6 +29,7 @@
 /* ---- System specific configurations ----------------------------------- */
 
 #if defined (X86_64) && defined (__i386__)
+#error wrong place
 #undef X86_64
 #define X86
 #endif
@@ -44,10 +45,17 @@ typedef enum ffi_abi {
 
   /* ---- Intel x86 Win32 ---------- */
 #ifdef X86_WIN32
+#error win32
   FFI_SYSV,
   FFI_STDCALL,
   /* TODO: Add fastcall support for the sake of completeness */
   FFI_DEFAULT_ABI = FFI_SYSV,
+#endif
+
+#ifdef X86_WIN64
+  FFI_SYSV,
+  FFI_UNIX64,
+  FFI_DEFAULT_ABI = FFI_UNIX64,
 #endif
 
   /* ---- Intel x86 and AMD x86-64 - */
