@@ -23,7 +23,7 @@ extern "C" {
 /* These are the calling conventions an invocation can handle. */
 typedef enum _callconv {
     CALLCONV_C = com_sun_jna_Function_C_CONVENTION,
-#if defined(_WIN32) && !defined(_WIN64)
+#ifdef _WIN32
     CALLCONV_STDCALL = com_sun_jna_Function_ALT_CONVENTION,
 #endif
 } callconv_t;

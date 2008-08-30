@@ -194,7 +194,7 @@ static void *getStructureAddress(JNIEnv *, jobject);
 static ffi_type* getStructureType(JNIEnv *, jobject);
 static void update_last_error(JNIEnv*, int);
 
-/** Invokes System.out.println (for debugging only). */
+/** Invokes System.err.println (for debugging only). */
 static void
 println(JNIEnv* env, const char* msg) {
   jclass cls = (*env)->FindClass(env, "java/lang/System");
@@ -213,6 +213,7 @@ static void
 dispatch(JNIEnv *env, jobject self, jint callconv, jobjectArray arr, 
          ffi_type *ffi_return_type, void *resP)
 {
+  __try {
   int i, nargs;
   void *func;
   jvalue* c_args;
@@ -328,22 +329,21 @@ dispatch(JNIEnv *env, jobject self, jint callconv, jobjectArray arr,
       ffi_types[i] = &ffi_type_pointer;
       ffi_values[i] = &c_args[i].l;
       if (c_args[i].l == NULL) {
-          c_args[i].l =
-              getBufferArray(env, arg, &array_elements[array_count].array,
-                             &array_elements[array_count].type,
-                             &array_elements[array_count].elems);
-          if (c_args[i].l == NULL) {
-              throwByName(env, EIllegalArgument,
-                          "Buffer arguments must be direct or have a primitive backing array");
-              goto cleanup;
-          }
-          ++array_count;
+        c_args[i].l =
+          getBufferArray(env, arg, &array_elements[array_count].array,
+                         &array_elements[array_count].type,
+                         &array_elements[array_count].elems);
+        if (c_args[i].l == NULL) {
+          throwByName(env, EIllegalArgument,
+                      "Buffer arguments must be direct or have a primitive backing array");
+          goto cleanup;
+        }
+        ++array_count;
       }
     }
     else if ((array_pt = getArrayComponentType(env, arg)) != 0
              && array_pt != 'L') {
       void *ptr = NULL;
-      
       switch(array_pt) {
       case 'Z': ptr = (*env)->GetBooleanArrayElements(env, arg, NULL); break;
       case 'B': ptr = (*env)->GetByteArrayElements(env, arg, NULL); break;
@@ -377,9 +377,14 @@ dispatch(JNIEnv *env, jobject self, jint callconv, jobjectArray arr,
   case CALLCONV_C:
     abi = FFI_DEFAULT_ABI;
     break;
-#if defined(_WIN32)  && !defined(_WIN64)
+#ifdef _WIN32
   case CALLCONV_STDCALL:
+#ifdef _WIN64
+    // Ignore requests for stdcall on win64
+    abi = FFI_DEFAULT_ABI;
+#else
     abi = FFI_STDCALL;
+#endif
     break;
 #endif // _WIN32
   default:
@@ -454,6 +459,10 @@ dispatch(JNIEnv *env, jobject self, jint callconv, jobjectArray arr,
                                          array_elements[i].elems, 0);
       break;
     }
+  }
+
+  } __except(1) {
+    throwByName(env, EError, "array contents error");
   }
 }
 
@@ -1008,7 +1017,7 @@ JNIEXPORT void JNICALL Java_com_sun_jna_Pointer__1read__J_3SII
 JNIEXPORT jbyte JNICALL Java_com_sun_jna_Pointer__1getByte
     (JNIEnv *env, jclass cls, jlong addr)
 {
-    jbyte res;
+    jbyte res = 0;
     MEMCPY(&res, L2A(addr), sizeof(res));
     return res;
 }
@@ -1021,7 +1030,7 @@ JNIEXPORT jbyte JNICALL Java_com_sun_jna_Pointer__1getByte
 JNIEXPORT jchar JNICALL Java_com_sun_jna_Pointer__1getChar
     (JNIEnv *env, jclass cls, jlong addr)
 {
-    wchar_t res;
+    wchar_t res = 0;
     MEMCPY(&res, L2A(addr), sizeof(res));
     return (jchar)res;
 }
@@ -1034,7 +1043,7 @@ JNIEXPORT jchar JNICALL Java_com_sun_jna_Pointer__1getChar
 JNIEXPORT jobject JNICALL Java_com_sun_jna_Pointer__1getPointer
     (JNIEnv *env, jclass cls, jlong addr)
 {
-    void *ptr;
+    void *ptr = NULL;
     MEMCPY(&ptr, L2A(addr), sizeof(ptr));
     return newJavaPointer(env, ptr);
 }
@@ -1058,7 +1067,7 @@ JNIEXPORT jobject JNICALL Java_com_sun_jna_Pointer__1getDirectByteBuffer
 JNIEXPORT jdouble JNICALL Java_com_sun_jna_Pointer__1getDouble
     (JNIEnv *env, jclass cls, jlong addr)
 {
-    jdouble res;
+    jdouble res = 0;
     MEMCPY(&res, L2A(addr), sizeof(res));
     return res;
 }
@@ -1071,7 +1080,7 @@ JNIEXPORT jdouble JNICALL Java_com_sun_jna_Pointer__1getDouble
 JNIEXPORT jfloat JNICALL Java_com_sun_jna_Pointer__1getFloat
     (JNIEnv *env, jclass cls, jlong addr)
 {
-    jfloat res;
+    jfloat res = 0;
     MEMCPY(&res, L2A(addr), sizeof(res));
     return res;
 }
@@ -1084,7 +1093,7 @@ JNIEXPORT jfloat JNICALL Java_com_sun_jna_Pointer__1getFloat
 JNIEXPORT jint JNICALL Java_com_sun_jna_Pointer__1getInt
     (JNIEnv *env, jclass cls, jlong addr)
 {
-    jint res;
+    jint res = 0;
     MEMCPY(&res, L2A(addr), sizeof(res));
     return res;
 }
@@ -1097,7 +1106,7 @@ JNIEXPORT jint JNICALL Java_com_sun_jna_Pointer__1getInt
 JNIEXPORT jlong JNICALL Java_com_sun_jna_Pointer__1getLong
     (JNIEnv *env, jclass cls, jlong addr)
 {
-    jlong res;
+    jlong res = 0;
     MEMCPY(&res, L2A(addr), sizeof(res));
     return res;
 }
@@ -1110,7 +1119,7 @@ JNIEXPORT jlong JNICALL Java_com_sun_jna_Pointer__1getLong
 JNIEXPORT jshort JNICALL Java_com_sun_jna_Pointer__1getShort
     (JNIEnv *env, jclass cls, jlong addr)
 {
-    jshort res;
+    jshort res = 0;
     MEMCPY(&res, L2A(addr), sizeof(res));
     return res;
 }
@@ -1545,6 +1554,7 @@ do { jboolean cpy; \
     *elemp = ptr;
     ptr = (char *)ptr + offset;
   }
+
   return ptr;
 }
 

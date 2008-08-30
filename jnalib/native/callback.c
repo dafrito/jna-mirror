@@ -38,6 +38,8 @@ callback*
 create_callback(JNIEnv* env, jobject obj, jobject method,
                 jobjectArray param_types, jclass return_type,
                 callconv_t calling_convention) {
+  __try {
+
   callback* cb;
   ffi_abi abi = FFI_DEFAULT_ABI;
   ffi_status status;
@@ -108,6 +110,10 @@ create_callback(JNIEnv* env, jobject obj, jobject method,
 
  failure_cleanup:
   free_callback(env, cb);
+
+  } __except(1) {
+    throwByName(env, EError, "unexpected failure");
+  }
 
   return NULL;
 }

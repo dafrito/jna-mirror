@@ -2,7 +2,7 @@
 #
 # GCC-compatible wrapper for cl.exe
 #
-nowarn="/wd4127 /wd4820 /wd4706 /wd4100"
+nowarn="/wd4127 /wd4820 /wd4706 /wd4100 /wd4255"
 args="/nologo /EHac /W3 /LD $nowarn" # /WX
 # FIXME is this equivalent to --static-libgcc? links to msvcrt.lib
 # I've forgotten why it was originally added

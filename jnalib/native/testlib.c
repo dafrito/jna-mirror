@@ -224,7 +224,6 @@ returnPointerArrayElement(void* args[], int which) {
 
 EXPORT int
 returnRotatedArgumentCount(char* args[]) {
-  int i=0;
   int count = 0;
   char* first = args[0];
   while (args[count] != NULL) {
@@ -400,9 +399,9 @@ getStructureSize(unsigned index) {
   return STRUCT_SIZES[index];
 }
 
-  extern void exit(int);
+extern void exit(int);
 #define FIELD(T,X,N) (((T*)X)->field ## N)
-#define OFFSET(T,X,N) (((char*)&FIELD(T,X,N))-((char*)&FIELD(T,X,0)))
+#define OFFSET(T,X,N) (int)(((char*)&FIELD(T,X,N))-((char*)&FIELD(T,X,0)))
 #define V8(N) (N+1)
 #define V16(N) ((((int32)V8(N))<<8)|V8(N))
 #define V32(N) ((((int32)V16(N))<<16)|V16(N))
@@ -460,7 +459,7 @@ modifyStructureArray(struct CheckFieldAlignment arg[], int length) {
 
 
 EXPORT void
-callVoidCallback(void (*func)()) {
+callVoidCallback(void (*func)(void)) {
   (*func)();
 }
 
@@ -536,7 +535,7 @@ callWideStringCallback(wchar_t* (*func)(wchar_t* arg), wchar_t* arg) {
 }
 
 struct cbstruct {
-  void (*func)();
+  void (*func)(void);
 };
 
 EXPORT void
@@ -562,13 +561,14 @@ structCallbackFunction(int arg1, int arg2) {
 
 EXPORT void
 setCallbackInStruct(struct cbstruct* cb) {
-  cb->func = (void (*)())structCallbackFunction;
+  cb->func = (void (*)(void))structCallbackFunction;
 }
 
 
 EXPORT int32 
 fillInt8Buffer(char *buf, int len, char value) {
   int i;
+
   for (i=0;i < len;i++) {
     buf[i] = value;
   }
@@ -652,7 +652,6 @@ EXPORT char *
 returnStringVarArgs(const char *fmt, ...) {
   char* cp;
   va_list ap;
-  int32 sum = 0;
   va_start(ap, fmt);
   cp = va_arg(ap, char *);
   va_end(ap);

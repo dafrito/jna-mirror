@@ -74,7 +74,7 @@ _exc_handler(struct _EXCEPTION_RECORD* exception_record,
 
 #ifdef _MSC_VER
 #define PROTECTED_START() __try {
-#define PROTECTED_END(ONERR) } __except((PROTECT)?EXCEPTION_EXECUTE_HANDLER:EXCEPTION_CONTINUE_SEARCH) { fprintf(stderr, "failed\n"); ONERR; }
+#define PROTECTED_END(ONERR) } __except((PROTECT)?EXCEPTION_EXECUTE_HANDLER:EXCEPTION_CONTINUE_SEARCH) { ONERR; }
 #else
 #ifdef _WIN64
 // untested
