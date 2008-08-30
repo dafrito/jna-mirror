@@ -89,9 +89,8 @@ CC += -mno-cygwin
 LD += -mno-cygwin -Wl,--add-stdcall-alias
 WINDRES=windres
 EXTRAOBJS=$(RSRC)
-ifneq ($(ARCH),amd64)
 CDEFINES=-DHAVE_PROTECTION
-else
+ifeq ($(ARCH),amd64)
 # MINGW64
 # native 64:
 # include paths are cygwin, compiler not cygwin, uses symlinks
