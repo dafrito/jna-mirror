@@ -1725,15 +1725,16 @@ Java_com_sun_jna_Native_getWindowHandle0(JNIEnv *env, jclass classp, jobject w) 
         if (java_home != NULL) {
           if ((prop = newWideCString(env, java_home)) != NULL) {
             const wchar_t* suffix = L"/bin/jawt.dll";
-            path = (wchar_t*)alloca((wcslen(prop) + wcslen(suffix) + 1) * sizeof(wchar_t));
-            swprintf(path, L"%s%s", prop, suffix);
+            int len = wcslen(prop) + wcslen(suffix) + 1;
+            path = (wchar_t*)alloca(len * sizeof(wchar_t));
+            swprintf(path, len, L"%s%s", prop, suffix);
             free(prop);
           }
         }
       }
     }
-#undef LOAD_LIBRARY
-#define LOAD_LIBRARY(X) LoadLibraryW(path)
+#undef JAWT_NAME
+#define JAWT_NAME path
 #endif
     if ((jawt_handle = LOAD_LIBRARY(JAWT_NAME)) == NULL) {
       char msg[1024];

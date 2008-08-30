@@ -2,10 +2,12 @@
 #
 # GCC-compatible wrapper for cl.exe
 #
-args="/nologo /EHsc /W3" # /WX
+nowarn="/wd4127 /wd4820 /wd4706 /wd4100"
+args="/nologo /EHsc /W3 $nowarn /LD" # /WX
 # FIXME is this equivalent to --static-libgcc? links to msvcrt.lib
+# I've forgotten why it was originally added
+# /MD causes link problems
 #md=/MD
-md=/LD
 cl="/c/Program Files (x86)/Microsoft Visual Studio 9.0/vc/bin/cl"
 ml="/c/Program Files (x86)/Microsoft Visual Studio 9.0/vc/bin/ml"
 output=
