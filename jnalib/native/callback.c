@@ -43,7 +43,6 @@ create_callback(JNIEnv* env, jobject obj, jobject method,
   callback* cb;
   ffi_abi abi = FFI_DEFAULT_ABI;
   ffi_status status;
-  int args_size = 0;
   jsize argc;
   JavaVM* vm;
   char rtype;
@@ -100,6 +99,7 @@ create_callback(JNIEnv* env, jobject obj, jobject method,
   case FFI_OK: 
     ffi_prep_closure_loc(cb->ffi_closure, &cb->ffi_cif, callback_dispatch, cb,
                          cb->x_closure);
+
     return cb;
   default:
     snprintf(msg, sizeof(msg),
@@ -142,6 +142,8 @@ callback_dispatch(ffi_cif* cif, void* resp, void** cbargs, void* user_data) {
     }
   }
   
+  __try {
+
   self = (*env)->NewLocalRef(env, cb->object);
   // Avoid calling back to a GC'd object
   if ((*env)->IsSameObject(env, self, NULL)) {
@@ -163,6 +165,10 @@ callback_dispatch(ffi_cif* cif, void* resp, void** cbargs, void* user_data) {
     else {
       extract_value(env, result, resp, cif->rtype->size);
     }
+  }
+
+  } __except(1) {
+    fprintf(stderr, "callback dispatch error\n");
   }
 
   if (!attached) {

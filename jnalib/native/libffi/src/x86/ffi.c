@@ -217,7 +217,7 @@ void ffi_call(ffi_cif *cif, void (*fn)(), void *rvalue, void **avalue)
   switch (cif->abi) 
     {
 #ifdef X86_WIN64
-    case FFI_DEFAULT_ABI:
+    case FFI_WIN64:
       /* ffi_call_win64 requires at least 40 bytes stack on win64
        * This comprises space for four register arguments and a
        * pointer to return value.
@@ -259,10 +259,8 @@ void FFI_HIDDEN ffi_closure_STDCALL (ffi_closure *)
      __attribute__ ((regparm(1)));
 #endif /* X86_WIN32 */
 #ifdef X86_WIN64
-void FFI_HIDDEN ffi_closure_win64 (ffi_closure *)
-     __attribute__ ((regparm(1)));
-void * FFI_HIDDEN ffi_closure_win64_inner (ffi_closure *, int *argp)
-     __attribute__ ((regparm(1)));
+void FFI_HIDDEN ffi_closure_win64 (ffi_closure *);
+void *FFI_HIDDEN ffi_closure_win64_inner (ffi_closure *, int *argp);
 #endif
 
 /* This function is jumped to by the trampoline */
@@ -390,7 +388,7 @@ ffi_prep_incoming_args_SYSV(char *stack, void **rvalue, void **avalue,
    *(void**) &__tramp[18] = __fun; /* mov __fun, %r10 */ \
    *(unsigned char *)  &__tramp[26] = 0x41; \
    *(unsigned char *)  &__tramp[27] = 0xff; \
-   *(unsigned char *)  &__tramp[28] = 0xe2; /* jmp%r10 */ \
+   *(unsigned char *)  &__tramp[28] = 0xe2; /* jmp %r10 */ \
  }
 
 #define FFI_INIT_TRAMPOLINE(TRAMP,FUN,CTX) \
@@ -427,10 +425,10 @@ ffi_prep_closure_loc (ffi_closure* closure,
 		      void *user_data,
 		      void *codeloc)
 {
-  if (cif->abi == FFI_SYSV)
 #ifdef X86_WIN64
 #define ISFLOAT(IDX) (cif->arg_types[IDX]->type == FFI_TYPE_FLOAT || cif->arg_types[IDX]->type == FFI_TYPE_DOUBLE)
 #define FLAG(IDX) (cif->nargs>(IDX)&&ISFLOAT(IDX)?(1<<(IDX)):0)
+  if (cif->abi == FFI_WIN64) 
     {
       int mask = FLAG(0)|FLAG(1)|FLAG(2)|FLAG(3);
       FFI_INIT_TRAMPOLINE_WIN64 (&closure->tramp[0],
@@ -438,6 +436,7 @@ ffi_prep_closure_loc (ffi_closure* closure,
                                  codeloc, mask);
     }
 #else
+  if (cif->abi == FFI_SYSV)
     {
       FFI_INIT_TRAMPOLINE (&closure->tramp[0], 
                            &ffi_closure_SYSV,  

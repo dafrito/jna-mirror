@@ -66,7 +66,7 @@
 
 #define USE_LOCKS 1
 #define USE_DL_PREFIX 1
-#ifndef _MSC_VER
+#ifdef __GNUC__
 #define USE_BUILTIN_FFS 1
 #endif
 

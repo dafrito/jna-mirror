@@ -66,17 +66,17 @@ forth_is_float:
 	movlpd	QWORD PTR [rsp+32], xmm3
 
 done:
-.ALLOCSTACK 40
+        .ALLOCSTACK 40
 	sub	rsp, 40
-.ENDPROLOG
+        .ENDPROLOG
 	mov	rcx, rax	; context is first parameter
 	mov	rdx, rsp	; stack is second parameter
 	add	rdx, 40		; correct our own area
 	mov	rax, ffi_closure_win64_inner
 	call	rax		; call the real closure function
-	;; Here, code is missing that handles float return values
 	add	rsp, 40
-	movd	xmm0, rax	; In case the closure returned a float.
+	movd	xmm0, rax	; If the closure returned a float,
+                                ; ffi_closure_win64 wrote it to rax
 	ret	0
 ffi_closure_win64 ENDP
 
@@ -221,9 +221,9 @@ _ffi_closure_win64:
 	add	$40, %rdx	# correct our own area
 	mov	_ffi_closure_win64_inner, %rax
 	callq	*%rax		# call the real closure function
-	## Here, code is missing that handles float return values
 	add	$40, %rsp
-	movq	%rax, %xmm0	# In case the closure returned a float.
+	movq	%rax, %xmm0	# If the closure returned a float,
+                                # ffi_closure_win64 wrote it to rax
 	retq
 .ffi_closure_win64_end:
 

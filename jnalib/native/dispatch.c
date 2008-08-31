@@ -213,7 +213,6 @@ static void
 dispatch(JNIEnv *env, jobject self, jint callconv, jobjectArray arr, 
          ffi_type *ffi_return_type, void *resP)
 {
-  __try {
   int i, nargs;
   void *func;
   jvalue* c_args;
@@ -459,10 +458,6 @@ dispatch(JNIEnv *env, jobject self, jint callconv, jobjectArray arr,
                                          array_elements[i].elems, 0);
       break;
     }
-  }
-
-  } __except(1) {
-    throwByName(env, EError, "array contents error");
   }
 }
 
