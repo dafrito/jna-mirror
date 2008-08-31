@@ -17,6 +17,8 @@
   <property name="jar" value="${name}.jar"/>
   <property name="debug" value="true"/>
   <property name="debug.native" value="false"/>
+  <property name="cflags_extra.native" value=""/>
+  <property name="dynlink.native" value="false"/>
   <property name="native" location="native"/>
   <property name="src" location="src"/>
   <property name="dist" location="dist"/>
@@ -31,7 +33,7 @@
   <!-- JNA library release version -->            
   <property name="jna.major" value="3"/>
   <property name="jna.minor" value="0"/>
-  <property name="jna.revision" value="4"/>
+  <property name="jna.revision" value="5"/>
   <property name="jna.build" value="${build.number}"/>
   <property name="jna.version" value="${jna.major}.${jna.minor}.${jna.revision}"/>
   <!-- jnidispatch library release version -->
@@ -48,7 +50,7 @@
   <property name="impl.vendor" value="${spec.vendor}"/>
   <property name="impl.version" value="${jna.version} b${jna.build}"/>
 
-  <property name="compatibility" value="1.5"/>
+  <property name="compatibility" value="1.4"/>
   <property name="test.compatibility" value="1.5"/>
 
   <!-- Miscellaneous -->
@@ -65,6 +67,13 @@
     <echo>Java version: ${java.version}, compatibility: ${compatibility}</echo>
     <echo>JNA version ${jna.version}, native API version ${jni.version}</echo>
 
+    <replaceregexp match="(&lt;version&gt;).*(&lt;/version&gt;)"
+                   replace="\1${jna.version}\2" 
+                   file="pom.xml"/>
+
+    <condition property="jar.omitted" value="**/*jnidispatch*" else="jnilib-included">
+      <isset property="omit-jnilib"/>
+    </condition>
     <condition property="vm.arch" value="-d64" else="">
       <or>
         <equals arg1="${sun.arch.data.model}" arg2="64" trim="true"/>
@@ -104,6 +113,9 @@
     </condition>
     <condition property="os.prefix" value="freebsd-${os.arch}">
       <os name="FreeBSD"/>
+    </condition>
+    <condition property="os.prefix" value="openbsd-${os.arch}">
+      <os name="OpenBSD"/>
     </condition>
     <fail unless="os.prefix" message="OS/arch not supported (${os.name}/${os.arch}), edit build.xml and native/Makefile to add it."/>
     <condition property="jdk.home" value="${java.home}">
@@ -189,7 +201,9 @@
           <attribute name="Specification-Version" value="${spec.version}"/>
         </section>
       </manifest>
-      <fileset dir="${classes}"><patternset refid="jar-compiled"/></fileset>
+      <fileset dir="${classes}" excludes="${jar.omitted}">
+        <patternset refid="jar-compiled"/>
+      </fileset>
     </jar>
   </target>
   <target name="examples" depends="jar,native">
@@ -216,6 +230,9 @@
     <condition property="grep" value="/usr/sfw/bin/ggrep">
       <os name="SunOS"/>
     </condition>
+    <condition property="grep" value="ggrep">
+      <os name="OpenBSD"/>
+    </condition>
     <property name="grep" value="grep"/>
     <apply dir="${build.native}" executable="${grep}" parallel="true"
            failonerror="true" relative="true" output="${md5.file}">
@@ -240,6 +257,7 @@
     <copy file="${dist}/out-of-date.jar" tofile="${dist}/linux-amd64.jar" overwrite="true"/>
     <copy file="${dist}/out-of-date.jar" tofile="${dist}/freebsd-i386.jar" overwrite="true"/>
     <copy file="${dist}/out-of-date.jar" tofile="${dist}/freebsd-amd64.jar" overwrite="true"/>
+    <copy file="${dist}/out-of-date.jar" tofile="${dist}/openbsd-i386.jar" overwrite="true"/>
     <copy file="${dist}/out-of-date.jar" tofile="${dist}/sunos-x86.jar" overwrite="true"/>
     <copy file="${dist}/out-of-date.jar" tofile="${dist}/sunos-amd64.jar" overwrite="true"/>
     <copy file="${dist}/out-of-date.jar" tofile="${dist}/sunos-sparc.jar" overwrite="true"/>
@@ -317,7 +335,10 @@
       <os name="SunOS"/>
     </condition>
     <condition property="make" value="gmake">
-      <os name="FreeBSD"/>
+      <or>
+        <os name="FreeBSD"/>
+        <os name="OpenBSD"/>
+      </or>
     </condition>
     <!-- Default make program -->
     <property name="make" value="make"/>
@@ -326,6 +347,8 @@
       <arg value="JAVA_HOME=${jdk.home}"/>
       <arg value="JAVAH=${build.native}"/>
       <arg value="DEBUG=${debug.native}"/>
+      <arg value="CFLAGS_EXTRA=${cflags_extra.native}"/>
+      <arg value="DYNAMIC_LIBFFI=${dynlink.native}"/>
       <arg value="${make.CC}"/>
       <arg value="${make.BUILD}"/>
       <arg value="${make.SDKROOT}"/>
@@ -336,13 +359,13 @@
     </exec>
     <mkdir dir="${classes}/com/sun/jna/${os.prefix}"/>
     <copy todir="${classes}/com/sun/jna/${os.prefix}">
-      <fileset dir="${build.native}" 
+      <fileset dir="${build.native}"
                includes="jnidispatch.dll,libjnidispatch.*"/>
     </copy>
     <mkdir dir="${eclipse.classes}/com/sun/jna/${os.prefix}"/>
     <copy todir="${eclipse.classes}/com/sun/jna/${os.prefix}"
           failonerror="false">
-      <fileset dir="${build.native}" 
+      <fileset dir="${build.native}"
                includes="jnidispatch.dll,libjnidispatch.*"/>
     </copy>
     <!-- For web start, native libraries may be provided in the root of -->
@@ -521,6 +544,9 @@
       <zipfileset src="${dist}/freebsd-amd64.jar" 
                   includes="*jnidispatch*"
                   prefix="com/sun/jna/freebsd-amd64"/>
+      <zipfileset src="${dist}/openbsd-i386.jar" 
+                  includes="*jnidispatch*"
+                  prefix="com/sun/jna/openbsd-i386"/>
     </jar>
     <copy todir="${dist}">
       <fileset dir="${build}">
@@ -531,13 +557,20 @@
     <zip zipfile="${dist}/doc.zip">
       <zipfileset dir="${javadoc}" prefix="javadoc"/>
     </zip>
+    <!-- JNA sources only, for use in Linux build from source -->
     <zip zipfile="${dist}/src.zip">
-      <zipfileset dir="." includes="build.xml,.classpath,.project"/>
-      <zipfileset dir="lib" includes="junit.jar" prefix="lib"/>
-      <zipfileset dir="nbproject" includes="**/*" prefix="nbproject"/>
+      <zipfileset dir="." includes="build.xml,LICENSE.txt"/>
       <zipfileset dir="${src}" includes="**/*.java" prefix="src"/>
       <zipfileset dir="${test.src}" includes="**/*.java" prefix="test"/>
-      <zipfileset dir="${native}" prefix="native"/>
+      <zipfileset dir="${native}" excludes="libffi,libffi/**/*" prefix="native"/>
+    </zip>
+    <!-- Full sources required to build and test everything -->
+    <zip zipfile="${dist}/src-full.zip">
+      <zipfileset src="${dist}/src.zip"/>
+      <zipfileset dir="lib" includes="junit.jar" prefix="lib"/>
+      <zipfileset dir="." includes=".classpath,.project"/>
+      <zipfileset dir="nbproject" includes="**/*" prefix="nbproject"/>
+      <zipfileset dir="${native}" includes="libffi,libffi/**/*" prefix="native"/>
     </zip>
   </target>
 

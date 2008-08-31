@@ -16,6 +16,7 @@ package com.sun.jna.examples;
 import java.awt.AlphaComposite;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dialog;
@@ -29,6 +30,10 @@ import java.awt.GraphicsEnvironment;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Shape;
+import java.awt.Toolkit;
+import java.awt.event.AWTEventListener;
+import java.awt.event.MouseEvent;
+import java.awt.AWTEvent;
 import java.awt.Window;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
@@ -107,7 +112,15 @@ import com.sun.jna.ptr.PointerByReference;
  * Window#paint(Graphics)} on OS X, you'll need to explicitly set the clip
  * mask on the <code>Graphics</code> object with the window mask; only the
  * content pane of the window and below have the window mask automatically
- * applied.
+ * applied.<p>
+ * NOTE: On OSX, the property
+ * <code>apple.awt.draggableWindowBackground</code> is set automatically when
+ * a window's background color has an alpha component.  That property must be
+ * set to its final value <em>before</em> the heavyweight peer for the Window
+ * is created.  Once {@link Component#addNotify} has been called on the
+ * component, causing creation of the heavyweight peer, changing this
+ * property has no effect. 
+ * @see <a href="http://developer.apple.com/technotes/tn2007/tn2196.html#APPLE_AWT_DRAGGABLEWINDOWBACKGROUND">Apple Technote 2007</a>
  */
 // TODO: setWindowMask() should accept a threshold; some cases want a
 // 50% threshold, some might want zero/non-zero
@@ -162,8 +175,9 @@ public class WindowUtils {
      */
     protected static class RepaintTrigger extends JComponent {
 
-        protected class Listener extends WindowAdapter implements
-            ComponentListener, HierarchyListener {
+        protected class Listener
+            extends WindowAdapter
+            implements ComponentListener, HierarchyListener, AWTEventListener {
             public void windowOpened(WindowEvent e) {
                 repaint();
             }
@@ -184,6 +198,15 @@ public class WindowUtils {
             public void hierarchyChanged(HierarchyEvent e) {
                 repaint();
             }
+
+            public void eventDispatched(AWTEvent e) {
+                Component src = (Component)e.getSource();
+                MouseEvent me = SwingUtilities.convertMouseEvent(src, (MouseEvent)e, content);
+                Component c = SwingUtilities.getDeepestComponentAt(content, me.getX(), me.getY());
+                if (c != null) {
+                    setCursor(c.getCursor());
+                }
+            };
         }
 
         private final Listener listener = createListener();
@@ -199,9 +222,11 @@ public class WindowUtils {
             setSize(getParent().getSize());
             w.addComponentListener(listener);
             w.addWindowListener(listener);
+            Toolkit.getDefaultToolkit().addAWTEventListener(listener, AWTEvent.MOUSE_EVENT_MASK|AWTEvent.MOUSE_MOTION_EVENT_MASK);
         }
 
         public void removeNotify() {
+            Toolkit.getDefaultToolkit().removeAWTEventListener(listener);
             Window w = SwingUtilities.getWindowAncestor(this);
             w.removeComponentListener(listener);
             w.removeWindowListener(listener);
@@ -906,24 +931,52 @@ public class WindowUtils {
             return content;
         }
 
+        /** Note that the property
+         * <code>apple.awt.draggableWindowBackground</code> must be set to its
+         * final value <em>before</em> the heavyweight peer for the Window is
+         * created.  Once {@link Component#addNotify} has been called on the
+         * component, causing creation of the heavyweight peer, changing this
+         * property has no effect.
+         * @see <a href="http://developer.apple.com/technotes/tn2007/tn2196.html#APPLE_AWT_DRAGGABLEWINDOWBACKGROUND">Apple Technote 2007</a>
+         */
         public void setWindowTransparent(Window w, boolean transparent) {
             boolean isTransparent = w.getBackground() != null
                 && w.getBackground().getAlpha() == 0;
             if (transparent != isTransparent) {
                 installTransparentContent(w);
-                setBackgroundTransparent(w, transparent);
+                setBackgroundTransparent(w, transparent, "setWindowTransparent");
                 setLayersTransparent(w, transparent);
             }
         }
 
+        /** Setting this false restores the original setting. */
+        private static final String WDRAG = "apple.awt.draggableWindowBackground";
+        private void fixWindowDragging(Window w, String context) {
+            if (w instanceof RootPaneContainer) {
+                JRootPane p = ((RootPaneContainer)w).getRootPane();
+                Boolean oldDraggable = (Boolean)p.getClientProperty(WDRAG);
+                if (oldDraggable == null) {
+                    p.putClientProperty(WDRAG, Boolean.FALSE);
+                    if (w.isDisplayable()) {
+                        System.err.println(context + "(): To avoid content dragging, " + context + "() must be called before the window is realized, or " + WDRAG + " must be set to Boolean.FALSE before the window is realized.  If you really want content dragging, set " + WDRAG + " on the window's root pane to Boolean.TRUE before calling " + context + "() to hide this message.");
+                    }
+                }
+            }
+        }
+        
+        /** Note that the property
+         * <code>apple.awt.draggableWindowBackground</code> must be set to its
+         * final value <em>before</em> the heavyweight peer for the Window is
+         * created.  Once {@link Component#addNotify} has been called on the
+         * component, causing creation of the heavyweight peer, changing this
+         * property has no effect.
+         * @see <a href="http://developer.apple.com/technotes/tn2007/tn2196.html#APPLE_AWT_DRAGGABLEWINDOWBACKGROUND">Apple Technote 2007</a>
+         */
         public void setWindowAlpha(final Window w, final float alpha) {
             if (w instanceof RootPaneContainer) {
-                SwingUtilities.invokeLater(new Runnable() {
-                    public void run() {
-                        JRootPane p = ((RootPaneContainer)w).getRootPane();
-                        p.putClientProperty("Window.alpha", new Float(alpha));
-                    }
-                });
+                JRootPane p = ((RootPaneContainer)w).getRootPane();
+                p.putClientProperty("Window.alpha", new Float(alpha));
+                fixWindowDragging(w, "setWindowAlpha");
             }
             whenDisplayable(w, new Runnable() {
                 public void run() {
@@ -936,7 +989,7 @@ public class WindowUtils {
                                 });
                     }
                     catch (Exception e) {
-       	            }
+                    }
                 }
             });
         }
@@ -956,7 +1009,7 @@ public class WindowUtils {
                 Window w = (Window)c;
                 OSXTransparentContent content = installTransparentContent(w);
                 content.setMask(shape);
-                setBackgroundTransparent(w, shape != MASK_NONE);
+                setBackgroundTransparent(w, shape != MASK_NONE, "setWindowMask");
             }
             else {
                 // not yet implemented
@@ -998,14 +1051,24 @@ public class WindowUtils {
             }
         }
 
-        private void setBackgroundTransparent(Window w, boolean transparent) {
+        private void setBackgroundTransparent(Window w, boolean transparent, String context) {
+            JRootPane rp = w instanceof RootPaneContainer
+                ? ((RootPaneContainer)w).getRootPane() : null;
             if (transparent) {
+                if (rp != null) {
+                    rp.putClientProperty("bg.old", w.getBackground());
+                }
                 w.setBackground(new Color(0,0,0,0));
             }
             else {
-                // FIXME restore background to original color
-                w.setBackground(null);
+                if (rp != null) {
+                    w.setBackground((Color)rp.getClientProperty("bg.old"));
+                }
+                else {
+                    w.setBackground(null);
+                }
             }
+            fixWindowDragging(w, context);
         }
     }
     private static class X11WindowUtils extends NativeWindowUtils {
@@ -1405,7 +1468,14 @@ public class WindowUtils {
      * opaque, 0.0 fully transparent. The alpha level is applied equally
      * to all window pixels.<p>
      * NOTE: Windows requires that <code>sun.java2d.noddraw=true</code>
-     * in order for alpha to work.
+     * in order for alpha to work.<p>
+     * NOTE: On OSX, the property
+     * <code>apple.awt.draggableWindowBackground</code> must be set to its
+     * final value <em>before</em> the heavyweight peer for the Window is
+     * created.  Once {@link Component#addNotify} has been called on the
+     * component, causing creation of the heavyweight peer, changing this
+     * property has no effect. 
+     * @see <a href="http://developer.apple.com/technotes/tn2007/tn2196.html#APPLE_AWT_DRAGGABLEWINDOWBACKGROUND">Apple Technote 2007</a>
      */
     public static void setWindowAlpha(Window w, float alpha) {
         getInstance().setWindowAlpha(w, Math.max(0f, Math.min(alpha, 1f)));
@@ -1415,6 +1485,13 @@ public class WindowUtils {
      * Set the window to be transparent. Only explicitly painted pixels
      * will be non-transparent. All pixels will be composited with
      * whatever is under the window using their alpha values.
+     * 
+     * On OSX, the property <code>apple.awt.draggableWindowBackground</code>
+     * must be set to its final value <em>before</em> the heavyweight peer for
+     * the Window is created.  Once {@link Component#addNotify} has been
+     * called on the component, causing creation of the heavyweight peer,
+     * changing this property has no effect.
+     * @see <a href="http://developer.apple.com/technotes/tn2007/tn2196.html#APPLE_AWT_DRAGGABLEWINDOWBACKGROUND">Apple Technote 2007</a>
      */
     public static void setWindowTransparent(Window w, boolean transparent) {
         getInstance().setWindowTransparent(w, transparent);

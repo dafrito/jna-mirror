@@ -294,7 +294,7 @@ public class StructureTest extends TestCase {
                 // Have to do this due to inline primitive arrays
                 allocateMemory();
             }
-            public boolean z;       // native Bool
+            public boolean z;       // native int
             public byte b;          // native char
             public char c;          // native wchar_t
             public short s;         // native short
@@ -358,48 +358,10 @@ public class StructureTest extends TestCase {
             assertEquals("Wrong float array field value after write/read", s.fa[i], (float) 26 + i);
             assertEquals("Wrong double array field value after write/read", s.da[i], (double) 29 + i);
         }
-    }
-
-    public void testNativeTypeConversion() {
-        class TestStructure extends Structure {
-            @TypeConversion(converter = NativeTypeConverter.NativeLong.class)
-            public long l;
-        }
-        TestStructure s = new TestStructure();
-        assertEquals("Wrong size", NativeLong.SIZE, s.size());
-        // test read/write
-        s.l = 0xDEADBEEF;
-        s.write();
-        Pointer p = s.getPointer();
-        s = new TestStructure();
-        s.useMemory(p);
-        s.read();
-        assertEquals("Wrong value", 0xDEADBEEF, s.l);
-    }
-
-    public void testNativeArrayTypeConversion() {
-        class TestStructure extends Structure {
-            @TypeConversion(converter = NativeTypeConverter.NativeLong.class)
-            public long[] la = new long[3];
-        }
-        TestStructure s = new TestStructure();
-        assertEquals("Wrong size", 3 * NativeLong.SIZE, s.size());
-        // test read/write
-        s.la[0] = 1;
-        s.la[1] = 2;
-        s.la[2] = 3;
-        s.write();
-        Pointer p = s.getPointer();
-        s = new TestStructure();
-        s.useMemory(p);
-        s.read();
-        assertEquals("Wrong value", 1, s.la[0]);
-        assertEquals("Wrong value", 2, s.la[1]);
-        assertEquals("Wrong value", 3, s.la[2]);
         // test constancy of references after read
-        long[] la = s.la;
+        int[] ia = s.ia;
         s.read();
-        assertTrue("Array field reference should be unchanged", la == s.la);
+        assertTrue("Array field reference should be unchanged", ia == s.ia);
     }
 
     public void testNativeLongSize() throws Exception {
@@ -814,12 +776,88 @@ public class StructureTest extends TestCase {
         ROStructure s = new ROStructure();
         assertEquals("Field value should be writable from native", 42, s.field);
     }
-    public void testNativeLongArrayField() {
+    public void testNativeMappedArrayField() {
         final int SIZE = 24;
         class TestStructure extends Structure {
             public NativeLong[] longs = new NativeLong[SIZE];
         }
-        Structure s = new TestStructure();
+        TestStructure s = new TestStructure();
         assertEquals("Wrong structure size", Native.LONG_SIZE * SIZE, s.size());
+
+        NativeLong[] aref = s.longs;
+        for (int i=0;i < s.longs.length;i++) {
+            s.longs[i] = new NativeLong(i);
+        }
+        s.write();
+        for (int i=0;i < s.longs.length;i++) {
+            assertEquals("Value not written to memory at index " + i,
+                         i, s.getPointer().getNativeLong(i * NativeLong.SIZE).intValue());
+        }
+        s.read();
+        assertEquals("Array reference should remain unchanged on read",
+                     aref, s.longs);
+
+        for (int i=0;i < s.longs.length;i++) {
+            assertEquals("Wrong value after read at index " + i,
+                         i, s.longs[i].intValue());
+        }
     }
+
+
+    public void testInitializeNativeMappedField() {
+        final long VALUE = 20;
+        final NativeLong INITIAL = new NativeLong(VALUE);
+        class TestStructure extends Structure {
+            // field overwritten, wrong value before write
+            // NL bug, wrong value written
+            { setAlignType(ALIGN_NONE); }
+            public NativeLong nl = INITIAL;
+            public NativeLong uninitialized;
+        }
+        TestStructure ts = new TestStructure();
+        assertEquals("Wrong value in field", VALUE, ts.nl.longValue());
+        assertSame("Initial value overwritten", INITIAL, ts.nl);
+        assertEquals("Wrong field value before write", VALUE, ts.nl.longValue());
+        assertNotNull("Uninitialized field should be initialized", ts.uninitialized);
+        assertEquals("Wrong initialized value", 0, ts.uninitialized.longValue());
+        ts.write();
+        assertEquals("Wrong field value written", VALUE, ts.getPointer().getNativeLong(0).longValue());
+        assertEquals("Wrong field value written (2)", 0, ts.getPointer().getNativeLong(NativeLong.SIZE).longValue());
+        ts.read();
+        assertEquals("Wrong field value", VALUE, ts.nl.longValue());
+        assertEquals("Wrong field value (2)", 0, ts.uninitialized.longValue());
+    }
+
+    public void testStructureFieldOrder() {
+        Structure.REQUIRES_FIELD_ORDER = true;
+        try {
+            class TestStructure extends Structure {
+                public int one = 1;
+                public int three = 3;
+                public int two = 2;
+                {
+                    setFieldOrder(new String[] { "one", "two", "three" });
+                }
+            }
+            class DerivedTestStructure extends TestStructure {
+                public int four = 4;
+                {
+                    setFieldOrder(new String[] { "four" });
+                }
+            }
+
+            DerivedTestStructure s = new DerivedTestStructure();
+            DerivedTestStructure s2 = new DerivedTestStructure();
+            s.write();
+            s2.write();
+            assertEquals("Wrong first field", 1, s.getPointer().getInt(0));
+            assertEquals("Wrong second field", 2, s.getPointer().getInt(4));
+            assertEquals("Wrong third field", 3, s.getPointer().getInt(8));
+            assertEquals("Wrong derived field", 4, s.getPointer().getInt(12));
+        }
+        finally {
+            Structure.REQUIRES_FIELD_ORDER = false;
+        }
+    }
+
 }

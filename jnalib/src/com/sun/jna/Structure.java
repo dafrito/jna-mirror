@@ -14,10 +14,13 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.nio.Buffer;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
@@ -56,6 +59,7 @@ import java.util.WeakHashMap;
  * @author twall@users.sf.net
  */
 public abstract class Structure {
+    
     /** Tagging interface to indicate the value of an instance of the
      * <code>Structure</code> type is to be used in function invocations rather
      * than its address.  The default behavior is to treat
@@ -77,17 +81,16 @@ public abstract class Structure {
     }
 
     private static final boolean REVERSE_FIELDS;
+    static boolean REQUIRES_FIELD_ORDER;
+
     static final boolean isPPC;
     static final boolean isSPARC;
-
 
     static {
         // IBM and JRockit store fields in reverse order; check for it
         Field[] fields = MemberOrder.class.getFields();
         REVERSE_FIELDS = "last".equals(fields[0].getName());
-        if (!"middle".equals(fields[1].getName())) {
-            throw new Error("This VM does not store fields in a predictable order");
-        }
+        REQUIRES_FIELD_ORDER = !"middle".equals(fields[1].getName());
         String arch = System.getProperty("os.arch").toLowerCase();
         isPPC = "ppc".equals(arch) || "powerpc".equals(arch);
         isSPARC = "sparc".equals(arch);
@@ -102,7 +105,7 @@ public abstract class Structure {
     /** validated for w32/msvc; align on field size */
     public static final int ALIGN_MSVC = 3;
 
-    private static final int MAX_GNUC_ALIGNMENT = isSPARC ? 8 : NativeLong.SIZE;
+    private static final int MAX_GNUC_ALIGNMENT = isSPARC ? 8 : Native.LONG_SIZE;
     protected static final int CALCULATE_SIZE = -1;
 
     // This field is accessed by native code
@@ -116,6 +119,7 @@ public abstract class Structure {
     private TypeMapper typeMapper;
     // This field is accessed by native code
     private long typeInfo;
+    private List fieldOrder;
 
     protected Structure() {
         this(CALCULATE_SIZE);
@@ -355,11 +359,27 @@ public abstract class Structure {
         if (readConverter != null) {
             nativeType = readConverter.nativeType();
         }
-
         // Get the value at the offset according to its type
+        Object currentValue = (Structure.class.isAssignableFrom(nativeType)
+                               || Callback.class.isAssignableFrom(nativeType)
+                               || nativeType.isArray())
+            ? getField(structField) : null;
+        Object result = readValue(offset, nativeType, currentValue);
+        
+        if (readConverter != null) {
+            result = readConverter.fromNative(result, structField.context);
+        }
+
+        // Update the value on the field
+        setField(structField, result);
+        return result;
+    }
+
+    private Object readValue(int offset, Class nativeType, Object currentValue) {
+
         Object result = null;
         if (Structure.class.isAssignableFrom(nativeType)) {
-            Structure s = (Structure)getField(structField);
+            Structure s = (Structure)currentValue;
             if (ByReference.class.isAssignableFrom(nativeType)) {
                 s = updateStructureByReference(nativeType, s, memory.getPointer(offset));
             }
@@ -412,7 +432,7 @@ public abstract class Structure {
                 result = null;
             }
             else {
-                Callback cb = (Callback)getField(structField);
+                Callback cb = (Callback)currentValue;
                 Pointer oldfp = CallbackReference.getFunctionPointer(cb);
                 if (!fp.equals(oldfp)) {
                     cb = CallbackReference.getCallback(nativeType, fp);
@@ -421,81 +441,82 @@ public abstract class Structure {
             }
         }
         else if (nativeType.isArray()) {
-            Class cls = nativeType.getComponentType();
-            int length = 0;
-            Object o = getField(structField);
-            if (o == null) {
+            result = currentValue;
+            if (result == null) {
                 throw new IllegalStateException("Array field in Structure not initialized");
             }
-            length = Array.getLength(o);
-            result = o;
-
-            // if Java type and native type differ -> create an temporary array for the native type
-            if (nativeType.getComponentType() != o.getClass().getComponentType()) {
-                result = Array.newInstance(nativeType.getComponentType(), length);
-            }
-
-            if (cls == byte.class) {
-                memory.read(offset, (byte[])result, 0, length);
-            }
-            else if (cls == short.class) {
-                memory.read(offset, (short[])result, 0, length);
-            }
-            else if (cls == char.class) {
-                memory.read(offset, (char[])result, 0, length);
-            }
-            else if (cls == int.class) {
-                memory.read(offset, (int[])result, 0, length);
-            }
-            else if (cls == long.class) {
-                memory.read(offset, (long[])result, 0, length);
-            }
-            else if (cls == float.class) {
-                memory.read(offset, (float[])result, 0, length);
-            }
-            else if (cls == double.class) {
-                memory.read(offset, (double[])result, 0, length);
-            }
-            else if (Pointer.class.isAssignableFrom(cls)) {
-                memory.read(offset, (Pointer[])result, 0, length);
-            }
-            else if (Structure.class.isAssignableFrom(cls)) {
-                Structure[] sarray = (Structure[])result;
-                if (ByReference.class.isAssignableFrom(cls)) {
-                    Pointer[] parray = memory.getPointerArray(offset, sarray.length);
-                    for (int i=0;i < sarray.length;i++) {
-                        sarray[i] = updateStructureByReference(cls, sarray[i], parray[i]);
-                    }
-                }
-                else {
-                    for (int i=0;i < sarray.length;i++) {
-                        if (sarray[i] == null) {
-                            sarray[i] = newInstance(cls);
-                        }
-                        sarray[i].useMemory(memory, offset + i * sarray[i].size());
-                        sarray[i].read();
-                    }
-                }
-            }
-            else {
-                throw new IllegalArgumentException("Array of "
-                                                   + cls + " not supported");
-            }
+            readArrayValue(offset, result, nativeType.getComponentType());
         }
         else {
             throw new IllegalArgumentException("Unsupported field type \""
                                                + nativeType + "\"");
         }
-
-        if (readConverter != null) {
-            result = readConverter.fromNative(result, structField.context);
-        }
-
-        // Update the value on the field
-        setField(structField, result);
         return result;
     }
 
+
+    private void readArrayValue(int offset, Object o, Class cls) {
+        int length = 0;
+        length = Array.getLength(o);
+        Object result = o;
+        
+        if (cls == byte.class) {
+            memory.read(offset, (byte[])result, 0, length);
+        }
+        else if (cls == short.class) {
+            memory.read(offset, (short[])result, 0, length);
+        }
+        else if (cls == char.class) {
+            memory.read(offset, (char[])result, 0, length);
+        }
+        else if (cls == int.class) {
+            memory.read(offset, (int[])result, 0, length);
+        }
+        else if (cls == long.class) {
+            memory.read(offset, (long[])result, 0, length);
+        }
+        else if (cls == float.class) {
+            memory.read(offset, (float[])result, 0, length);
+        }
+        else if (cls == double.class) {
+            memory.read(offset, (double[])result, 0, length);
+        }
+        else if (Pointer.class.isAssignableFrom(cls)) {
+            memory.read(offset, (Pointer[])result, 0, length);
+        }
+        else if (Structure.class.isAssignableFrom(cls)) {
+            Structure[] sarray = (Structure[])result;
+            if (ByReference.class.isAssignableFrom(cls)) {
+                Pointer[] parray = memory.getPointerArray(offset, sarray.length);
+                for (int i=0;i < sarray.length;i++) {
+                    sarray[i] = updateStructureByReference(cls, sarray[i], parray[i]);
+                }
+            }
+            else {
+                for (int i=0;i < sarray.length;i++) {
+                    if (sarray[i] == null) {
+                        sarray[i] = newInstance(cls);
+                    }
+                    sarray[i].useMemory(memory, offset + i * sarray[i].size());
+                    sarray[i].read();
+                }
+            }
+        }
+        else if (NativeMapped.class.isAssignableFrom(cls)) {
+            NativeMapped[] array = (NativeMapped[])result;
+            NativeMappedConverter tc = NativeMappedConverter.getInstance(cls);
+            int size = getNativeSize(result.getClass(), result) / array.length;
+            for (int i=0;i < array.length;i++) {
+                // FIXME: use proper context
+                Object value = readValue(offset + size*i, tc.nativeType(), array[i]);
+                array[i] = (NativeMapped)tc.fromNative(value, new FromNativeContext(cls));
+            }
+        }
+        else {
+            throw new IllegalArgumentException("Array of "
+                                               + cls + " not supported");
+        }
+    }
 
     /**
      * Writes the fields of the struct to native memory
@@ -570,8 +591,20 @@ public abstract class Structure {
             }
             else {
                 value = null;
+                nativeStrings.remove(structField.name);
             }
         }
+
+        if (!writeValue(offset, value, nativeType)) {
+            String msg = "Structure field \"" + structField.name
+                + "\" was declared as " + structField.type
+                + (structField.type == nativeType ? "" : " (native type " + nativeType + ")")
+                + ", which is not supported within a Structure";
+            throw new IllegalArgumentException(msg);
+        }
+    }
+
+    private boolean writeValue(int offset, Object value, Class nativeType) {
 
         // Set the value at the offset according to its type
         if (nativeType == boolean.class || nativeType == Boolean.class) {
@@ -607,64 +640,6 @@ public abstract class Structure {
         else if (nativeType == WString.class) {
             memory.setPointer(offset, (Pointer)value);
         }
-        else if (nativeType.isArray()) {
-            Class cls = nativeType.getComponentType();
-            if (cls == byte.class) {
-                byte[] buf = (byte[])value;
-                memory.write(offset, buf, 0, buf.length);
-            }
-            else if (cls == short.class) {
-                short[] buf = (short[])value;
-                memory.write(offset, buf, 0, buf.length);
-            }
-            else if (cls == char.class) {
-                char[] buf = (char[])value;
-                memory.write(offset, buf, 0, buf.length);
-            }
-            else if (cls == int.class) {
-                int[] buf = (int[])value;
-                memory.write(offset, buf, 0, buf.length);
-            }
-            else if (cls == long.class) {
-                long[] buf = (long[])value;
-                memory.write(offset, buf, 0, buf.length);
-            }
-            else if (cls == float.class) {
-                float[] buf = (float[])value;
-                memory.write(offset, buf, 0, buf.length);
-            }
-            else if (cls == double.class) {
-                double[] buf = (double[])value;
-                memory.write(offset, buf, 0, buf.length);
-            }
-            else if (Pointer.class.isAssignableFrom(cls)) {
-                Pointer[] buf = (Pointer[])value;
-                memory.write(offset, buf, 0, buf.length);
-            }
-            else if (Structure.class.isAssignableFrom(cls)) {
-                Structure[] sbuf = (Structure[])value;
-                if (ByReference.class.isAssignableFrom(cls)) {
-                    Pointer[] buf = new Pointer[sbuf.length];
-                    for (int i=0;i < sbuf.length;i++) {
-                        buf[i] = sbuf[i] == null ? null : sbuf[i].getPointer();
-                    }
-                    memory.write(offset, buf, 0, buf.length);
-                }
-                else {
-                    for (int i=0;i < sbuf.length;i++) {
-                        if (sbuf[i] == null) {
-                            sbuf[i] = newInstance(cls);
-                        }
-                        sbuf[i].useMemory(memory, offset + i * sbuf[i].size());
-                        sbuf[i].write();
-                    }
-                }
-            }
-            else {
-                throw new IllegalArgumentException("Inline array of "
-                                                   + cls + " not supported");
-            }
-        }
         else if (Structure.class.isAssignableFrom(nativeType)) {
             Structure s = (Structure)value;
             if (ByReference.class.isAssignableFrom(nativeType)) {
@@ -681,15 +656,116 @@ public abstract class Structure {
         else if (Callback.class.isAssignableFrom(nativeType)) {
             memory.setPointer(offset, CallbackReference.getFunctionPointer((Callback)value));
         }
+        else if (nativeType.isArray()) {
+            return writeArrayValue(offset, value, nativeType.getComponentType());
+        }
         else {
-        	String msg = "Structure field \"" + structField.name
-        	    + "\" was declared as " + structField.type
-        	    + (structField.type == nativeType ? "" : " (native type " + nativeType + ")")
-        	    + ", which is not supported within a Structure";
-            throw new IllegalArgumentException(msg);
+            return false;
+        }
+        return true;
+    }
+
+    private boolean writeArrayValue(int offset, Object value, Class cls) {
+        if (cls == byte.class) {
+            byte[] buf = (byte[])value;
+            memory.write(offset, buf, 0, buf.length);
+        }
+        else if (cls == short.class) {
+            short[] buf = (short[])value;
+            memory.write(offset, buf, 0, buf.length);
+        }
+        else if (cls == char.class) {
+            char[] buf = (char[])value;
+            memory.write(offset, buf, 0, buf.length);
+        }
+        else if (cls == int.class) {
+            int[] buf = (int[])value;
+            memory.write(offset, buf, 0, buf.length);
+        }
+        else if (cls == long.class) {
+            long[] buf = (long[])value;
+            memory.write(offset, buf, 0, buf.length);
+        }
+        else if (cls == float.class) {
+            float[] buf = (float[])value;
+            memory.write(offset, buf, 0, buf.length);
+        }
+        else if (cls == double.class) {
+            double[] buf = (double[])value;
+            memory.write(offset, buf, 0, buf.length);
+        }
+        else if (Pointer.class.isAssignableFrom(cls)) {
+            Pointer[] buf = (Pointer[])value;
+            memory.write(offset, buf, 0, buf.length);
+        }
+        else if (Structure.class.isAssignableFrom(cls)) {
+            Structure[] sbuf = (Structure[])value;
+            if (ByReference.class.isAssignableFrom(cls)) {
+                Pointer[] buf = new Pointer[sbuf.length];
+                for (int i=0;i < sbuf.length;i++) {
+                    buf[i] = sbuf[i] == null ? null : sbuf[i].getPointer();
+                }
+                memory.write(offset, buf, 0, buf.length);
+            }
+            else {
+                for (int i=0;i < sbuf.length;i++) {
+                    if (sbuf[i] == null) {
+                        sbuf[i] = newInstance(cls);
+                    }
+                    sbuf[i].useMemory(memory, offset + i * sbuf[i].size());
+                    sbuf[i].write();
+                }
+            }
+        }
+        else if (NativeMapped.class.isAssignableFrom(cls)) {
+            NativeMapped[] buf = (NativeMapped[])value;
+            NativeMappedConverter tc = NativeMappedConverter.getInstance(cls);
+            Class nativeType = tc.nativeType();
+            int size = getNativeSize(value.getClass(), value) / buf.length;
+            for (int i=0;i < buf.length;i++) {
+                // FIXME: incorrect context
+                Object element = tc.toNative(buf[i], new ToNativeContext());
+                if (!writeValue(offset + i*size, element, nativeType)) {
+                    return false;
+                }
+            }
+        }
+        else {
+            throw new IllegalArgumentException("Inline array of "
+                                               + cls + " not supported");
+        }
+        return true;
+    }
+
+    protected List getFieldOrder() {
+        synchronized(this) {
+            if (fieldOrder == null) {
+                fieldOrder = new ArrayList();
+            }
+            return fieldOrder;
         }
     }
 
+    /** Provided for VMs where the field order as returned by {@link
+     * Class#getFields()} is not predictable.
+     */
+    protected void setFieldOrder(String[] fields) {
+        getFieldOrder().addAll(Arrays.asList(fields));
+    }
+
+    /** Sort the structure fields according to the given array of names. */
+    protected void sortFields(Field[] fields, String[] names) {
+        for (int i=0;i < names.length;i++) {
+            for (int f=i;f < fields.length;f++) {
+                if (names[i].equals(fields[f].getName())) {
+                    Field tmp = fields[f];
+                    fields[f] = fields[i];
+                    fields[i] = tmp;
+                    break;
+                }
+            }
+        }
+    }
 
     /** Calculate the amount of native memory required for this structure.
      * May return {@link #CALCULATE_SIZE} if the size can not yet be
@@ -710,6 +786,16 @@ public abstract class Structure {
         structAlignment = 1;
         int calculatedSize = 0;
         Field[] fields = getClass().getFields();
+        // Restrict to valid fields
+        List flist = new ArrayList();
+        for (int i=0;i < fields.length;i++) {
+            int modifiers = fields[i].getModifiers();
+            if (Modifier.isStatic(modifiers) || !Modifier.isPublic(modifiers))
+                continue;
+            flist.add(fields[i]);
+        }
+        fields = (Field[])flist.toArray(new Field[flist.size()]);
+
         if (REVERSE_FIELDS) {
             for (int i=0;i < fields.length/2;i++) {
                 int idx = fields.length-1-i;
@@ -718,11 +804,20 @@ public abstract class Structure {
                 fields[idx] = tmp;
             }
         }
+        else if (REQUIRES_FIELD_ORDER) {
+            List fieldOrder = getFieldOrder();
+            if (fieldOrder.size() < fields.length) {
+                if (force) {
+                    throw new Error("This VM does not store fields in a predictable order; you must use setFieldOrder: " + System.getProperty("java.vendor") + ", " + System.getProperty("java.version"));
+                }
+                return CALCULATE_SIZE;
+            }
+            sortFields(fields, (String[])fieldOrder.toArray(new String[fieldOrder.size()]));
+        }
+
         for (int i=0; i<fields.length; i++) {
             Field field = fields[i];
             int modifiers = field.getModifiers();
-            if (Modifier.isStatic(modifiers) || !Modifier.isPublic(modifiers))
-                continue;
 
             Class type = field.getType();
             StructField structField = new StructField();
@@ -775,24 +870,16 @@ public abstract class Structure {
                 }
             }
             Class nativeType = type;
-            if (field.isAnnotationPresent(TypeConversion.class)) {
-                TypeConversion nativeMapping = field.getAnnotation(TypeConversion.class);
-                NativeTypeConverter tc = NativeTypeConverter.getInstance(nativeMapping.converter(), nativeType);
-                nativeType = tc.nativeType();
-                structField.writeConverter = tc;
-                structField.readConverter = tc;
-                structField.context = new StructureReadContext(this, field);
-            }
-            else if (NativeMapped.class.isAssignableFrom(type)) {
+            if (NativeMapped.class.isAssignableFrom(type)) {
                 NativeMappedConverter tc = NativeMappedConverter.getInstance(type);
                 if (value == null) {
                     value = tc.defaultValue();
+                    setField(structField, value);
                 }
                 nativeType = tc.nativeType();
                 structField.writeConverter = tc;
                 structField.readConverter = tc;
                 structField.context = new StructureReadContext(this, field);
-                setField(structField, value);
             }
             else if (typeMapper != null) {
                 ToNativeConverter writeConverter = typeMapper.getToNativeConverter(type);
@@ -895,15 +982,18 @@ public abstract class Structure {
             throw new IllegalArgumentException("Type " + type + " has unknown "
                                                + "native alignment");
         }
-        if (alignType == ALIGN_NONE)
-            return 1;
-        if (alignType == ALIGN_MSVC)
-            return Math.min(8, alignment);
-        if (alignType == ALIGN_GNUC) {
+        if (alignType == ALIGN_NONE) {
+            alignment = 1;
+        }
+        else if (alignType == ALIGN_MSVC) {
+            alignment = Math.min(8, alignment);
+        }
+        else if (alignType == ALIGN_GNUC) {
             // NOTE this is published ABI for 32-bit gcc/linux/x86, osx/x86,
             // and osx/ppc.  osx/ppc special-cases the first element
-            if (!isFirstElement || !(Platform.isMac() && isPPC))
-                return Math.min(MAX_GNUC_ALIGNMENT, alignment);
+            if (!isFirstElement || !(Platform.isMac() && isPPC)) {
+                alignment = Math.min(MAX_GNUC_ALIGNMENT, alignment);
+            }
         }
         return alignment;
     }

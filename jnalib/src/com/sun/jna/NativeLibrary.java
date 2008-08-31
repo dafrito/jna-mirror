@@ -1,5 +1,5 @@
 /* Copyright (c) 2007 Wayne Meissner, All Rights Reserved
- *
+ * 
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -76,6 +76,13 @@ public class NativeLibrary {
     private static NativeLibrary loadLibrary(String libraryName) {
         List searchPath = new LinkedList(librarySearchPath);
 
+        // Append web start path, if available.  Note that this does not
+        // attempt any library name variations
+        String webstartPath = Native.getWebStartLibraryPath(libraryName);
+        if (webstartPath != null) {
+            searchPath.add(webstartPath);
+        }
+
         //
         // Prepend any custom search paths specifically for this library
         //
@@ -109,6 +116,12 @@ public class NativeLibrary {
                     try { handle = open(libraryPath); }
                     catch(UnsatisfiedLinkError e2) { e = e2; }
                 }
+            }
+            // Try the same library with a "lib" prefix
+            else if (Platform.isWindows()) {
+                libraryPath = findLibraryPath("lib" + libraryName, searchPath);
+                try { handle = open(libraryPath); }
+                catch(UnsatisfiedLinkError e2) { e = e2; }
             }
             if (handle == 0) {
                 throw new UnsatisfiedLinkError("Unable to load library '" + libraryName + "': "
@@ -404,7 +417,7 @@ public class NativeLibrary {
             String path = ((File) it.next()).getAbsolutePath();
             String ver = path.substring(path.lastIndexOf(".so.") + 4);
             double version = parseVersion(ver);
-            if (version >= bestVersion) {
+            if (version > bestVersion) {
                 bestVersion = version;
                 bestMatch = path;
             }
@@ -477,6 +490,13 @@ public class NativeLibrary {
                 "/usr/lib",
                 "/lib",
             };
+            // Linux 64-bit does not use /lib or /usr/lib
+            if (Platform.isLinux() && Pointer.SIZE == 8) {
+                paths = new String[] {
+                    "/usr/lib" + archPath,
+                    "/lib" + archPath,
+                };
+            }
             for (int i=0;i < paths.length;i++) {
                 File dir = new File(paths[i]);
                 if (dir.exists() && dir.isDirectory()) {

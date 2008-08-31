@@ -13,6 +13,7 @@ package com.sun.jna;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -44,6 +45,9 @@ public class Function extends Pointer {
     public static final int C_CONVENTION = 0;
     /** First alternate convention (currently used only for w32 stdcall). */
     public static final int ALT_CONVENTION = 1;
+
+    static final Integer INTEGER_TRUE = new Integer(-1);
+    static final Integer INTEGER_FALSE = new Integer(0);
 
     /** 
      * Obtain a <code>Function</code> representing a native 
@@ -414,7 +418,7 @@ public class Function extends Pointer {
         // Default conversion of boolean to int; if you want something
         // different, use a ToNativeConverter
         else if (arg instanceof Boolean) {
-            return new Integer(Boolean.TRUE.equals(arg) ? -1 : 0);
+            return Boolean.TRUE.equals(arg) ? INTEGER_TRUE : INTEGER_FALSE;
         }
         else if (String[].class == argClass) {
             return new StringArray((String[])arg);

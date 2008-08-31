@@ -1,10 +1,39 @@
 <a name="top"></a>
+<h2>Release 3.x.x</h2>
+<b>Features</b><br>
+<ul>
+</ul>
+<b>Bug Fixes</b><br>
+<ul>
+<li>Avoid more content dragging on OSX or warn if it's too late.
+</ul>
+<h2>Release 3.0.5</h2>
+<b>Features</b><br>
+<ul>
+<li>Allow explicit declaration of field order for VMs which have an unpredictable field order.
+<li>Check for w32 libraries with a "lib" prefix in addition to normal lookup.
+<li>Allow String[]/WString[] as callback argument/return value (assume NULL-terminated array).
+<li>Add Solaris8 compatibility to sunos-sparc build (Corey Puffalt).
+<li>Look up libraries using web start library path, if appropriate (Corey Puffalt).
+<li>Use constants to return integer boolean values.
+</ul>
+<b>Bug Fixes</b><br>
+<ul>
+<li>Properly track cursor on alpha-masked windows.
+<li>Avoid searching /lib or /usr/lib on 64-bit Linux.
+<li>Avoid using incorrect version of a library when both 32- and 64-bit versions are found.
+<li>Avoid transparent window events always dragging window bug on OSX.
+<li>Fix division by zero error calculating structure size on OSX/ppc.
+<li>Avoid overwriting initialized NativeMapped Structure fields when calculating structure size.
+<li>Fix NPE reading back into StringArray.
+</ul>
 <h2>Release 3.0.4</h2>
 <b>Features</b><br>
 <ul>
 <li>Automatically write contents of Structure.ByReference fields on Structure.write().
 <li>Use the actual parameter type in Function invocations if no parameter type information is available (whether method is missing or untyped varargs).
 <li>Augmented X11 library mappings (xylo).
+<li>Support read/write of NativeMapped arrays within Structure (notably NativeLong).
 </ul>
 <b>Bug Fixes</b><br>
 <ul>

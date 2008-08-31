@@ -14,6 +14,7 @@ package com.sun.jna.win32;
 
 import com.sun.jna.DefaultTypeMapper;
 import com.sun.jna.FromNativeContext;
+import com.sun.jna.Pointer;
 import com.sun.jna.StringArray;
 import com.sun.jna.ToNativeContext;
 import com.sun.jna.TypeConverter;
