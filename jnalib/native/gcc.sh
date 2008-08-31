@@ -115,7 +115,7 @@ do
     *.S)
       src="$(echo $1|sed -e 's/.S$/.asm/g' -e 's%\\%/%g')"
       echo "$cl /EP $includes $defines $1 > $src"
-      "$cl" /nologo /EP $includes $defines $1 > $src
+      "$cl" /nologo /EP $includes $defines $1 > $src || exit $?
       md=""
       cl="$ml"
       output="$(echo $output | sed 's%/F[dpa][^ ]*%%g')"
@@ -137,7 +137,9 @@ done
 args="$md $args"
 echo "$cl $args"
 eval "\"$cl\" $args"
+result=$?
 # @#!%@!# ml64 broken output
 if [ -n "$assembly" ]; then
     mv *.obj $(dirname $(echo $output|sed 's%/Fo%%g'))
 fi
+exit $result

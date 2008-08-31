@@ -131,7 +131,7 @@ ffi_status ffi_prep_cif_machdep(ffi_cif *cif)
     case FFI_TYPE_SINT64:
     case FFI_TYPE_FLOAT:
     case FFI_TYPE_DOUBLE:
-#ifndef _MSC_VER
+#if FFI_TYPE_DOUBLE != FFI_TYPE_LONGDOUBLE
     case FFI_TYPE_LONGDOUBLE:
 #endif
       cif->flags = (unsigned) cif->rtype->type;
@@ -218,8 +218,11 @@ void ffi_call(ffi_cif *cif, void (*fn)(), void *rvalue, void **avalue)
     {
 #ifdef X86_WIN64
     case FFI_DEFAULT_ABI:
-      /* Function call needs at least 40 bytes stack size, on win64 AMD64 */
-      ffi_call_win64(ffi_prep_args, &ecif, cif->bytes ? cif->bytes : 40,
+      /* ffi_call_win64 requires at least 40 bytes stack on win64
+       * This comprises space for four register arguments and a
+       * pointer to return value.
+       */
+      ffi_call_win64(ffi_prep_args, &ecif, cif->bytes < 40 ? 40 : cif->bytes,
                      cif->flags, ecif.rvalue, fn);
       break;
 #else
@@ -343,7 +346,7 @@ ffi_prep_incoming_args_SYSV(char *stack, void **rvalue, void **avalue,
 
   if ( cif->flags == FFI_TYPE_STRUCT ) {
     *rvalue = *(void **) argp;
-    argp += sizeof(void*);
+    argp += sizeof(void *);
   }
 
   p_argv = avalue;

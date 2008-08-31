@@ -1,3 +1,21 @@
+#define LIBFFI_ASM
+#include <fficonfig.h>
+#include <ffi.h>
+	
+/* Constants for ffi_call_win64 */	
+#define STACK 0
+#define PREP_ARGS_FN 32
+#define ECIF 40
+#define CIF_BYTES 48
+#define CIF_FLAGS 56
+#define RVALUE 64
+#define FN 72
+
+/* ffi_call_win64 (void (*prep_args_fn)(char *, extended_cif *),
+                   extended_cif *ecif, unsigned bytes, unsigned flags,
+                   unsigned *rvalue, void (*fn)());
+ */
+
 #ifdef _MSC_VER
 PUBLIC	ffi_call_win64
 
@@ -6,7 +24,7 @@ EXTRN	ffi_closure_win64_inner:NEAR
 
 _TEXT	SEGMENT
 
-;;; ffi_closure_OUTER will be called with these registers set:
+;;; ffi_closure_win64 will be called with these registers set:
 ;;;    rax points to 'closure'
 ;;;    r11 contains a bit mask that specifies which of the
 ;;;    first four parameters are float or double
@@ -62,44 +80,33 @@ done:
 	ret	0
 ffi_closure_win64 ENDP
 
-
-;;; ffi_call_win64
-
-stack$ = 0
-prepfunc$ = 32
-ecif$ = 40
-bytes$ = 48
-flags$ = 56
-rvalue$ = 64
-fn$ = 72
-
 ffi_call_win64 PROC FRAME
 
 	mov	QWORD PTR [rsp+32], r9
 	mov	QWORD PTR [rsp+24], r8
 	mov	QWORD PTR [rsp+16], rdx
 	mov	QWORD PTR [rsp+8], rcx
-.PUSHREG rbp
+        .PUSHREG rbp
 	push	rbp
-.ALLOCSTACK 48
+        .ALLOCSTACK 48
 	sub	rsp, 48					; 00000030H
-.SETFRAME rbp, 32
+        .SETFRAME rbp, 32
 	lea	rbp, QWORD PTR [rsp+32]
-.ENDPROLOG
+        .ENDPROLOG
 
-	mov	eax, DWORD PTR bytes$[rbp]
+	mov	eax, DWORD PTR CIF_BYTES[rbp]
 	add	rax, 15
 	and	rax, -16
 	call	__chkstk
 	sub	rsp, rax
 	lea	rax, QWORD PTR [rsp+32]
-	mov	QWORD PTR stack$[rbp], rax
+	mov	QWORD PTR STACK[rbp], rax
 
-	mov	rdx, QWORD PTR ecif$[rbp]
-	mov	rcx, QWORD PTR stack$[rbp]
-	call	QWORD PTR prepfunc$[rbp]
+	mov	rdx, QWORD PTR ECIF[rbp]
+	mov	rcx, QWORD PTR STACK[rbp]
+	call	QWORD PTR PREP_ARGS_FN[rbp]
 
-	mov	rsp, QWORD PTR stack$[rbp]
+	mov	rsp, QWORD PTR STACK[rbp]
 
 	movlpd	xmm3, QWORD PTR [rsp+24]
 	movd	r9, xmm3
@@ -113,40 +120,40 @@ ffi_call_win64 PROC FRAME
 	movlpd	xmm0, QWORD PTR [rsp]
 	movd	rcx, xmm0
 
-	call	QWORD PTR fn$[rbp]
+	call	QWORD PTR FN[rbp]
 ret_int$:
- 	cmp	DWORD PTR flags$[rbp], 1 ; FFI_TYPE_INT
+ 	cmp	DWORD PTR CIF_FLAGS[rbp], FFI_TYPE_INT
  	jne	ret_float$
 
-	mov	rcx, QWORD PTR rvalue$[rbp]
+	mov	rcx, QWORD PTR RVALUE[rbp]
 	mov	DWORD PTR [rcx], eax
-	jmp	SHORT ret_nothing$
+	jmp	SHORT ret_void$
 
 ret_float$:
- 	cmp	DWORD PTR flags$[rbp], 2 ; FFI_TYPE_FLOAT
+ 	cmp	DWORD PTR CIF_FLAGS[rbp], FFI_TYPE_FLOAT
  	jne	SHORT ret_double$
 
- 	mov	rax, QWORD PTR rvalue$[rbp]
+ 	mov	rax, QWORD PTR RVALUE[rbp]
  	movlpd	QWORD PTR [rax], xmm0
- 	jmp	SHORT ret_nothing$
+ 	jmp	SHORT ret_void$
 
 ret_double$:
- 	cmp	DWORD PTR flags$[rbp], 3 ; FFI_TYPE_DOUBLE
+ 	cmp	DWORD PTR CIF_FLAGS[rbp], FFI_TYPE_DOUBLE
  	jne	SHORT ret_int64$
 
- 	mov	rax, QWORD PTR rvalue$[rbp]
+ 	mov	rax, QWORD PTR RVALUE[rbp]
  	movlpd	QWORD PTR [rax], xmm0
- 	jmp	SHORT ret_nothing$
+ 	jmp	SHORT ret_void$
 
 ret_int64$:
-  	cmp	DWORD PTR flags$[rbp], 12 ; FFI_TYPE_SINT64
-  	jne	ret_nothing$
+  	cmp	DWORD PTR CIF_FLAGS[rbp], FFI_TYPE_SINT64
+  	jne	ret_void$
 
- 	mov	rcx, QWORD PTR rvalue$[rbp]
+ 	mov	rcx, QWORD PTR RVALUE[rbp]
  	mov	QWORD PTR [rcx], rax
- 	jmp	SHORT ret_nothing$
+ 	jmp	SHORT ret_void$
 	
-ret_nothing$:
+ret_void$:
 	xor	eax, eax
 
 	lea	rsp, QWORD PTR [rbp+16]
@@ -156,9 +163,6 @@ ffi_call_win64 ENDP
 _TEXT	ENDS
 END
 #else        
-#define LIBFFI_ASM
-#include <fficonfig.h>
-#include <ffi.h>
 .text
 
 .extern ___chkstk
@@ -172,7 +176,9 @@ END
 # It must move the parameters passed in registers to their stack location,
 # call ffi_closure_win64_inner for the actual work, then return the result.
 # 
-.globl _ffi_closure_win64	
+	.balign 16
+        .globl _ffi_closure_win64	
+	.type  _ffi_closure_win64,@function
 _ffi_closure_win64:     
 	# save actual arguments to their stack space.
 	test	$1,%r11
@@ -221,17 +227,9 @@ _ffi_closure_win64:
 	retq
 .ffi_closure_win64_end:
 
-
-#define STACK 0
-#define PREPFUNC 32
-#define ECIF 40
-#define BYTES 48
-#define FLAGS 56
-#define RVALUE 64
-#define FN 72
-
-.globl	_ffi_call_win64
 	.balign 16
+        .globl	_ffi_call_win64
+	.type   _ffi_call_win64,@function
 _ffi_call_win64:        
 
 	mov	%r9,32(%rsp)
@@ -246,7 +244,7 @@ _ffi_call_win64:
 	lea	32(%rsp),%rbp
 #.ENDPROLOG
 
-	mov	BYTES(%rbp),%eax
+	mov	CIF_BYTES(%rbp),%eax
 	add	$15, %rax
 	and	$-16, %rax
 	callq	___chkstk
@@ -256,7 +254,7 @@ _ffi_call_win64:
 
 	mov	ECIF(%rbp), %rdx
 	mov	STACK(%rbp), %rcx
-	callq	*PREPFUNC(%rbp)
+	callq	*PREP_ARGS_FN(%rbp)
 
 	mov	STACK(%rbp), %rsp
 
@@ -274,38 +272,38 @@ _ffi_call_win64:
 
 	callq	*FN(%rbp)
 .Lret_int:
- 	cmpl	$FFI_TYPE_INT, FLAGS(%rbp)
+ 	cmpl	$FFI_TYPE_INT, CIF_FLAGS(%rbp)
  	jne	.Lret_float
 
 	mov	RVALUE(%rbp), %rcx
 	mov	%eax, (%rcx)
-	jmp	.Lret_nothing
+	jmp	.Lret_void
 
 .Lret_float:
- 	cmpl	$FFI_TYPE_FLOAT, FLAGS(%rbp)
+ 	cmpl	$FFI_TYPE_FLOAT, CIF_FLAGS(%rbp)
  	jne	.Lret_double
 
  	mov	RVALUE(%rbp), %rax
  	movlpd	%xmm0,(%rax)
- 	jmp	.Lret_nothing
+ 	jmp	.Lret_void
 
 .Lret_double:
- 	cmpl	$FFI_TYPE_DOUBLE, FLAGS(%rbp)
+ 	cmpl	$FFI_TYPE_DOUBLE, CIF_FLAGS(%rbp)
  	jne	.Lret_int64
 
  	mov	RVALUE(%rbp), %rax
  	movlpd	%xmm0, (%rax)
- 	jmp	.Lret_nothing
+ 	jmp	.Lret_void
 
 .Lret_int64:
   	cmpl	$FFI_TYPE_SINT64, (%rbp)
-  	jne	.Lret_nothing
+  	jne	.Lret_void
 
  	mov	RVALUE(%rbp), %rcx
  	mov	%rax, (%rcx)
- 	jmp	.Lret_nothing
+ 	jmp	.Lret_void
 	
-.Lret_nothing:
+.Lret_void:
 	xor	%eax, %eax
 
 	lea	16(%rbp), %rsp

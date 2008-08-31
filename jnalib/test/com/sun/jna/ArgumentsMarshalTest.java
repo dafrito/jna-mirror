@@ -353,8 +353,7 @@ public class ArgumentsMarshalTest extends TestCase {
         }
     }
     
-    // FIXME hard crash on win64
-    public void xtestByteArrayArgument() {
+    public void testByteArrayArgument() {
         byte[] buf = new byte[1024];
         final byte MAGIC = (byte)0xED;
         assertEquals("Wrong return value", buf.length, 
@@ -364,7 +363,7 @@ public class ArgumentsMarshalTest extends TestCase {
         }
     }
     
-    public void xtestShortArrayArgument() {
+    public void testShortArrayArgument() {
         short[] buf = new short[1024];
         final short MAGIC = (short)0xABED;
         assertEquals("Wrong return value", buf.length, 
@@ -374,7 +373,7 @@ public class ArgumentsMarshalTest extends TestCase {
         }
     }
     
-    public void xtestIntArrayArgument() {
+    public void testIntArrayArgument() {
         int[] buf = new int[1024];
         final int MAGIC = 0xABEDCF23;
         assertEquals("Wrong return value", buf.length, 
@@ -384,7 +383,7 @@ public class ArgumentsMarshalTest extends TestCase {
         }
     }
     
-    public void xtestLongArrayArgument() {
+    public void testLongArrayArgument() {
         long[] buf = new long[1024];
         final long MAGIC = 0x1234567887654321L;
         assertEquals("Wrong return value", buf.length, 
@@ -394,7 +393,7 @@ public class ArgumentsMarshalTest extends TestCase {
         }
     }
     
-    public void xtestByteBufferArgument() {
+    public void testByteBufferArgument() {
         ByteBuffer buf  = ByteBuffer.allocate(1024).order(ByteOrder.nativeOrder());
         final byte MAGIC = (byte)0xED;
         lib.fillInt8Buffer(buf, 1024, MAGIC);
@@ -402,7 +401,7 @@ public class ArgumentsMarshalTest extends TestCase {
             assertEquals("Bad value at index " + i, MAGIC, buf.get(i));
         }
     }
-    public void xtestShortBufferArgument() {
+    public void testShortBufferArgument() {
         ShortBuffer buf  = ShortBuffer.allocate(1024);
         final short MAGIC = (short)0xABED;
         lib.fillInt16Buffer(buf, 1024, MAGIC);
@@ -410,7 +409,7 @@ public class ArgumentsMarshalTest extends TestCase {
             assertEquals("Bad value at index " + i, MAGIC, buf.get(i));
         }
     }
-    public void xtestIntBufferArgument() {
+    public void testIntBufferArgument() {
         IntBuffer buf  = IntBuffer.allocate(1024);
         final int MAGIC = 0xABEDCF23;
         lib.fillInt32Buffer(buf, 1024, MAGIC);
@@ -418,7 +417,7 @@ public class ArgumentsMarshalTest extends TestCase {
             assertEquals("Bad value at index " + i, MAGIC, buf.get(i));
         }
     }
-    public void xtestLongBufferArgument() {
+    public void testLongBufferArgument() {
         LongBuffer buf  = LongBuffer.allocate(1024);
         final long MAGIC = 0x1234567887654321L;
         lib.fillInt64Buffer(buf, 1024, MAGIC);
@@ -427,7 +426,7 @@ public class ArgumentsMarshalTest extends TestCase {
         }
     }
     
-    public void xtestDirectByteBufferArgument() {
+    public void testDirectByteBufferArgument() {
         ByteBuffer buf  = ByteBuffer.allocateDirect(1024).order(ByteOrder.nativeOrder());
         final byte MAGIC = (byte)0xED;
         lib.fillInt8Buffer(buf, 1024, MAGIC);
@@ -436,7 +435,7 @@ public class ArgumentsMarshalTest extends TestCase {
         }
     }
     
-    public void xtestDirectShortBufferArgument() {
+    public void testDirectShortBufferArgument() {
         ByteBuffer buf  = ByteBuffer.allocateDirect(1024*2).order(ByteOrder.nativeOrder());
         ShortBuffer shortBuf = buf.asShortBuffer();
         final short MAGIC = (short)0xABED;
@@ -446,7 +445,7 @@ public class ArgumentsMarshalTest extends TestCase {
         }
     }
     
-    public void xtestDirectIntBufferArgument() {
+    public void testDirectIntBufferArgument() {
         ByteBuffer buf  = ByteBuffer.allocateDirect(1024*4).order(ByteOrder.nativeOrder());
         IntBuffer intBuf = buf.asIntBuffer();
         final int MAGIC = 0xABEDCF23;
