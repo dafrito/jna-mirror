@@ -1291,6 +1291,17 @@ public interface X11 extends Library {
     }
 
     int XSelectInput(Display display, Window window, NativeLong eventMask);
+
+    int XNextEvent(Display display, XEvent event_return);
+
+    int XPeekEvent(Display display, XEvent event_return);
+    int XWindowEvent(Display display, Window w, NativeLong event_mask, XEvent event_return);
+    boolean XCheckWindowEvent(Display display, Window w, NativeLong event_mask, XEvent event_return);
+    int XMaskEvent(Display display, NativeLong event_mask, XEvent event_return);
+    boolean XCheckMaskEvent(Display display, NativeLong event_mask, XEvent event_return);
+    boolean XCheckTypedEvent(Display display, int event_type, XEvent event_return);
+    boolean XCheckTypedWindowEvent(Display display, Window w, int event_type, XEvent event_return);
+
     /** Returns an {@link XWMHints} which must be freed by {@link #XFree}. */
     XWMHints XGetWMHints(Display display, Window window);
     int XGetWMName(Display display, Window window,
