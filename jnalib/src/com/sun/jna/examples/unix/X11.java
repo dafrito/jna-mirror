@@ -779,6 +779,86 @@ public interface X11 extends Library {
     int ColormapChangeMask = (1<<23);
     int OwnerGrabButtonMask = (1<<24);
 
+    /* Event names.  Used in "type" field in XEvent structures.  Not to be
+       confused with event masks above.  They start from 2 because 0 and 1
+       are reserved in the protocol for errors and replies. */
+    int KeyPress = 2;
+    int KeyRelease = 3;
+    int ButtonPress = 4;
+    int ButtonRelease = 5;
+    int MotionNotify = 6;
+    int EnterNotify = 7;
+    int LeaveNotify = 8;
+    int FocusIn = 9;
+    int FocusOut = 10;
+    int KeymapNotify = 11;
+    int Expose = 12;
+    int GraphicsExpose = 13;
+    int NoExpose = 14;
+    int VisibilityNotify = 15;
+    int CreateNotify = 16;
+    int DestroyNotify = 17;
+    int UnmapNotify = 18;
+    int MapNotify = 19;
+    int MapRequest = 20;
+    int ReparentNotify = 21;
+    int ConfigureNotify = 22;
+    int ConfigureRequest = 23;
+    int GravityNotify = 24;
+    int ResizeRequest = 25;
+    int CirculateNotify = 26;
+    int CirculateRequest = 27;
+    int PropertyNotify = 28;
+    int SelectionClear = 29;
+    int SelectionRequest = 30;
+    int SelectionNotify = 31;
+    int ColormapNotify = 32;
+    int ClientMessage = 33;
+    int MappingNotify = 34;
+    int LASTEvent = 35;   // must be bigger than any event #
+
+    /* Key masks. Used as modifiers to GrabButton and GrabKey, results of QueryPointer,
+       state in various key-, mouse-, and button-related events. */
+    int ShiftMask = (1 << 0);
+    int LockMask = (1 << 1);
+    int ControlMask = (1 << 2);
+    int Mod1Mask = (1 << 3);
+    int Mod2Mask = (1 << 4);
+    int Mod3Mask = (1 << 5);
+    int Mod4Mask = (1 << 6);
+    int Mod5Mask = (1 << 7);
+
+    /* modifier names.  Used to build a SetModifierMapping request or
+       to read a GetModifierMapping request.  These correspond to the
+       masks defined above. */
+    int ShiftMapIndex = 0;
+    int LockMapIndex = 1;
+    int ControlMapIndex = 2;
+    int Mod1MapIndex = 3;
+    int Mod2MapIndex = 4;
+    int Mod3MapIndex = 5;
+    int Mod4MapIndex = 6;
+    int Mod5MapIndex = 7;
+
+    /* button masks.  Used in same manner as Key masks above. Not to be confused
+       with button names below. */
+    int Button1Mask = (1 << 8);
+    int Button2Mask = (1 << 9);
+    int Button3Mask = (1 << 10);
+    int Button4Mask = (1 << 11);
+    int Button5Mask = (1 << 12);
+
+    int AnyModifier = (1 << 15);  /* used in GrabButton, GrabKey */
+
+    /* button names. Used as arguments to GrabButton and as detail in ButtonPress
+       and ButtonRelease events.  Not to be confused with button masks above.
+       Note that 0 is already defined above as "AnyButton".  */
+    int Button1 = 1;
+    int Button2 = 2;
+    int Button3 = 3;
+    int Button4 = 4;
+    int Button5 = 5;
+
     int XSelectInput(Display display, Window window, NativeLong eventMask);
     /** Returns an {@link XWMHints} which must be freed by {@link #XFree}. */
     XWMHints XGetWMHints(Display display, Window window);
@@ -806,7 +886,7 @@ public interface X11 extends Library {
     int XChangeProperty(Display display, Window w, Atom property, Atom type,
                         int format, int mode, Pointer data, int nelements);
     int XDeleteProperty(Display display, Window w, Atom property);
-    // Atom XInternAtom(Display *display, char *atom_name, Bool only_if_exists);  
+    // Atom XInternAtom(Display *display, char *atom_name, Bool only_if_exists);
     Atom XInternAtom(Display display, String name, boolean only_if_exists);
     // char *XGetAtomName(Display *display, Atom atom);
     String XGetAtomName(Display display, Atom atom);
