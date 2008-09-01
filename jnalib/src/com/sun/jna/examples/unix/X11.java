@@ -273,6 +273,23 @@ public interface X11 extends Library {
         XRenderPictFormat XRenderFindVisualFormat(Display display, Visual visual);
     }
 
+    /** Definition (incomplete) of the Xevie library. */
+    interface Xevie extends Library {
+        Xevie INSTANCE = (Xevie)Native.loadLibrary("Xevie", Xevie.class);
+        int XEVIE_UNMODIFIED = 0;
+        int XEVIE_MODIFIED   = 1;
+        // Bool XevieQueryVersion (Display* display, int* major_version, int* minor_version);
+        boolean XevieQueryVersion (Display display, IntByReference major_version, IntByReference minor_version);
+        // Status XevieStart (Display* display);
+        int XevieStart (Display display);
+        // Status XevieEnd (Display* display);
+        int XevieEnd (Display display);
+        // Status XevieSendEvent (Display* display, XEvent* event, int data_type);
+        int XevieSendEvent (Display display, XEvent event, int data_type);
+        // Status XevieSelectInput (Display* display, NativeLong event_mask);
+        int XevieSelectInput (Display display, NativeLong event_mask);
+    }
+
     X11 INSTANCE = (X11)Native.loadLibrary("X11", X11.class);
 
     int Success = 0;
