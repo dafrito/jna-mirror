@@ -16,10 +16,10 @@ import com.sun.jna.FromNativeContext;
 import com.sun.jna.Library;
 import com.sun.jna.Native;
 import com.sun.jna.NativeLong;
-import com.sun.jna.NativeMapped;
 import com.sun.jna.Pointer;
 import com.sun.jna.PointerType;
 import com.sun.jna.Structure;
+import com.sun.jna.Union;
 import com.sun.jna.ptr.ByReference;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.NativeLongByReference;
@@ -858,6 +858,437 @@ public interface X11 extends Library {
     int Button3 = 3;
     int Button4 = 4;
     int Button5 = 5;
+
+    /*** XEvent and all sub events ***/
+
+    public static class XEvent extends Union {
+        public int type;
+        public XAnyEvent xany;
+        public XKeyEvent xkey;
+        public XButtonEvent xbutton;
+        public XMotionEvent xmotion;
+        public XCrossingEvent xcrossing;
+        public XFocusChangeEvent xfocus;
+        public XExposeEvent xexpose;
+        public XGraphicsExposeEvent xgraphicsexpose;
+        public XNoExposeEvent xnoexpose;
+        public XVisibilityEvent xvisibility;
+        public XCreateWindowEvent xcreatewindow;
+        public XDestroyWindowEvent xdestroywindow;
+        public XUnmapEvent xunmap;
+        public XMapEvent xmap;
+        public XMapRequestEvent xmaprequest;
+        public XReparentEvent xreparent;
+        public XConfigureEvent xconfigure;
+        public XGravityEvent xgravity;
+        public XResizeRequestEvent xresizerequest;
+        public XConfigureRequestEvent xconfigurerequest;
+        public XCirculateEvent xcirculate;
+        public XCirculateRequestEvent xcirculaterequest;
+        public XPropertyEvent xproperty;
+        public XSelectionClearEvent xselectionclear;
+        public XSelectionRequestEvent xselectionrequest;
+        public XSelectionEvent xselection;
+        public XColormapEvent xcolormap;
+        public XClientMessageEvent xclient;
+        public XMappingEvent xmapping;
+        public XErrorEvent xerror;
+        public XKeymapEvent xkeymap;
+        public NativeLong[] pad = new NativeLong[24];
+    }
+
+    public static class XAnyEvent extends Structure {
+        public int type;
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // Display the event was read from
+        public Window window;       // window on which event was requested in event mask
+    }
+
+    class XKeyEvent extends Structure {
+        public int type;            // of event
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // public Display the event was read from
+        public Window window;       // "event" window it is reported relative to
+        public Window root;         // root window that the event occurred on
+        public Window subwindow;    // child window
+        public NativeLong time;     // milliseconds
+        public int x, y;            // pointer x, y coordinates in event window
+        public int x_root, y_root;  // coordinates relative to root
+        public int state;           // key or button mask
+        public int keycode;         // detail
+        public int same_screen;     // same screen flag
+    }
+
+    class XButtonEvent extends Structure {
+        public int type;            // of event
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // Display the event was read from
+        public Window window;       // "event" window it is reported relative to
+        public Window root;         // root window that the event occurred on
+        public Window subwindow;    // child window
+        public NativeLong time;     // milliseconds
+        public int x, y;            // pointer x, y coordinates in event window
+        public int x_root, y_root;  // coordinates relative to root
+        public int state;           // key or button mask
+        public int button;          // detail
+        public int same_screen;     // same screen flag
+    }
+
+    class XButtonPressedEvent extends XButtonEvent {
+    }
+
+    class XButtonReleasedEvent extends XButtonEvent {
+    }
+
+    public static class XClientMessageEvent extends Structure {
+        public int type;                // ClientMessage
+        public NativeLong serial;       // # of last request processed by server
+        public int send_event;          // true if this came from a SendEvent request
+        public Display display;         // Display the event was read from
+        public Window window;
+        public Atom message_type;
+        public int format;
+        public Data data;
+
+        public static class Data extends Union {
+            public byte b[] = new byte[20];
+            public short s[] = new short[10];
+            public NativeLong[] l = new NativeLong[5];
+        }
+    }
+
+    class XMotionEvent extends Structure {
+        public int type;            // of event
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // Display the event was read from
+        public Window window;       // "event" window reported relative to
+        public Window root;         // root window that the event occurred on
+        public Window subwindow;    // child window
+        public NativeLong time;     // milliseconds
+        public int x, y;            // pointer x, y coordinates in event window
+        public int x_root, y_root;  // coordinates relative to root
+        public int state;           // key or button mask
+        public byte is_hint;        // detail
+        public int same_screen;     // same screen flag
+    }
+
+    class XPointerMovedEvent extends XMotionEvent {
+    }
+
+    class XCrossingEvent extends Structure {
+        public int type;            // of event
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // Display the event was read from
+        public Window window;       // "event" window reported relative to
+        public Window root;         // root window that the event occurred on
+        public Window subwindow;    // child window
+        public NativeLong time;     // milliseconds
+        public int x, y;            // pointer x, y coordinates in event window
+        public int x_root, y_root;  // coordinates relative to root
+        public int mode;            // NotifyNormal, NotifyGrab, NotifyUngrab
+        public int detail;
+        /*
+        * NotifyAncestor, NotifyVirtual, NotifyInferior,
+        * NotifyNonlinear,NotifyNonlinearVirtual
+        */
+        public int same_screen;     // same screen flag
+        public int focus;           // intean focus
+        public int state;           // key or button mask
+    }
+
+    class XEnterWindowEvent extends XCrossingEvent {
+    }
+
+    class XLeaveWindowEvent extends XCrossingEvent {
+    }
+
+    class XFocusChangeEvent extends Structure {
+        public int type;            // FocusIn or FocusOut
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // Display the event was read from
+        public Window window;       // window of event
+        public int mode;            // NotifyNormal, NotifyWhileGrabbed, NotifyGrab, NotifyUngrab
+        public int detail;
+        /*
+        * NotifyAncestor, NotifyVirtual, NotifyInferior,
+        * NotifyNonlinear,NotifyNonlinearVirtual, NotifyPointer,
+        * NotifyPointerRoot, NotifyDetailNone
+        */
+    }
+
+    class XFocusInEvent extends XFocusChangeEvent {
+    }
+
+    class XFocusOutEvent extends XFocusChangeEvent {
+    }
+
+    class XExposeEvent extends Structure {
+        public int type;
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // Display the event was read from
+        public Window window;
+        public int x, y;
+        public int width, height;
+        public int count;           // if non-zero, at least this many more
+    }
+
+    class XGraphicsExposeEvent extends Structure {
+        public int type;
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // Display the event was read from
+        public Drawable drawable;
+        public int x, y;
+        public int width, height;
+        public int count;           // if non-zero, at least this many more
+        public int major_code;      // core is CopyArea or CopyPlane
+        public int minor_code;      // not defined in the core
+    }
+
+    class XNoExposeEvent extends Structure {
+        public int type;
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // Display the event was read from
+        public Drawable drawable;
+        public int major_code;      // core is CopyArea or CopyPlane
+        public int minor_code;      // not defined in the core
+    }
+
+    class XVisibilityEvent extends Structure {
+        public int type;
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // Display the event was read from
+        public Window window;
+        public int state;           // Visibility state
+    }
+
+    class XCreateWindowEvent extends Structure {
+        public int type;
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // Display the event was read from
+        public Window parent;       // parent of the window
+        public Window window;       // window id of window created
+        public int x, y;            // window location
+        public int width, height;   // size of window
+        public int border_width;    // border width
+        public int override_redirect; // creation should be overridden
+    }
+
+    class XDestroyWindowEvent extends Structure {
+        public int type;
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // Display the event was read from
+        public Window event;
+        public Window window;
+    }
+
+    class XUnmapEvent extends Structure {
+        public int type;
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // Display the event was read from
+        public Window event;
+        public Window window;
+        public int from_configure;
+    }
+
+    class XMapEvent extends Structure {
+        public int type;
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // Display the event was read from
+        public Window event;
+        public Window window;
+        public int override_redirect; // intean, is override set...
+    }
+
+    class XMapRequestEvent extends Structure {
+        public int type;
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // Display the event was read from
+        public Window parent;
+        public Window window;
+    }
+
+    class XReparentEvent extends Structure {
+        public int type;
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // Display the event was read from
+        public Window event;
+        public Window window;
+        public Window parent;
+        public int x, y;
+        public int override_redirect;
+    }
+
+    class XConfigureEvent extends Structure {
+        public int type;
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // Display the event was read from
+        public Window event;
+        public Window window;
+        public int x, y;
+        public int width, height;
+        public int border_width;
+        public Window above;
+        public int override_redirect;
+    }
+
+    class XGravityEvent extends Structure {
+        public int type;
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // Display the event was read from
+        public Window event;
+        public Window window;
+        public int x, y;
+    }
+
+    class XResizeRequestEvent extends Structure {
+        public int type;
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // Display the event was read from
+        public Window window;
+        public int width, height;
+    }
+
+    class XConfigureRequestEvent extends Structure {
+        public int type;
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // Display the event was read from
+        public Window parent;
+        public Window window;
+        public int x, y;
+        public int width, height;
+        public int border_width;
+        public Window above;
+        public int detail;          // Above, Below, TopIf, BottomIf, Opposite
+        public NativeLong value_mask;
+    }
+
+    class XCirculateEvent extends Structure {
+        public int type;
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // Display the event was read from
+        public Window event;
+        public Window window;
+        public int place;           // PlaceOnTop, PlaceOnBottom
+    }
+
+    class XCirculateRequestEvent extends Structure {
+        public int type;
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // Display the event was read from
+        public Window parent;
+        public Window window;
+        public int place;           // PlaceOnTop, PlaceOnBottom
+    }
+
+    class XPropertyEvent extends Structure {
+        public int type;
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // Display the event was read from
+        public Window window;
+        public Atom atom;
+        public NativeLong time;
+        public int state;           // NewValue, Deleted
+    }
+
+    class XSelectionClearEvent extends Structure {
+        public int type;
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // Display the event was read from
+        public Window window;
+        public Atom selection;
+        public NativeLong time;
+    }
+
+    class XSelectionRequestEvent extends Structure {
+        public int type;
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // Display the event was read from
+        public Window owner;
+        public Window requestor;
+        public Atom selection;
+        public Atom target;
+        Atom property;
+        public NativeLong time;
+    }
+
+    class XSelectionEvent extends Structure {
+        public int type;
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // Display the event was read from
+        public Window requestor;
+        public Atom selection;
+        public Atom target;
+        public Atom property;       // ATOM or None
+        public NativeLong time;
+    }
+
+    class XColormapEvent extends Structure {
+        public int type;
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // Display the event was read from
+        public Window window;
+        public Colormap colormap;   // COLORMAP or None
+        public int c_new;           // C++
+        public int state;           // ColormapInstalled, ColormapUninstalled
+    }
+
+    class XMappingEvent extends Structure {
+        public int type;
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // Display the event was read from
+        public Window window;       // unused
+        public int request;         // one of MappingModifier, MappingKeyboard, MappingPointer
+        public int first_keycode;   // first keycode
+        public int count;           // defines range of change w. first_keycode*/
+    }
+
+    class XErrorEvent extends Structure {
+        public int type;
+        public Display display;     // Display the event was read from
+        public XID resourceid;      // resource id
+        public NativeLong serial;   // serial number of failed request
+        public byte error_code;     // error code of failed request
+        public byte request_code;   // Major op-code of failed request
+        public byte minor_code;     // Minor op-code of failed request
+    }
+
+    // generated on EnterWindow and FocusIn  when KeyMapState selected
+    class XKeymapEvent extends Structure {
+        public int type;
+        public NativeLong serial;   // # of last request processed by server
+        public int send_event;      // true if this came from a SendEvent request
+        public Display display;     // Display the event was read from
+        public Window window;
+        public byte key_vector[] = new byte[32];
+    }
 
     int XSelectInput(Display display, Window window, NativeLong eventMask);
     /** Returns an {@link XWMHints} which must be freed by {@link #XFree}. */
