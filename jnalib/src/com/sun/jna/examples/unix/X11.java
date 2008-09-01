@@ -292,25 +292,6 @@ public interface X11 extends Library {
 
     X11 INSTANCE = (X11)Native.loadLibrary("X11", X11.class);
 
-    int Success = 0;
-    int BadRequest = 1;
-    int BadValue = 2;
-    int BadWindow = 3;
-    int BadPixmap = 4;
-    int BadAtom = 5;
-    int BadCursor = 6;
-    int BadFont = 7;
-    int BadMatch = 8;
-    int BadDrawable = 9;
-    int BadAccess = 10;
-    int BadAlloc = 11;
-    int BadColor = 12;
-    int BadGC = 13;
-    int BadIDChoice = 14;
-    int BadName = 15;
-    int BadLength = 16;
-    int BadImplementation = 17;
-
     /*
       typedef struct {
         long flags;     // marks which fields in this structure are defined
@@ -436,21 +417,6 @@ public interface X11 extends Library {
         public Screen screen;
     }
 
-    int CWBackPixmap = (1<<0);
-    int CWBackPixel = (1<<1);
-    int CWBorderPixmap = (1<<2);
-    int CWBorderPixel = (1<<3);
-    int CWBitGravity = (1<<4);
-    int CWWinGravity = (1<<5);
-    int CWBackingStore = (1<<6);
-    int CWBackingPlanes = (1<<7);
-    int CWBackingPixel = (1<<8);
-    int CWOverrideRedirect = (1<<9);
-    int CWSaveUnder = (1<<10);
-    int CWEventMask = (1<<11);
-    int CWDontPropagate = (1<<12);
-    int CWColormap = (1<<13);
-    int CWCursor = (1<<14);
     /*
       typedef struct {
         Pixmap background_pixmap;       // background or None or ParentRelative
@@ -517,12 +483,6 @@ public interface X11 extends Library {
     int VisualBitsPerRGBMask = 0x100;
     int VisualAllMask = 0x1FF;
 
-    int StaticGray = 0x0;
-    int GrayScale = 0x1;
-    int StaticColor = 0x2;
-    int PseudoColor = 0x3;
-    int TrueColor = 0x4;
-    int DirectColor = 0x5;
     class XVisualInfo extends Structure {
         public Visual visual;
         public VisualID visualid;
@@ -552,9 +512,6 @@ public interface X11 extends Library {
             this.width = width; this.height = height;
         }
     }
-
-    int AllocNone = 0;
-    int AllocAll = 1;
 
     Atom XA_PRIMARY = new Atom(1);
     Atom XA_SECONDARY = new Atom(2);
@@ -626,23 +583,6 @@ public interface X11 extends Library {
     Atom XA_WM_TRANSIENT_FOR = new Atom(68);
     Atom XA_LAST_PREDEFINED = XA_WM_TRANSIENT_FOR;
 
-    int PropModeReplace = 0;
-    int PropModePrepend = 1;
-    int PropModeAppend = 2;
-
-    int None = 0;
-    int ParentRelative = 1;
-    int CopyFromParent = 0;
-    int PointerWindow = 0;
-    int InputFocus = 1;
-    int PointerRoot = 1;
-    int AnyPropertyType = 0;
-    int AnyKey = 0;
-    int AnyButton = 0;
-    int AllTemporary = 0;
-    int CurrentTime = 0;
-    int NoSymbol = 0;
-
     Display XOpenDisplay(String name);
     int XGetErrorText(Display display, int code, byte[] buffer, int len);
     int XDefaultScreen(Display display);
@@ -676,29 +616,6 @@ public interface X11 extends Library {
     int XClearArea(Display display, Window window, int x, int y, int w, int h, int exposures);
     Pixmap XCreatePixmap(Display display, Drawable drawable, int width, int height, int depth);
     int XFreePixmap(Display display, Pixmap pixmap);
-    int GCFunction                  = (1<<0);
-    int GCPlaneMask                 = (1<<1);
-    int GCForeground                = (1<<2);
-    int GCBackground                = (1<<3);
-    int GCLineWidth                 = (1<<4);
-    int GCLineStyle                 = (1<<5);
-    int GCCapStyle                  = (1<<6);
-    int GCJoinStyle                 = (1<<7);
-    int GCFillStyle                 = (1<<8);
-    int GCFillRule                  = (1<<9);
-    int GCTile                      = (1<<10);
-    int GCStipple                   = (1<<11);
-    int GCTileStipXOrigin           = (1<<12);
-    int GCTileStipYOrigin           = (1<<13);
-    int GCFont                      = (1<<14);
-    int GCSubwindowMode             = (1<<15);
-    int GCGraphicsExposures         = (1<<16);
-    int GCClipXOrigin               = (1<<17);
-    int GCClipYOrigin               = (1<<18);
-    int GCClipMask                  = (1<<19);
-    int GCDashOffset                = (1<<20);
-    int GCDashList                  = (1<<21);
-    int GCArcMode                   = (1<<22);
     class XGCValues extends Structure {
         public int function;            /* logical operation */
         public NativeLong plane_mask;/* plane mask */
@@ -725,13 +642,9 @@ public interface X11 extends Library {
         public byte dashes;
     }
     GC XCreateGC(Display display, Drawable drawable, NativeLong mask, XGCValues values);
-    int EvenOddRule = 0;
-    int WindingRule = 1;
     int XSetFillRule(Display display, GC gc, int fill_rule);
     int XFreeGC(Display display, GC gc);
     int XDrawPoint(Display display, Drawable drawable, GC gc, int x, int y);
-    int CoordModeOrigin = 0;
-    int CoordModePrevious = 1;
     int XDrawPoints(Display display, Drawable drawable, GC gc,
                     XPoint[] points, int npoints, int mode);
     int XFillRectangle(Display display, Drawable drawable, GC gc,
@@ -742,9 +655,6 @@ public interface X11 extends Library {
     int XSetBackground(Display display, GC gc, NativeLong color);
     int XFillArc(Display display, Drawable drawable, GC gc, int x, int y,
                  int width, int height, int angle1, int angle2);
-    int Complex = 0;
-    int Nonconvex = 1;
-    int Convex = 2;
     int XFillPolygon(Display dpy, Drawable drawable, GC gc, XPoint[] points,
                      int npoints, int shape, int mode);
     int XQueryTree(Display display, Window window, WindowByReference root,
@@ -769,6 +679,32 @@ public interface X11 extends Library {
     boolean XTranslateCoordinates(Display display, Window src_w, Window dest_w, int src_x, int src_y,
                                   IntByReference dest_x_return, IntByReference dest_y_return, WindowByReference child_return);
 
+    /*****************************************************************
+     * RESERVED RESOURCE AND CONSTANT DEFINITIONS
+     *****************************************************************/
+
+    int None = 0;        /* universal null resource or null atom */
+    int ParentRelative = 1;        /* background pixmap in CreateWindow and ChangeWindowAttributes */
+    int CopyFromParent = 0;            /* border pixmap in CreateWindow
+                                          and ChangeWindowAttributes
+                                          special VisualID and special window
+                                          class passed to CreateWindow */
+    int PointerWindow = 0;    /* destination window in SendEvent */
+    int InputFocus = 1;    /* destination window in SendEvent */
+    int PointerRoot = 1;    /* focus window in SetInputFocus */
+    int AnyPropertyType = 0;    /* special Atom, passed to GetProperty */
+    int AnyKey = 0;        /* special Key Code, passed to GrabKey */
+    int AnyButton = 0;    /* special Button Code, passed to GrabButton */
+    int AllTemporary = 0;    /* special Resource ID passed to KillClient */
+    int CurrentTime = 0;    /* special Time */
+    int NoSymbol = 0;        /* special KeySym */
+
+    /*****************************************************************
+     * EVENT DEFINITIONS
+     *****************************************************************/
+
+    /* Input Event Masks. Used as event-mask window attribute and as arguments
+       to Grab requests.  Not to be confused with event names.  */
     int NoEventMask = 0;
     int KeyPressMask = (1<<0);
     int KeyReleaseMask = (1<<1);
@@ -876,7 +812,416 @@ public interface X11 extends Library {
     int Button4 = 4;
     int Button5 = 5;
 
-    /*** XEvent and all sub events ***/
+    /* Notify modes */
+    int NotifyNormal = 0;
+    int NotifyGrab = 1;
+    int NotifyUngrab = 2;
+    int NotifyWhileGrabbed = 3;
+
+    int NotifyHint = 1;    /* for MotionNotify events */
+
+    /* Notify detail */
+    int NotifyAncestor = 0;
+    int NotifyVirtual = 1;
+    int NotifyInferior = 2;
+    int NotifyNonlinear = 3;
+    int NotifyNonlinearVirtual = 4;
+    int NotifyPointer = 5;
+    int NotifyPointerRoot = 6;
+    int NotifyDetailNone = 7;
+
+    /* Visibility notify */
+    int VisibilityUnobscured = 0;
+    int VisibilityPartiallyObscured = 1;
+    int VisibilityFullyObscured = 2;
+
+    /* Circulation request */
+    int PlaceOnTop = 0;
+    int PlaceOnBottom = 1;
+
+    /* protocol families */
+    int FamilyInternet = 0;    /* IPv4 */
+    int FamilyDECnet = 1;
+    int FamilyChaos = 2;
+    int FamilyInternet6 = 6;    /* IPv6 */
+
+    /* authentication families not tied to a specific protocol */
+    int FamilyServerInterpreted = 5;
+
+    /* Property notification */
+    int PropertyNewValue = 0;
+    int PropertyDelete = 1;
+
+    /* Color Map notification */
+    int ColormapUninstalled = 0;
+    int ColormapInstalled = 1;
+
+    /* GrabPointer, GrabButton, GrabKeyboard, GrabKey Modes */
+    int GrabModeSync = 0;
+    int GrabModeAsync = 1;
+
+    /* GrabPointer, GrabKeyboard reply status */
+    int GrabSuccess = 0;
+    int AlreadyGrabbed = 1;
+    int GrabInvalidTime = 2;
+    int GrabNotViewable = 3;
+    int GrabFrozen = 4;
+
+    /* AllowEvents modes */
+    int AsyncPointer = 0;
+    int SyncPointer = 1;
+    int ReplayPointer = 2;
+    int AsyncKeyboard = 3;
+    int SyncKeyboard = 4;
+    int ReplayKeyboard = 5;
+    int AsyncBoth = 6;
+    int SyncBoth = 7;
+
+    /* Used in SetInputFocus, GetInputFocus */
+    int RevertToNone = (int)None;
+    int RevertToPointerRoot = (int)PointerRoot;
+    int RevertToParent = 2;
+
+    /*****************************************************************
+     * ERROR CODES
+     *****************************************************************/
+
+    int Success = 0;    /* everything's okay */
+    int BadRequest = 1;    /* bad request code */
+    int BadValue = 2;    /* int parameter out of range */
+    int BadWindow = 3;    /* parameter not a Window */
+    int BadPixmap = 4;    /* parameter not a Pixmap */
+    int BadAtom = 5;    /* parameter not an Atom */
+    int BadCursor = 6;    /* parameter not a Cursor */
+    int BadFont = 7;    /* parameter not a Font */
+    int BadMatch = 8;    /* parameter mismatch */
+    int BadDrawable = 9;    /* parameter not a Pixmap or Window */
+    int BadAccess = 10;    /* depending on context:
+                     - key/button already grabbed
+                     - attempt to free an illegal
+                       cmap entry
+                     - attempt to store into a read-only
+                       color map entry.
+                     - attempt to modify the access control
+                       list from other than the local host.
+                    */
+    int BadAlloc = 11;    /* insufficient resources */
+    int BadColor = 12;    /* no such colormap */
+    int BadGC = 13;    /* parameter not a GC */
+    int BadIDChoice = 14;    /* choice not in range or already used */
+    int BadName = 15;    /* font or color name doesn't exist */
+    int BadLength = 16;    /* Request length incorrect */
+    int BadImplementation = 17;    /* server is defective */
+
+    int FirstExtensionError = 128;
+    int LastExtensionError = 255;
+
+    /*****************************************************************
+     * WINDOW DEFINITIONS
+     *****************************************************************/
+
+    /* Window classes used by CreateWindow */
+    /* Note that CopyFromParent is already defined as 0 above */
+    int InputOutput = 1;
+    int InputOnly = 2;
+
+    /* Window attributes for CreateWindow and ChangeWindowAttributes */
+    int CWBackPixmap = (1<<0);
+    int CWBackPixel = (1<<1);
+    int CWBorderPixmap = (1<<2);
+    int CWBorderPixel = (1<<3);
+    int CWBitGravity = (1<<4);
+    int CWWinGravity = (1<<5);
+    int CWBackingStore = (1<<6);
+    int CWBackingPlanes = (1<<7);
+    int CWBackingPixel = (1<<8);
+    int CWOverrideRedirect = (1<<9);
+    int CWSaveUnder = (1<<10);
+    int CWEventMask = (1<<11);
+    int CWDontPropagate = (1<<12);
+    int CWColormap = (1<<13);
+    int CWCursor = (1<<14);
+
+    /* ConfigureWindow structure */
+    int CWX = (1<<0);
+    int CWY = (1<<1);
+    int CWWidth = (1<<2);
+    int CWHeight = (1<<3);
+    int CWBorderWidth = (1<<4);
+    int CWSibling = (1<<5);
+    int CWStackMode = (1<<6);
+
+
+    /* Bit Gravity */
+    int ForgetGravity = 0;
+    int NorthWestGravity = 1;
+    int NorthGravity = 2;
+    int NorthEastGravity = 3;
+    int WestGravity = 4;
+    int CenterGravity = 5;
+    int EastGravity = 6;
+    int SouthWestGravity = 7;
+    int SouthGravity = 8;
+    int SouthEastGravity = 9;
+    int StaticGravity = 10;
+
+    /* Window gravity + bit gravity above */
+    int UnmapGravity = 0;
+
+    /* Used in CreateWindow for backing-store hint */
+    int NotUseful = 0;
+    int WhenMapped = 1;
+    int Always = 2;
+
+    /* Used in GetWindowAttributes reply */
+    int IsUnmapped = 0;
+    int IsUnviewable = 1;
+    int IsViewable = 2;
+
+    /* Used in ChangeSaveSet */
+    int SetModeInsert = 0;
+    int SetModeDelete = 1;
+
+    /* Used in ChangeCloseDownMode */
+    int DestroyAll = 0;
+    int RetainPermanent = 1;
+    int RetainTemporary = 2;
+
+    /* Window stacking method (in configureWindow) */
+    int Above = 0;
+    int Below = 1;
+    int TopIf = 2;
+    int BottomIf = 3;
+    int Opposite = 4;
+
+    /* Circulation direction */
+    int RaiseLowest = 0;
+    int LowerHighest = 1;
+
+    /* Property modes */
+    int PropModeReplace = 0;
+    int PropModePrepend = 1;
+    int PropModeAppend = 2;
+
+    /*****************************************************************
+     * GRAPHICS DEFINITIONS
+     *****************************************************************/
+
+    /* graphics functions, as in GC.alu */
+    int GXclear = 0x0;        /* 0 */
+    int GXand = 0x1;        /* src AND dst */
+    int GXandReverse = 0x2;        /* src AND NOT dst */
+    int GXcopy = 0x3;        /* src */
+    int GXandInverted = 0x4;        /* NOT src AND dst */
+    int GXnoop = 0x5;        /* dst */
+    int GXxor = 0x6;        /* src XOR dst */
+    int GXor = 0x7;        /* src OR dst */
+    int GXnor = 0x8;        /* NOT src AND NOT dst */
+    int GXequiv = 0x9;        /* NOT src XOR dst */
+    int GXinvert = 0xa;        /* NOT dst */
+    int GXorReverse = 0xb;        /* src OR NOT dst */
+    int GXcopyInverted = 0xc;        /* NOT src */
+    int GXorInverted = 0xd;        /* NOT src OR dst */
+    int GXnand = 0xe;        /* NOT src OR NOT dst */
+    int GXset = 0xf;        /* 1 */
+
+    /* LineStyle */
+    int LineSolid = 0;
+    int LineOnOffDash = 1;
+    int LineDoubleDash = 2;
+
+    /* capStyle */
+    int CapNotLast = 0;
+    int CapButt = 1;
+    int CapRound = 2;
+    int CapProjecting = 3;
+
+    /* joinStyle */
+    int JoinMiter = 0;
+    int JoinRound = 1;
+    int JoinBevel = 2;
+
+    /* fillStyle */
+    int FillSolid = 0;
+    int FillTiled = 1;
+    int FillStippled = 2;
+    int FillOpaqueStippled = 3;
+
+    /* fillRule */
+    int EvenOddRule = 0;
+    int WindingRule = 1;
+
+    /* subwindow mode */
+    int ClipByChildren = 0;
+    int IncludeInferiors = 1;
+
+    /* SetClipRectangles ordering */
+    int Unsorted = 0;
+    int YSorted = 1;
+    int YXSorted = 2;
+    int YXBanded = 3;
+
+    /* CoordinateMode for drawing routines */
+    int CoordModeOrigin = 0;    /* relative to the origin */
+    int CoordModePrevious = 1;    /* relative to previous point */
+
+    /* Polygon shapes */
+    int Complex = 0;    /* paths may intersect */
+    int Nonconvex = 1;    /* no paths intersect, but not convex */
+    int Convex = 2;    /* wholly convex */
+
+    /* Arc modes for PolyFillArc */
+    int ArcChord = 0;    /* join endpoints of arc */
+    int ArcPieSlice = 1;    /* join endpoints to center of arc */
+
+    /* GC components: masks used in CreateGC, CopyGC, ChangeGC, OR'ed into
+       GC.stateChanges */
+    int GCFunction = (1<<0);
+    int GCPlaneMask = (1<<1);
+    int GCForeground = (1<<2);
+    int GCBackground = (1<<3);
+    int GCLineWidth = (1<<4);
+    int GCLineStyle = (1<<5);
+    int GCCapStyle = (1<<6);
+    int GCJoinStyle = (1<<7);
+    int GCFillStyle = (1<<8);
+    int GCFillRule = (1<<9);
+    int GCTile = (1<<10);
+    int GCStipple = (1<<11);
+    int GCTileStipXOrigin = (1<<12);
+    int GCTileStipYOrigin = (1<<13);
+    int GCFont = (1<<14);
+    int GCSubwindowMode = (1<<15);
+    int GCGraphicsExposures = (1<<16);
+    int GCClipXOrigin = (1<<17);
+    int GCClipYOrigin = (1<<18);
+    int GCClipMask = (1<<19);
+    int GCDashOffset = (1<<20);
+    int GCDashList = (1<<21);
+    int GCArcMode = (1<<22);
+
+    int GCLastBit = 22;
+    /*****************************************************************
+     * FONTS
+     *****************************************************************/
+
+    /* used in QueryFont -- draw direction */
+    int FontLeftToRight = 0;
+    int FontRightToLeft = 1;
+
+    int FontChange = 255;
+
+    /*****************************************************************
+     *  IMAGING
+     *****************************************************************/
+
+    /* ImageFormat -- PutImage, GetImage */
+    int XYBitmap = 0;    /* depth 1, XYFormat */
+    int XYPixmap = 1;    /* depth == drawable depth */
+    int ZPixmap = 2;    /* depth == drawable depth */
+
+    /*****************************************************************
+     *  COLOR MAP STUFF
+     *****************************************************************/
+
+    /* For CreateColormap */
+    int AllocNone = 0;    /* create map with no entries */
+    int AllocAll = 1;    /* allocate entire map writeable */
+
+
+    /* Flags used in StoreNamedColor, StoreColors */
+    int DoRed = (1<<0);
+    int DoGreen = (1<<1);
+    int DoBlue = (1<<2);
+
+    /*****************************************************************
+     * CURSOR STUFF
+     *****************************************************************/
+
+    /* QueryBestSize Class */
+    int CursorShape = 0;    /* largest size that can be displayed */
+    int TileShape = 1;    /* size tiled fastest */
+    int StippleShape = 2;    /* size stippled fastest */
+
+    /*****************************************************************
+     * KEYBOARD/POINTER STUFF
+     *****************************************************************/
+
+    int AutoRepeatModeOff = 0;
+    int AutoRepeatModeOn = 1;
+    int AutoRepeatModeDefault = 2;
+
+    int LedModeOff = 0;
+    int LedModeOn = 1;
+
+    /* masks for ChangeKeyboardControl */
+    int KBKeyClickPercent = (1<<0);
+    int KBBellPercent = (1<<1);
+    int KBBellPitch = (1<<2);
+    int KBBellDuration = (1<<3);
+    int KBLed = (1<<4);
+    int KBLedMode = (1<<5);
+    int KBKey = (1<<6);
+    int KBAutoRepeatMode = (1<<7);
+
+    int MappingSuccess = 0;
+    int MappingBusy = 1;
+    int MappingFailed = 2;
+
+    int MappingModifier = 0;
+    int MappingKeyboard = 1;
+    int MappingPointer = 2;
+
+    /*****************************************************************
+     * SCREEN SAVER STUFF
+     *****************************************************************/
+
+    int DontPreferBlanking = 0;
+    int PreferBlanking = 1;
+    int DefaultBlanking = 2;
+
+    int DisableScreenSaver = 0;
+    int DisableScreenInterval = 0;
+
+    int DontAllowExposures = 0;
+    int AllowExposures = 1;
+    int DefaultExposures = 2;
+
+    /* for ForceScreenSaver */
+    int ScreenSaverReset = 0;
+    int ScreenSaverActive = 1;
+
+    /*****************************************************************
+     * HOSTS AND CONNECTIONS
+     *****************************************************************/
+
+    /* for ChangeHosts */
+    int HostInsert = 0;
+    int HostDelete = 1;
+
+    /* for ChangeAccessControl */
+    int EnableAccess = 1;
+    int DisableAccess = 0;
+
+    /* Display classes  used in opening the connection
+     * Note that the statically allocated ones are even numbered and the
+     * dynamically changeable ones are odd numbered */
+    int StaticGray = 0;
+    int GrayScale = 1;
+    int StaticColor = 2;
+    int PseudoColor = 3;
+    int TrueColor = 4;
+    int DirectColor = 5;
+
+    /* Byte order  used in imageByteOrder and bitmapBitOrder */
+    int LSBFirst = 0;
+    int MSBFirst = 1;
+
+
+
+    /*****************************************************************
+     * DEFINITIONS OF SPECIFIC EVENTS
+     *****************************************************************/
 
     public static class XEvent extends Union {
         public int type;
@@ -1352,9 +1697,6 @@ public interface X11 extends Library {
     int XCopyArea(Display dpy, Drawable src, Drawable dst, GC gc,
                   int src_x, int src_y, int w, int h, int dst_x, int dst_y);
 
-    int XYBitmap = 0;
-    int XYPixmap = 1;
-    int ZPixmap = 2;
     XImage XCreateImage(Display dpy, Visual visual, int depth, int format,
                         int offset, Pointer data, int width, int height,
                         int bitmap_pad, int bytes_per_line);
