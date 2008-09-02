@@ -65,38 +65,44 @@ void ffi_prep_args(char *stack, extended_cif *ecif)
 	argp = (char *) ALIGN(argp, sizeof(void*));
 
       z = (*p_arg)->size;
-      if (z < sizeof(int))
+      if (z < sizeof(ffi_arg))
 	{
-	  z = sizeof(int);
+	  z = sizeof(ffi_arg);
 	  switch ((*p_arg)->type)
 	    {
 	    case FFI_TYPE_SINT8:
-	      *(signed int *) argp = (signed int)*(SINT8 *)(* p_argv);
+	      *(ffi_sarg *) argp = (ffi_sarg)*(SINT8 *)(* p_argv);
 	      break;
 
 	    case FFI_TYPE_UINT8:
-	      *(unsigned int *) argp = (unsigned int)*(UINT8 *)(* p_argv);
+	      *(ffi_arg *) argp = (ffi_arg)*(UINT8 *)(* p_argv);
 	      break;
 
 	    case FFI_TYPE_SINT16:
-	      *(signed int *) argp = (signed int)*(SINT16 *)(* p_argv);
+	      *(ffi_sarg *) argp = (ffi_sarg)*(SINT16 *)(* p_argv);
 	      break;
 
 	    case FFI_TYPE_UINT16:
-	      *(unsigned int *) argp = (unsigned int)*(UINT16 *)(* p_argv);
+	      *(ffi_arg *) argp = (ffi_arg)*(UINT16 *)(* p_argv);
 	      break;
 
 	    case FFI_TYPE_SINT32:
-	      *(signed int *) argp = (signed int)*(SINT32 *)(* p_argv);
+	      *(ffi_sarg *) argp = (ffi_sarg)*(SINT32 *)(* p_argv);
 	      break;
 
 	    case FFI_TYPE_UINT32:
-	      *(unsigned int *) argp = (unsigned int)*(UINT32 *)(* p_argv);
+	      *(ffi_arg *) argp = (ffi_arg)*(UINT32 *)(* p_argv);
 	      break;
 
 	    case FFI_TYPE_STRUCT:
-	      *(unsigned int *) argp = (unsigned int)*(UINT32 *)(* p_argv);
+	      *(ffi_arg *) argp = *(ffi_arg *)(* p_argv);
 	      break;
+              
+#ifdef X86_WIN64
+            case FFI_TYPE_FLOAT:
+              memcpy(argp, *p_argv, z);
+              break;
+#endif
 
 	    default:
 	      FFI_ASSERT(0);
@@ -104,8 +110,25 @@ void ffi_prep_args(char *stack, extended_cif *ecif)
 	}
       else
 	{
+#ifdef X86_WIN64
+          // Structs larger than 8 bytes are passed by reference
+          // Incoming data is always a pointer
+          if ((*p_arg)->type == FFI_TYPE_STRUCT) 
+            {
+              if (z == FFI_SIZEOF_ARG)
+                {
+                  *(ffi_arg *)argp = *(ffi_arg *)(* p_argv);
+                }
+              else 
+                {
+                  *(void **)argp = *p_argv;
+                }
+            }
+          else
+#endif
 	  memcpy(argp, *p_argv, z);
 	}
+
       p_argv++;
       argp += z;
     }
@@ -178,6 +201,12 @@ ffi_status ffi_prep_cif_machdep(ffi_cif *cif)
   cif->bytes = (cif->bytes + 15) & ~0xF;
 #endif
 
+#ifdef X86_WIN64
+  // ensure at least 40 bytes storage, one optional return address
+  // and four registers
+  cif->bytes = cif->bytes < 40 ? 40 : cif->bytes;
+#endif
+
   return FFI_OK;
 }
 
@@ -217,13 +246,23 @@ void ffi_call(ffi_cif *cif, void (*fn)(), void *rvalue, void **avalue)
   switch (cif->abi) 
     {
 #ifdef X86_WIN64
+      // TODO: check small struct return, args
     case FFI_WIN64:
-      /* ffi_call_win64 requires at least 40 bytes stack on win64
-       * This comprises space for four register arguments and a
-       * pointer to return value.
-       */
-      ffi_call_win64(ffi_prep_args, &ecif, cif->bytes < 40 ? 40 : cif->bytes,
-                     cif->flags, ecif.rvalue, fn);
+      {
+        // Make copies of all struct arguments
+        unsigned int i;
+        for (i=0; i < cif->nargs;i++) {
+          size_t size = cif->arg_types[i]->size;
+          if (cif->arg_types[i]->type == FFI_TYPE_STRUCT
+              && size > sizeof(void *)) {
+            void *local = alloca(size);
+            memcpy(local, avalue[i], size);
+            avalue[i] = local;
+          }
+        }
+        ffi_call_win64(ffi_prep_args, &ecif, cif->bytes,
+                       cif->flags, ecif.rvalue, fn);
+      }
       break;
 #else
     case FFI_SYSV:

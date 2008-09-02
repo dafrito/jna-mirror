@@ -98,7 +98,7 @@ do
       shift 1
     ;;
     -o)
-      dir="$(dirname $2)"
+      outdir="$(dirname $2)"
       base="$(basename $2|sed 's/\.[^.]*//g')"
       if [ -n "$single" ]; then 
         output="/Fo$2"
@@ -108,7 +108,7 @@ do
       if [ -n "$assembly" ]; then
         args="$args $output"
       else
-        args="$args $output /Fd$dir/$base /Fp$dir/$base /Fa$dir/$base"
+        args="$args $output /Fd$outdir/$base /Fp$outdir/$base /Fa$outdir/$base"
       fi
       shift 2
     ;;
@@ -140,6 +140,7 @@ eval "\"$cl\" $args"
 result=$?
 # @#!%@!# ml64 broken output
 if [ -n "$assembly" ]; then
-    mv *.obj $(dirname $(echo $output|sed 's%/Fo%%g'))
+    mv $src $outdir
+    mv *.obj $outdir
 fi
 exit $result

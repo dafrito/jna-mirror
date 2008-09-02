@@ -33,7 +33,7 @@ _TEXT	SEGMENT
 ;;; call ffi_closure_win64_inner for the actual work, then return the result.
 ;;; 
 ffi_closure_win64 PROC FRAME
-	;; save actual arguments to their stack space.
+	;; copy register arguments onto stack
 	test	r11, 1
 	jne	first_is_float	
 	mov	QWORD PTR [rsp+8], rcx
@@ -53,16 +53,16 @@ third:
 	test	r11, 4
 	jne	third_is_float	
 	mov	QWORD PTR [rsp+24], r8
-	jmp	forth
+	jmp	fourth
 third_is_float:
 	movlpd	QWORD PTR [rsp+24], xmm2
 
-forth:
+fourth:
 	test	r11, 8
-	jne	forth_is_float	
+	jne	fourth_is_float	
 	mov	QWORD PTR [rsp+32], r9
 	jmp	done
-forth_is_float:
+fourth_is_float:
 	movlpd	QWORD PTR [rsp+32], xmm3
 
 done:
@@ -81,7 +81,7 @@ done:
 ffi_closure_win64 ENDP
 
 ffi_call_win64 PROC FRAME
-
+        ;; copy registers onto stack
 	mov	QWORD PTR [rsp+32], r9
 	mov	QWORD PTR [rsp+24], r8
 	mov	QWORD PTR [rsp+16], rdx
@@ -180,7 +180,7 @@ END
         .globl _ffi_closure_win64	
 	.type  _ffi_closure_win64,@function
 _ffi_closure_win64:     
-	# save actual arguments to their stack space.
+	# copy register arguments onto stack
 	test	$1,%r11
 	jne	.Lfirst_is_float	
 	mov	%rcx, 8(%rsp)
@@ -231,18 +231,18 @@ _ffi_closure_win64:
         .globl	_ffi_call_win64
 	.type   _ffi_call_win64,@function
 _ffi_call_win64:        
-
+        # copy registers onto stack
 	mov	%r9,32(%rsp)
 	mov	%r8,24(%rsp)
 	mov	%rdx,16(%rsp)
 	mov	%rcx,8(%rsp)
-#.PUSHREG rbp
+        #.PUSHREG rbp
 	push	%rbp
-#.ALLOCSTACK 48
+        #.ALLOCSTACK 48
 	sub	$48,%rsp
-#.SETFRAME rbp, 32
+        #.SETFRAME rbp, 32
 	lea	32(%rsp),%rbp
-#.ENDPROLOG
+        #.ENDPROLOG
 
 	mov	CIF_BYTES(%rbp),%eax
 	add	$15, %rax
