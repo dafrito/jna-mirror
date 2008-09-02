@@ -104,7 +104,6 @@ LD = x86_64-pc-mingw32-ld
 #WINDRES=x86_64-pc-mingw32-windres
 #FFI_CONFIG += --host=x86_64-pc-mingw32 --enable-debug
 #JNIDISPATCH_OBJS=$(BUILD)/testlib.o $(BUILD)/dispatch.o $(BUILD)/callback.o
-#FFI_SRC=c:/users/twall/ws/jna/native/libffi
 #; rm -f include/ffitarget.h; cp $(FFI_SRC)/include/*.h $(FFI_SRC)/src/x86/ffitarget.h include
 #FFI_ENV=NM=nm
 
@@ -112,8 +111,8 @@ LD = x86_64-pc-mingw32-ld
 # fix up headers after configure (no symlinks, please)
 # Lots of compilation warnings (ACK!)
 # link succeeds, testlib needs source fixing for msvc
-CC=/home/twall/ws/jna/native/gcc.sh -m64
-LD=/home/twall/ws/jna/native/ld.sh -m64
+CC=$(FFI_SRC)/../cc.sh -m64
+LD=$(FFI_SRC)/../ld.sh -m64
 FFI_CONFIG += --host=x86_64-pc-mingw32; rm -f include/ffitarget.h; cp $(FFI_SRC)/include/*.h $(FFI_SRC)/src/x86/ffitarget.h include
 EXTRAOBJS=
 FFI_LIB=$(FFI_BUILD)/.libs/libffi_convenience.lib

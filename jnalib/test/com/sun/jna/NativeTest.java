@@ -83,26 +83,34 @@ public class NativeTest extends TestCase {
         void callVoidCallback(VoidCallback callback);
     }
     public void testSynchronizedAccess() throws Exception {
-        final boolean[] lockHeld = { false, false };
-        TestLib base = (TestLib)Native.loadLibrary("testlib", TestLib.class);
-        final TestLib lib = (TestLib)Native.synchronizedLibrary(base); 
+        final boolean[] lockHeld = { false };
+        final NativeLibrary nlib = NativeLibrary.getInstance("testlib");
+        final TestLib lib = (TestLib)Native.loadLibrary("testlib", TestLib.class);
+        final TestLib synchlib = (TestLib)Native.synchronizedLibrary(lib); 
         final TestLib.VoidCallback cb = new TestLib.VoidCallback() {
             public void callback() {
-                lockHeld[0] = Thread.holdsLock(NativeLibrary.getInstance("testlib"));
-                lockHeld[1] = Thread.holdsLock(lib);
+                lockHeld[0] = Thread.holdsLock(nlib);
             }
         };
-        Thread t1 = new Thread() {
+        Thread t0 = new Thread() {
             public void run() {
                 lib.callVoidCallback(cb);
             }
         };
-        t1.start();
-        t1.join();
+        t0.start();
+        t0.join();
         assertFalse("NativeLibrary lock should not be held during native call to normal library",
                    lockHeld[0]);
+
+        Thread t1 = new Thread() {
+            public void run() {
+                synchlib.callVoidCallback(cb);
+            }
+        };
+        t1.start();
+        t1.join();
         assertTrue("NativeLibrary lock should be held during native call to synchronized library",
-                   lockHeld[1]);
+                   lockHeld[0]);
     }
 
     interface TestInterface extends Library {
