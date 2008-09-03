@@ -102,6 +102,17 @@ extern callback* create_callback(JNIEnv*, jobject, jobject,
 extern void free_callback(JNIEnv*, callback*);
 extern void extract_value(JNIEnv*, jobject, void*, size_t size);
 extern jobject new_object(JNIEnv*, char, void*);
+extern jboolean is_protected();
+
+/* Native memory fault protection */
+#ifdef HAVE_PROTECTION
+#define PROTECT is_protected()
+#endif
+#include "protect.h"
+#define ON_ERROR() throwByName(env, EError, "Invalid memory access")
+#define PSTART() PROTECTED_START()
+#define PEND() PROTECTED_END(ON_ERROR())
+
 #ifdef __cplusplus
 }
 #endif

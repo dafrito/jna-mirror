@@ -38,8 +38,6 @@ callback*
 create_callback(JNIEnv* env, jobject obj, jobject method,
                 jobjectArray param_types, jclass return_type,
                 callconv_t calling_convention) {
-  __try {
-
   callback* cb;
   ffi_abi abi = FFI_DEFAULT_ABI;
   ffi_status status;
@@ -111,10 +109,6 @@ create_callback(JNIEnv* env, jobject obj, jobject method,
  failure_cleanup:
   free_callback(env, cb);
 
-  } __except(1) {
-    throwByName(env, EError, "unexpected failure");
-  }
-
   return NULL;
 }
 void 
@@ -125,24 +119,9 @@ free_callback(JNIEnv* env, callback *cb) {
 }
 
 static void
-callback_dispatch(ffi_cif* cif, void* resp, void** cbargs, void* user_data) {
-  callback* cb = (callback *) user_data;
-  JavaVM* jvm = cb->vm;
+callback_invoke(JNIEnv* env, callback *cb, ffi_cif* cif, void *resp, void **cbargs) {
   jobject self;
-  JNIEnv* env;
-  int attached;
-  unsigned int i;
-  jobjectArray array;
-  
-  attached = (*jvm)->GetEnv(jvm, (void *)&env, JNI_VERSION_1_4) == JNI_OK;
-  if (!attached) {
-    if ((*jvm)->AttachCurrentThread(jvm, (void *)&env, NULL) != JNI_OK) {
-      fprintf(stderr, "JNA: Can't attach to current thread\n");
-      return;
-    }
-  }
-  
-  __try {
+  PSTART();
 
   self = (*env)->NewLocalRef(env, cb->object);
   // Avoid calling back to a GC'd object
@@ -152,7 +131,10 @@ callback_dispatch(ffi_cif* cif, void* resp, void** cbargs, void* user_data) {
   }
   else {
     jobject result;
-    array = (*env)->NewObjectArray(env, cif->nargs, classObject, NULL);
+    jobjectArray array =
+      (*env)->NewObjectArray(env, cif->nargs, classObject, NULL);
+    unsigned int i;
+
     for (i=0;i < cif->nargs;i++) {
       jobject arg = new_object(env, cb->param_jtypes[i], cbargs[i]);
       (*env)->SetObjectArrayElement(env, array, i, arg);
@@ -167,9 +149,24 @@ callback_dispatch(ffi_cif* cif, void* resp, void** cbargs, void* user_data) {
     }
   }
 
-  } __except(1) {
-    fprintf(stderr, "callback dispatch error\n");
+  PEND();
+}
+
+static void
+callback_dispatch(ffi_cif* cif, void* resp, void** cbargs, void* user_data) {
+  JavaVM* jvm = ((callback *)user_data)->vm;
+  JNIEnv* env;
+  int attached;
+  
+  attached = (*jvm)->GetEnv(jvm, (void *)&env, JNI_VERSION_1_4) == JNI_OK;
+  if (!attached) {
+    if ((*jvm)->AttachCurrentThread(jvm, (void *)&env, NULL) != JNI_OK) {
+      fprintf(stderr, "JNA: Can't attach to current thread\n");
+      return;
+    }
   }
+  
+  callback_invoke(env, (callback *)user_data, cif, resp, cbargs);
 
   if (!attached) {
     (*jvm)->DetachCurrentThread(jvm);

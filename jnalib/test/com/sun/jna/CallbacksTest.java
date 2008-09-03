@@ -456,6 +456,7 @@ public class CallbacksTest extends TestCase {
         final TestStructure innerResult = new TestStructure();
         TestStructure.TestCallback cb = new TestStructure.TestCallback() {
             public TestStructure.ByValue callback(TestStructure.ByValue s) {
+                // Copy the argument value for later comparison
                 Pointer old = innerResult.getPointer();
                 innerResult.useMemory(s.getPointer());
                 innerResult.read();

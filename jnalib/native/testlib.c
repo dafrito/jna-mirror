@@ -357,6 +357,37 @@ testStructureByValueArgument(struct CheckFieldAlignment arg) {
     + arg.int64Field + arg.floatField + arg.doubleField;
 }
 
+typedef struct ByValue8 { int8 data; } ByValue9;
+typedef struct ByValue16 { int16 data; } ByValue16;
+typedef struct ByValue32 { int32 data; } ByValue32;
+typedef struct ByValue64 { int64 data; } ByValue64;
+typedef struct ByValue128 { int64 data, data1; } ByValue128;
+
+EXPORT int8
+testStructureByValueArgument8(struct ByValue8 arg){
+  return arg.data;
+}
+
+EXPORT int16
+testStructureByValueArgument16(struct ByValue16 arg){
+  return arg.data;
+}
+
+EXPORT int32
+testStructureByValueArgument32(struct ByValue32 arg){
+  return arg.data;
+}
+
+EXPORT int64
+testStructureByValueArgument64(struct ByValue64 arg){
+  return arg.data;
+}
+
+EXPORT int64
+testStructureByValueArgument128(struct ByValue128 arg){
+  return arg.data + arg.data1;
+}
+
 typedef struct {
   int8 field0;
   int16 field1;

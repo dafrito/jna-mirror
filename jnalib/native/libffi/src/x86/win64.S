@@ -71,12 +71,12 @@ done:
         .ENDPROLOG
 	mov	rcx, rax	; context is first parameter
 	mov	rdx, rsp	; stack is second parameter
-	add	rdx, 40		; correct our own area
+	add	rdx, 48		; point to start of arguments
 	mov	rax, ffi_closure_win64_inner
 	call	rax		; call the real closure function
 	add	rsp, 40
 	movd	xmm0, rax	; If the closure returned a float,
-                                ; ffi_closure_win64 wrote it to rax
+                                ; ffi_closure_win64_inner wrote it to rax
 	ret	0
 ffi_closure_win64 ENDP
 
@@ -218,12 +218,12 @@ _ffi_closure_win64:
 #.ENDPROLOG
 	mov	%rax, %rcx	# context is first parameter
 	mov	%rsp, %rdx	# stack is second parameter
-	add	$40, %rdx	# correct our own area
+	add	$48, %rdx	# point to start of arguments
 	mov	_ffi_closure_win64_inner, %rax
 	callq	*%rax		# call the real closure function
 	add	$40, %rsp
 	movq	%rax, %xmm0	# If the closure returned a float,
-                                # ffi_closure_win64 wrote it to rax
+                                # ffi_closure_win64_inner wrote it to rax
 	retq
 .ffi_closure_win64_end:
 

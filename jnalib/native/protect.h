@@ -77,7 +77,7 @@ _exc_handler(struct _EXCEPTION_RECORD* exception_record,
 #define PROTECTED_END(ONERR) } __except((PROTECT)?EXCEPTION_EXECUTE_HANDLER:EXCEPTION_CONTINUE_SEARCH) { ONERR; }
 #else
 #ifdef _WIN64
-// untested
+// FIXME: mingw64 is untested
 #define SEH_TRY(ER)                                                   \
   __asm__ ("pushq %0;pushq %%gs:0;movq %%rsp,%%gs:0;" : : "g" (&(ER)))
 #define SEH_CATCH(ER) \

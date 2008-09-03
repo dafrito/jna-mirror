@@ -84,9 +84,9 @@ w32_format_error(char* buf, int len) {
 
 #ifdef HAVE_PROTECTION
 static int _protect;
+#undef PROTECT
 #define PROTECT _protect
 #endif
-#include "protect.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -94,9 +94,6 @@ extern "C"
 
 static jboolean preserve_last_error;
 
-#define ON_ERROR() throwByName(env, EError, "Invalid memory access")
-#define PSTART() PROTECTED_START()
-#define PEND() PROTECTED_END(ON_ERROR())
 #define MEMCPY(D,S,L) do { \
   PSTART(); memcpy(D,S,L); PEND(); \
 } while(0)
@@ -1844,12 +1841,17 @@ Java_com_sun_jna_Native_setProtected(JNIEnv *env, jclass classp, jboolean protec
 #endif
 }
 
-JNIEXPORT jboolean JNICALL
-Java_com_sun_jna_Native_isProtected(JNIEnv *env, jclass classp) {
-#ifdef HAVE_PROTECTION
+jboolean
+is_protected() {
+#ifdef HAVE_PROTECTION  
   if (_protect) return JNI_TRUE;
 #endif
   return JNI_FALSE;
+}
+
+JNIEXPORT jboolean JNICALL
+Java_com_sun_jna_Native_isProtected(JNIEnv *env, jclass classp) {
+  return is_protected();
 }
 
 JNIEXPORT void JNICALL
