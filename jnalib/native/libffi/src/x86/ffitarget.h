@@ -29,7 +29,6 @@
 /* ---- System specific configurations ----------------------------------- */
 
 #if defined (X86_64) && defined (__i386__)
-#error wrong place
 #undef X86_64
 #define X86
 #endif
