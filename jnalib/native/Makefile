@@ -91,31 +91,24 @@ WINDRES=windres
 EXTRAOBJS=$(RSRC)
 CDEFINES=-DHAVE_PROTECTION
 ifeq ($(ARCH),amd64)
-# MINGW64
-# native 64:
-# include paths are cygwin, compiler not cygwin, uses symlinks
-# vista doesn't recognize ld (32 or 64-bit) as gnu ld; XP does
-# cross 64:
-# final link succeeds, won't load unless testlib.o is added to head of objs
-CC = x86_64-pc-mingw32-gcc -m64 -mno-cygwin
+# Uncomment to enable MINGW64 cross compiler
+# Last check has too many runtime problems (alloca broken) (080831)
+#MINGW = x86_64-pc-mingw32-gcc -m64 -mno-cygwin
+ifneq ($(MINGW),)
+CC = $(MINGW)
 LD = x86_64-pc-mingw32-ld
-#LDFLAGS=-o $@ -shared
-#LIBS= -lmingwex -lkernel32 -lmsvcrt
-#WINDRES=x86_64-pc-mingw32-windres
-#FFI_CONFIG += --host=x86_64-pc-mingw32 --enable-debug
-#JNIDISPATCH_OBJS=$(BUILD)/testlib.o $(BUILD)/dispatch.o $(BUILD)/callback.o
-#; rm -f include/ffitarget.h; cp $(FFI_SRC)/include/*.h $(FFI_SRC)/src/x86/ffitarget.h include
-#FFI_ENV=NM=nm
-
+LDFLAGS=-o $@ -shared
+LIBS= -lmingwex -lkernel32 -lmsvcrt
+WINDRES=x86_64-pc-mingw32-windres
+FFI_CONFIG += --host=x86_64-pc-mingw32; rm -f include/ffitarget.h; cp $(FFI_SRC)/include/*.h $(FFI_SRC)/src/x86/ffitarget.h include
+else
 # MSVC wrappers
-# fix up headers after configure (no symlinks, please)
-# Lots of compilation warnings (ACK!)
-# link succeeds, testlib needs source fixing for msvc
 CC=$(FFI_SRC)/../cc.sh -m64
 LD=$(FFI_SRC)/../ld.sh -m64
 FFI_CONFIG += --host=x86_64-pc-mingw32; rm -f include/ffitarget.h; cp $(FFI_SRC)/include/*.h $(FFI_SRC)/src/x86/ffitarget.h include
 EXTRAOBJS=
 FFI_LIB=$(FFI_BUILD)/.libs/libffi_convenience.lib
+endif
 endif
 
 #LDFLAGS=/pdb:$(subst .dll,,$@).pdb /implib:$(subst .dll,,$@).lib /debug /machine:i386 /pdbtype:sept /dll /nologo /opt:REF /incremental:no /out:$@ 
