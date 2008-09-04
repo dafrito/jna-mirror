@@ -300,7 +300,6 @@ void FFI_HIDDEN ffi_closure_STDCALL (ffi_closure *)
 #endif /* X86_WIN32 */
 #ifdef X86_WIN64
 void FFI_HIDDEN ffi_closure_win64 (ffi_closure *);
-void *FFI_HIDDEN ffi_closure_win64_inner (ffi_closure *, int *argp);
 #endif
 
 /* This function is jumped to by the trampoline */
@@ -311,7 +310,7 @@ ffi_closure_win64_inner (ffi_closure *closure, void *args) {
   ffi_cif       *cif;
   void         **arg_area;
   void          *result;
-  void          **resp = &result;
+  void          *resp = &result;
 
   cif         = closure->cif;
   arg_area    = (void**) alloca (cif->nargs * sizeof (void*));  
@@ -330,7 +329,7 @@ ffi_closure_win64_inner (ffi_closure *closure, void *args) {
      result types except for floats; we have to 'mov xmm0, rax' in the
      caller to correct this.
   */
-  return cif->rtype->size > sizeof(void *) ? resp : *resp;
+  return cif->rtype->size > sizeof(void *) ? resp : *(void **)resp;
 }
 
 #else

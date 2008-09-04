@@ -99,6 +99,9 @@ LD += -mno-cygwin -Wl,--add-stdcall-alias
 endif
 
 ifeq ($(ARCH),amd64)
+
+WINDRES=x86_64-pc-mingw32-windres
+
 # Uncomment to enable MINGW64 cross compiler
 # Last build attempt has too many runtime problems (alloca broken) (080831)
 #MINGW = x86_64-pc-mingw32-gcc -m64 -mno-cygwin
@@ -107,7 +110,6 @@ CC = $(MINGW)
 LD = x86_64-pc-mingw32-ld
 LDFLAGS=-o $@ -shared
 LIBS= -lmingwex -lkernel32 -lmsvcrt
-WINDRES=x86_64-pc-mingw32-windres
 FFI_CONFIG += --host=x86_64-pc-mingw32; rm -f include/ffitarget.h; cp $(FFI_SRC)/include/*.h $(FFI_SRC)/src/x86/ffitarget.h include
 else
 # MSVC (wrapper scripts)
@@ -115,7 +117,7 @@ CC=$(FFI_SRC)/../cc.sh -m64
 LD=$(FFI_SRC)/../ld.sh -m64
 ARSFX=.lib
 FFI_CONFIG += --host=x86_64-pc-mingw32; rm -f include/ffitarget.h; cp $(FFI_SRC)/include/*.h $(FFI_SRC)/src/x86/ffitarget.h include
-FFI_ENV += LD="$(LD)"
+FFI_ENV += LD="$(LD)" CPP=cpp
 endif
 endif
 endif
@@ -218,7 +220,8 @@ install:
 	cp $(LIBRARY) $(INSTALLDIR)
 
 $(RSRC): $(BUILD)/jnidispatch.rc
-	$(WINDRES) -i $< -o $@
+	$(WINDRES) -i $< -o $@ \
+          || (echo > $@.c && $(CC) $(CFLAGS) -c $@.c $(COUT))
 
 $(LIBRARY): $(JNIDISPATCH_OBJS) $(FFI_LIB) 
 	$(LD) $(LDFLAGS) $(JNIDISPATCH_OBJS) $(FFI_LIB) $(LIBS)

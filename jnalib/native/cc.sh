@@ -2,14 +2,15 @@
 #
 # GCC-compatible wrapper for cl.exe
 #
+MSVC="/c/Program Files (x86)/Microsoft Visual Studio 9.0/vc/bin"
 nowarn="/wd4127 /wd4820 /wd4706 /wd4100 /wd4255 /wd4668"
 args="/nologo /EHac /W3 /LD $nowarn" # /WX
 # FIXME is this equivalent to --static-libgcc? links to msvcrt.lib
 # I've forgotten why it was originally added
 # /MD causes link problems
 #md=/MD
-cl="/c/Program Files (x86)/Microsoft Visual Studio 9.0/vc/bin/cl"
-ml="/c/Program Files (x86)/Microsoft Visual Studio 9.0/vc/bin/ml"
+cl="$MSVC/cl"
+ml="$MSVC/ml"
 output=
 while [ $# -gt 0 ]
 do
@@ -30,13 +31,13 @@ do
       shift 1
     ;;
     -m32)
-      cl="/c/Program Files (x86)/Microsoft Visual Studio 9.0/vc/bin/cl"
-      ml="/c/Program Files (x86)/Microsoft Visual Studio 9.0/vc/bin/ml"
+      cl="$MSVC/cl"
+      ml="$MSVC/ml"
       shift 1
     ;;
     -m64)
-      cl="/c/Program Files (x86)/Microsoft Visual Studio 9.0/vc/bin/x86_amd64/cl"
-      ml="/c/Program Files (x86)/Microsoft Visual Studio 9.0/vc/bin/x86_amd64/ml64"
+      cl="$MSVC/x86_amd64/cl"
+      ml="$MSVC/x86_amd64/ml64"
       shift 1
     ;;
     -O*)

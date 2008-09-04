@@ -121,7 +121,6 @@ free_callback(JNIEnv* env, callback *cb) {
 static void
 callback_invoke(JNIEnv* env, callback *cb, ffi_cif* cif, void *resp, void **cbargs) {
   jobject self;
-  PSTART();
 
   self = (*env)->NewLocalRef(env, cb->object);
   // Avoid calling back to a GC'd object
@@ -148,8 +147,6 @@ callback_invoke(JNIEnv* env, callback *cb, ffi_cif* cif, void *resp, void **cbar
       extract_value(env, result, resp, cif->rtype->size);
     }
   }
-
-  PEND();
 }
 
 static void
