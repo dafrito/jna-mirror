@@ -1729,7 +1729,11 @@ Java_com_sun_jna_Native_getWindowHandle0(JNIEnv *env, jclass classp, jobject w) 
             const wchar_t* suffix = L"/bin/jawt.dll";
             int len = wcslen(prop) + wcslen(suffix) + 1;
             path = (wchar_t*)alloca(len * sizeof(wchar_t));
+#ifdef _MSC_VER
             swprintf(path, len, L"%s%s", prop, suffix);
+#else
+            swprintf(path, L"%s%s", prop, suffix);
+#endif
             free(prop);
           }
         }

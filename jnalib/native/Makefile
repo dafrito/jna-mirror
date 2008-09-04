@@ -41,9 +41,9 @@ RSRC=$(BUILD)/rsrc.o
 ifneq ($(DYNAMIC_LIBFFI),true)
 FFI_SRC=$(shell pwd)/libffi
 FFI_BUILD=$(BUILD)/libffi
-FFI_LIB=$(FFI_BUILD)/.libs/libffi_convenience.a
-FFI_ENV=CPP=cpp CC="$(CC)" CFLAGS="$(CDEBUG)" CPPFLAGS="$(CDEFINES)" LD="$(LD)"
-FFI_CONFIG=--with-pic=yes
+FFI_LIB=$(FFI_BUILD)/.libs/libffi$(ARSFX)
+FFI_ENV=CC="$(CC)" CFLAGS="$(CDEBUG)" CPPFLAGS="$(CDEFINES)"
+FFI_CONFIG=--enable-static --disable-shared --with-pic=yes
 endif
 LIBRARY=$(BUILD)/$(LIBPFX)jnidispatch$(JNISFX)
 TESTLIB=$(BUILD)/$(LIBPFX)testlib$(LIBSFX)
@@ -51,6 +51,7 @@ TESTLIB=$(BUILD)/$(LIBPFX)testlib$(LIBSFX)
 # Reasonable defaults based on GCC
 LIBPFX=lib
 LIBSFX=.so
+ARSFX=.a
 JNISFX=$(LIBSFX)
 CC=gcc
 LD=gcc
@@ -85,14 +86,21 @@ STRIP=strip -x
 
 ifeq ($(OS),win32)
 ARCH=$(shell uname -m | sed 's/i.86/i386/g')
-CC += -mno-cygwin
-LD += -mno-cygwin -Wl,--add-stdcall-alias
+CDEFINES=-DHAVE_PROTECTION
 WINDRES=windres
 EXTRAOBJS=$(RSRC)
-CDEFINES=-DHAVE_PROTECTION
+STRIP=@echo
+LIBPFX=
+LIBSFX=.dll
+
+ifeq ($(CC),gcc)
+CC += -mno-cygwin
+LD += -mno-cygwin -Wl,--add-stdcall-alias
+endif
+
 ifeq ($(ARCH),amd64)
 # Uncomment to enable MINGW64 cross compiler
-# Last check has too many runtime problems (alloca broken) (080831)
+# Last build attempt has too many runtime problems (alloca broken) (080831)
 #MINGW = x86_64-pc-mingw32-gcc -m64 -mno-cygwin
 ifneq ($(MINGW),)
 CC = $(MINGW)
@@ -102,20 +110,14 @@ LIBS= -lmingwex -lkernel32 -lmsvcrt
 WINDRES=x86_64-pc-mingw32-windres
 FFI_CONFIG += --host=x86_64-pc-mingw32; rm -f include/ffitarget.h; cp $(FFI_SRC)/include/*.h $(FFI_SRC)/src/x86/ffitarget.h include
 else
-# MSVC wrappers
+# MSVC (wrapper scripts)
 CC=$(FFI_SRC)/../cc.sh -m64
 LD=$(FFI_SRC)/../ld.sh -m64
+ARSFX=.lib
 FFI_CONFIG += --host=x86_64-pc-mingw32; rm -f include/ffitarget.h; cp $(FFI_SRC)/include/*.h $(FFI_SRC)/src/x86/ffitarget.h include
-EXTRAOBJS=
-FFI_LIB=$(FFI_BUILD)/.libs/libffi_convenience.lib
+FFI_ENV += LD="$(LD)"
 endif
 endif
-
-#LDFLAGS=/pdb:$(subst .dll,,$@).pdb /implib:$(subst .dll,,$@).lib /debug /machine:i386 /pdbtype:sept /dll /nologo /opt:REF /incremental:no /out:$@ 
-STRIP=@echo
-
-LIBPFX=
-LIBSFX=.dll
 endif
 
 ifeq ($(OS),linux)
