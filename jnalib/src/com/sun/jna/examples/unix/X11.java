@@ -1653,6 +1653,7 @@ public interface X11 extends Library {
     }
 
     int XSelectInput(Display display, Window window, NativeLong eventMask);
+    int XSendEvent(Display display, Window w, int propagate, NativeLong event_mask, XEvent event_send);
 
     int XNextEvent(Display display, XEvent event_return);
 
