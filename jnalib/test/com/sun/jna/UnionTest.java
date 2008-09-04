@@ -14,12 +14,18 @@ package com.sun.jna;
 
 import junit.framework.TestCase;
 
+import java.io.UnsupportedEncodingException;
+
 public class UnionTest extends TestCase {
 
     public static class TestStructure extends Structure {
         public String value;
     }
-    
+
+    public static class IntStructure extends Structure {
+        public int value;
+    }
+
     public static class SizedUnion extends Union {
         public byte byteField;
         public short shortField;
@@ -30,7 +36,13 @@ public class UnionTest extends TestCase {
         public WString wstring;
         public Pointer pointer;
     }
-    
+
+    public static class StructUnion extends Union {
+        public int intField;
+        public TestStructure testStruct;
+        public IntStructure intStruct;
+    }
+
     public void testCalculateSize() {
         Union u = new SizedUnion();
         assertEquals("Union should be size of largest field", 8, u.size());
@@ -59,7 +71,24 @@ public class UnionTest extends TestCase {
         assertNull("Unselected String should be null", u.string);
         assertNull("Unselected WString should be null", u.wstring);
     }
-    
+
+    public void testWriteTypesUnion() throws UnsupportedEncodingException {
+        StructUnion u = new StructUnion();
+        final int VALUE = 0x12345678;
+        IntStructure intStruct = new IntStructure();
+        intStruct.value = VALUE;
+        u.setTypedValue(intStruct);
+        u.write();
+        assertEquals("Wrong value written", VALUE, u.getPointer().getInt(0));
+    }
+
+    public void testReadTypedUnion() {
+        StructUnion u = new StructUnion();
+        final int VALUE = 0x12345678;
+        u.getPointer().setInt(0, VALUE);
+        assertEquals("int structure not read properly", VALUE, ((IntStructure) u.getTypedValue(IntStructure.class)).value);
+    }
+
     public void testReadTypeInfo() {
         SizedUnion u = new SizedUnion();
         assertEquals("Type should be that of longest field if no field active",
