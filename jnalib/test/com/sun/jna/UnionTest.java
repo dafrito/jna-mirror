@@ -26,6 +26,8 @@ public class UnionTest extends TestCase {
         public int value;
     }
 
+    public static class SubIntStructure extends IntStructure {}
+
     public static class SizedUnion extends Union {
         public byte byteField;
         public short shortField;
@@ -72,12 +74,20 @@ public class UnionTest extends TestCase {
         assertNull("Unselected WString should be null", u.wstring);
     }
 
-    public void testWriteTypesUnion() throws UnsupportedEncodingException {
-        StructUnion u = new StructUnion();
+    public void testWriteTypedUnion() throws UnsupportedEncodingException {
         final int VALUE = 0x12345678;
+        // write an instance of a direct union class to memory
+        StructUnion u = new StructUnion();
         IntStructure intStruct = new IntStructure();
         intStruct.value = VALUE;
         u.setTypedValue(intStruct);
+        u.write();
+        assertEquals("Wrong value written", VALUE, u.getPointer().getInt(0));
+        // write an instance of a sub class of an union class to memory
+        u = new StructUnion();
+        SubIntStructure subIntStructure = new SubIntStructure();
+        subIntStructure.value = VALUE;
+        u.setTypedValue(subIntStructure);
         u.write();
         assertEquals("Wrong value written", VALUE, u.getPointer().getInt(0));
     }

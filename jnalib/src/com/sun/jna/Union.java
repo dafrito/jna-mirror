@@ -71,33 +71,26 @@ public abstract class Union extends Structure {
         }
         throw new IllegalArgumentException("No field of type " + type + " in " + this);
     }
-
-    /** Indicates which class and instance will be used to write to
-     *  native memory.
-     * @param type class type to write
-     * @param object instance of the given class
-     * @return this Union object
-     */
-    public Object setTypedValue(Class type, Object object) {
-        ensureAllocated();
-        for (Iterator i=fields().values().iterator();i.hasNext();) {
-            StructField f = (StructField)i.next();
-            if (f.type == type) {
-                activeField = f;
-                setField(f, object);
-                return this;
-            }
-        }
-        throw new IllegalArgumentException("No field of type " + type + " in " + this);
-    }
-
+    
     /** Indicates which object will be used to write to native memory.
-     *  <code>object.getClass()</code> must be a class in this union.
      * @param object instance of a class which is part of the union
      * @return this Union object
      */
     public Object setTypedValue(Object object) {
-        return setTypedValue(object.getClass(), object);
+        ensureAllocated();
+        Class type = object.getClass();
+        while (type != Object.class) {
+            for (Iterator i=fields().values().iterator();i.hasNext();) {
+                StructField f = (StructField)i.next();
+                if (f.type == type) {
+                    activeField = f;
+                    setField(f, object);
+                    return this;
+                }
+            }
+            type = type.getSuperclass();
+        }
+        throw new IllegalArgumentException("No field of type " + type + " in " + this);
     }
 
     /** Only the currently selected field will be written. */
