@@ -608,6 +608,8 @@ public interface X11 extends Library {
     Pixmap XCreateBitmapFromData(Display display, Window window, Pointer data,
                                  int width, int height);
     int XMapWindow(Display display, Window window);
+    int XMapRaised(Display display, Window window);
+    int XMapSubwindows(Display display, Window window);
     int XFlush(Display display);
     int XUnmapWindow(Display display, Window window);
     int XDestroyWindow(Display display, Window window);
