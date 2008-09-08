@@ -28,6 +28,10 @@ public class UnionTest extends TestCase {
 
     public static class SubIntStructure extends IntStructure {}
 
+    public static interface Func1 extends Callback {
+        public void callback();
+    }
+
     public static class SizedUnion extends Union {
         public byte byteField;
         public short shortField;
@@ -43,6 +47,7 @@ public class UnionTest extends TestCase {
         public int intField;
         public TestStructure testStruct;
         public IntStructure intStruct;
+        public Func1 func1;
     }
 
     public void testCalculateSize() {
@@ -90,6 +95,14 @@ public class UnionTest extends TestCase {
         u.setTypedValue(subIntStructure);
         u.write();
         assertEquals("Wrong value written", VALUE, u.getPointer().getInt(0));
+        // write an instance of an interface
+        u = new StructUnion();
+        Func1 func1 = new Func1() {
+            public void callback() {
+                System.out.println("hi");
+            }
+        };
+        u.setTypedValue(func1);
     }
 
     public void testReadTypedUnion() {
