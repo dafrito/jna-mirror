@@ -33,13 +33,13 @@
   <!-- JNA library release version -->            
   <property name="jna.major" value="3"/>
   <property name="jna.minor" value="0"/>
-  <property name="jna.revision" value="5"/>
+  <property name="jna.revision" value="6"/>
   <property name="jna.build" value="${build.number}"/>
   <property name="jna.version" value="${jna.major}.${jna.minor}.${jna.revision}"/>
   <!-- jnidispatch library release version -->
   <property name="jni.major" value="3"/>
   <property name="jni.minor" value="0"/>
-  <property name="jni.revision" value="4"/>
+  <property name="jni.revision" value="5"/>
   <property name="jni.build" value="${build.number}"/>
   <property name="jni.version" value="${jni.major}.${jni.minor}.${jni.revision}"/>
   <property name="jni.md5" value="892beacd437514d23ed9b1cefeb2ead6"/>
@@ -391,7 +391,7 @@
   </target>
 
   <!-- When running tests from an IDE, be sure to set jna.library.path -->
-  <!-- to where the test library (testlib) is found. Also need to add -Ddir.build.suffix=-d64 for 64-bit JVMs. -->
+  <!-- to where the test library (testlib) is found.                   -->
   <target name="test" depends="jar,examples,compile-tests"
           description="Run all unit tests">
     <property name="test.fork" value="yes"/>
@@ -399,8 +399,12 @@
     <property name="results.junit" location="${build}/junit-results"/>
     <mkdir dir="${results.junit}"/>
     <echo>Saving test results in ${results.junit}</echo>
+    <property name="tests.stdcall" value="**/win32/*StdCallTest.java"/>
     <condition property="tests.platform" value="**/win32/*Test.java">
       <os family="windows"/>
+    </condition>
+    <condition property="tests.exclude" value="**/win32/*StdCallTest.java">
+      <and><os family="windows"/><not><os arch="x86"/></not></and>
     </condition>
     <condition property="tests.platform" value="**/unix/*Test.java">
       <and>
@@ -409,17 +413,19 @@
       </and>
     </condition>
     <condition property="vmopt.arch" value="-d64" else="-Dignore">
-      <equals arg1="${vm.arch}" arg2="-d64" trim="true"/>
-    </condition>
-    <condition property="dir.build.suffix" value="-d64" else="">
-      <equals arg1="${vm.arch}" arg2="-d64" trim="true"/>
+      <and>
+        <!-- Sun 64-bit VM for windows doesn't support the -d64 switch -->
+        <not><os family="windows"/></not>
+        <equals arg1="${vm.arch}" arg2="-d64" trim="true"/>
+      </and>
     </condition>
     <property name="tests.platform" value=""/>
+    <property name="tests.exclude" value=""/>
     <junit printsummary="yes" fork="${test.fork}" failureproperty="testfailure">
       <jvmarg value="-Djna.library.path=${build.native}"/>
       <!-- Avoid VM crashes, if possible -->
       <jvmarg value="-Djna.protected=true"/>
-      <jvmarg value="-Ddir.build.suffix=${dir.build.suffix}"/>
+      <jvmarg value="-Djna.builddir=${build}"/>
       <jvmarg value="${vmopt.arch}"/>
       <classpath><path refid="test.runpath"/></classpath>
       <formatter type="xml"/>
@@ -559,7 +565,7 @@
     </zip>
     <!-- JNA sources only, for use in Linux build from source -->
     <zip zipfile="${dist}/src.zip">
-      <zipfileset dir="." includes="build.xml"/>
+      <zipfileset dir="." includes="build.xml,LICENSE.txt"/>
       <zipfileset dir="${src}" includes="**/*.java" prefix="src"/>
       <zipfileset dir="${test.src}" includes="**/*.java" prefix="test"/>
       <zipfileset dir="${native}" excludes="libffi,libffi/**/*" prefix="native"/>

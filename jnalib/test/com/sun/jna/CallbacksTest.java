@@ -12,6 +12,7 @@
  */
 package com.sun.jna;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import com.sun.jna.CallbacksTest.TestLibrary.CbCallback;
@@ -47,6 +48,14 @@ public class CallbacksTest extends TestCase {
             void callback();
         }
         void callVoidCallback(VoidCallback c);
+        interface VoidCallbackCustom extends Callback {
+            void customMethodName();
+        }
+        abstract class VoidCallbackCustomAbstract implements VoidCallbackCustom {
+            public void customMethodName() { }
+        }
+        class VoidCallbackCustomDerived extends VoidCallbackCustomAbstract { }
+        void callVoidCallback(VoidCallbackCustom c);
         interface BooleanCallback extends Callback {
             boolean callback(boolean arg, boolean arg2);
         }
@@ -104,6 +113,12 @@ public class CallbacksTest extends TestCase {
             CbCallback callback(CbCallback arg);
         }
         CbCallback callCallbackWithCallback(CbCallback cb);
+
+        public interface Int32CallbackX extends Callback {
+            public int callback(int arg);
+        }
+        Int32CallbackX returnCallback();
+        Int32CallbackX returnCallbackArgument(Int32CallbackX cb);
     }
 
     TestLibrary lib;
@@ -150,6 +165,17 @@ public class CallbacksTest extends TestCase {
         assertEquals("Callback trampoline not freed", 0, cbstruct.peer);
     }
     
+    public void testFindCallbackInterface() {
+        TestLibrary.Int32Callback cb = new TestLibrary.Int32Callback() {
+            public int callback(int arg, int arg2) {
+                return arg + arg2;
+            }
+        };
+        assertEquals("Wrong callback interface",
+                     TestLibrary.Int32Callback.class,
+                     Native.findCallbackClass(cb.getClass()));
+    }
+
     public void testCallInt32Callback() {
         final int MAGIC = 0x11111111;
         final boolean[] called = { false };
@@ -449,6 +475,7 @@ public class CallbacksTest extends TestCase {
         final TestStructure innerResult = new TestStructure();
         TestStructure.TestCallback cb = new TestStructure.TestCallback() {
             public TestStructure.ByValue callback(TestStructure.ByValue s) {
+                // Copy the argument value for later comparison
                 Pointer old = innerResult.getPointer();
                 innerResult.useMemory(s.getPointer());
                 innerResult.read();
@@ -478,6 +505,116 @@ public class CallbacksTest extends TestCase {
         assertEquals("Callback reference should be reused", cb, cb2);
     }
     
+    public static interface CallbackTestLibrary extends Library {
+        interface Int32Callback extends Callback {
+            float callback(float arg, float arg2);
+        }
+        float callInt32Callback(Int32Callback c, float arg, float arg2);
+    }
+
+    public void testCallbackTypeMappingFromLibrary() throws Exception {
+        final DefaultTypeMapper mapper = new DefaultTypeMapper();
+        Map options = new HashMap() {
+            { put(Library.OPTION_TYPE_MAPPER, mapper); }
+        };
+        CallbackTestLibrary lib = (CallbackTestLibrary)
+            Native.loadLibrary("testlib", CallbackTestLibrary.class, options);
+
+        // Convert java floats into native integers and back
+        TypeConverter converter = new TypeConverter() {
+            public Object fromNative(Object value, FromNativeContext context) {
+                return new Float(((Integer)value).intValue());
+            }
+            public Class nativeType() {
+                return Integer.class;
+            }
+            public Object toNative(Object value, ToNativeContext ctx) {
+                return new Integer(Math.round(((Float)value).floatValue()));
+            }
+        };
+        mapper.addTypeConverter(float.class, converter);
+        CallbackTestLibrary.Int32Callback cb = new CallbackTestLibrary.Int32Callback() {
+            public float callback(float arg, float arg2) {
+                return arg + arg2;
+            }
+        };
+        assertEquals("Wrong type mapper for callback class", mapper,
+                     Native.getTypeMapper(CallbackTestLibrary.Int32Callback.class));
+        assertEquals("Wrong type mapper for callback object", mapper,
+                     Native.getTypeMapper(cb.getClass()));
+
+        assertEquals("Wrong type mapper used in callback invocation",
+                     -2, lib.callInt32Callback(cb, -1, -1), 0);
+    }
+
+    private static class TestCallback implements Callback {
+        public static final TypeMapper TYPE_MAPPER = new DefaultTypeMapper();
+        public void callback() { }
+    }
+    public void testCallbackTypeMappingFromCallback() throws Exception {
+        assertEquals("Wrong type mapper for callback class",
+                     TestCallback.TYPE_MAPPER,
+                     Native.getTypeMapper(TestCallback.class));
+    }
+
+    public void testInvokeCallback() {
+        TestLibrary lib = (TestLibrary)
+            Native.loadLibrary("testlib", TestLibrary.class);
+        TestLibrary.Int32CallbackX cb = lib.returnCallback();
+        assertNotNull("Callback should not be null", cb);
+        assertEquals("Callback should be callable", 1, cb.callback(1));
+        
+        TestLibrary.Int32CallbackX cb2 = new TestLibrary.Int32CallbackX() {
+            public int callback(int arg) {
+                return 0;
+            }
+        };
+        assertSame("Java callback should be looked up",
+                   cb2, lib.returnCallbackArgument(cb2));
+        assertSame("Existing native function wrapper should be reused",
+                   cb, lib.returnCallbackArgument(cb));
+    }
+    
+    static class CbStruct extends Structure {
+        public Callback cb;
+    }
+    interface CbTest extends Library {
+        public void callCallbackInStruct(CbStruct cbstruct);
+    }
+    public void testCallCallbackInStructure() {
+        final boolean[] flag = {false};
+        final CbStruct s = new CbStruct();
+        s.cb = new Callback() {
+            public void callback() {
+                flag[0] = true;
+            }
+        };
+        CbTest lib = (CbTest)Native.loadLibrary("testlib", CbTest.class);
+        lib.callCallbackInStruct(s);
+        assertTrue("Callback not invoked", flag[0]);
+    }
+
+    public void testCustomCallbackMethodName() {
+    	final boolean[] called = {false};
+        TestLibrary.VoidCallbackCustom cb = new TestLibrary.VoidCallbackCustom() {
+            public void customMethodName() {
+                called[0] = true;
+            }
+            public String toString() {
+                return "Some debug output";
+            }
+        };
+        lib.callVoidCallback(cb);
+        assertTrue("Callback with custom method name not called", called[0]);
+    }
+
+    public void testCustomCallbackVariedInheritance() {
+    	final boolean[] called = {false};
+        TestLibrary.VoidCallbackCustom cb =
+            new TestLibrary.VoidCallbackCustomDerived();
+        lib.callVoidCallback(cb);
+    }
+
     public static void main(java.lang.String[] argList) {
         junit.textui.TestRunner.run(CallbacksTest.class);
     }

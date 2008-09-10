@@ -419,7 +419,7 @@ public class StructureTest extends TestCase {
             public Function cb;
         }
         try {
-            BadFieldStructure s = new BadFieldStructure();
+            new BadFieldStructure().size();
             fail("Function fields should not be allowed");
         }
         catch(IllegalArgumentException e) {
@@ -445,7 +445,6 @@ public class StructureTest extends TestCase {
         public TestCallback cb;
     }
     static interface CbTest extends Library {
-        public void callCallbackInStruct(CbStruct cbstruct);
         public void setCallbackInStruct(CbStruct2 cbstruct);
     }
     public void testCallbackWrite() {
@@ -461,19 +460,6 @@ public class StructureTest extends TestCase {
         assertTrue("Callback not cached", refs.containsKey(s.cb));
         CallbackReference ref = (CallbackReference)refs.get(s.cb);
         assertEquals("Wrong trampoline", ref.getTrampoline(), func);
-    }
-
-    public void testCallCallbackInStructure() {
-        final boolean[] flag = {false};
-        final CbStruct s = new CbStruct();
-        s.cb = new Callback() {
-            public void callback() {
-                flag[0] = true;
-            }
-        };
-        CbTest lib = (CbTest)Native.loadLibrary("testlib", CbTest.class);
-        lib.callCallbackInStruct(s);
-        assertTrue("Callback not invoked", flag[0]);
     }
 
     public void testReadFunctionPointerAsCallback() {
@@ -543,8 +529,8 @@ public class StructureTest extends TestCase {
             }
         }
     	try {
-    		new BufferStructure(new byte[1024]);
-    		fail("Buffer fields should fail immediately");
+            new BufferStructure(new byte[1024]).size();
+            fail("Buffer fields should not be allowed");
     	}
     	catch(IllegalArgumentException e) {
     	}
@@ -756,14 +742,6 @@ public class StructureTest extends TestCase {
     	s.write();
     }
 
-    public static class TestNativeMappedInStructure extends Structure {
-        public static class ByValue extends TestNativeMappedInStructure implements Structure.ByValue { }
-        public NativeLong field;
-    }
-    public void testNativeMappedInByValue() {
-        new TestNativeMappedInStructure.ByValue();
-    }
-
     public static class ROStructure extends Structure {
         public final int field;
         {
@@ -860,4 +838,37 @@ public class StructureTest extends TestCase {
         }
     }
 
+    public void testCustomTypeMapper() {
+        class TestField { }
+        class TestStructure extends Structure {
+            public TestField field;
+            public TestStructure() {
+                DefaultTypeMapper m = new DefaultTypeMapper();
+                m.addTypeConverter(TestField.class, new TypeConverter() {
+                    public Object fromNative(Object value, FromNativeContext context) {
+                        return new TestField();
+                    }
+                    public Class nativeType() {
+                        return String.class;
+                    }
+                    public Object toNative(Object value, ToNativeContext ctx) {
+                        return value == null ? null : value.toString();
+                    }
+                });
+                setTypeMapper(new DefaultTypeMapper());
+            }
+        }
+        new TestStructure();
+    }
+    
+    public void testWriteWithNullBoxedPrimitives() {
+        class TestStructure extends Structure {
+            public Boolean zfield;
+            public Integer field;
+        }
+        TestStructure s = new TestStructure();
+        s.write();
+        s.read();
+        assertNotNull("Field should not be null after read", s.field);
+    }
 }
