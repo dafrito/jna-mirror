@@ -118,7 +118,7 @@ typedef long word_t;
 #define EError "java/lang/Error"
 
 extern void throwByName(JNIEnv *env, const char *name, const char *msg);
-extern char get_jtype(JNIEnv*, jclass);
+extern int get_jtype(JNIEnv*, jclass);
 extern ffi_type* get_ffi_type(JNIEnv*, jclass, char);
 extern ffi_type* get_ffi_rtype(JNIEnv*, jclass, char);
 extern const char* jnidispatch_callback_init(JNIEnv*);
@@ -134,8 +134,10 @@ extern int get_conversion_flag(JNIEnv*, jclass);
 
 extern jobject newJavaPointer(JNIEnv*, void*);
 extern jstring newJavaString(JNIEnv*, const char*, jboolean);
-extern jobject newJavaStructure(JNIEnv*, void*, jclass);
+extern jobject newJavaStructure(JNIEnv*, void*, jclass, jboolean);
 extern jobject newJavaCallback(JNIEnv*, void*, jclass);
+extern void* getStructureAddress(JNIEnv*, jobject);
+extern void writeStructure(JNIEnv*, jobject);
 
 /* Native memory fault protection */
 #ifdef HAVE_PROTECTION

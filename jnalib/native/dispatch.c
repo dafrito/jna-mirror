@@ -173,6 +173,7 @@ static jmethodID MID_Pointer_init;
 static jmethodID MID_Native_updateLastError;
 static jmethodID MID_Structure_getTypeInfo;
 static jmethodID MID_Structure_newInstance;
+static jmethodID MID_Structure_useMemory;
 static jmethodID MID_Structure_read;
 static jmethodID MID_Structure_write;
 static jmethodID MID_CallbackReference_getCallback;
@@ -204,7 +205,6 @@ static void* getBufferArray(JNIEnv* env, jobject buf,
                             jobject* arrayp, char* typep, void** elemp);
 static char getArrayComponentType(JNIEnv *, jobject);
 static void *getNativeAddress(JNIEnv *, jobject);
-static void *getStructureAddress(JNIEnv *, jobject);
 static ffi_type* getStructureType(JNIEnv *, jobject);
 static void update_last_error(JNIEnv*, int);
 
@@ -1498,15 +1498,17 @@ newJavaPointer(JNIEnv *env, void *p)
 }
 
 jobject
-newJavaStructure(JNIEnv *env, void *data, jclass type) 
+newJavaStructure(JNIEnv *env, void *data, jclass type, jboolean new_memory) 
 {
   if (data != NULL) {
     jobject obj = (*env)->CallStaticObjectMethod(env, classStructure, MID_Structure_newInstance, type);
     ffi_type* rtype = getStructureType(env, obj);
-    void* smem = getStructureAddress(env, obj);
-    
-    MEMCPY(smem, data, rtype->size);
-    
+    if (new_memory) {
+      MEMCPY(getStructureAddress(env, obj), data, rtype->size);
+    }
+    else {
+      (*env)->CallVoidMethod(env, obj, MID_Structure_useMemory, newJavaPointer(env, data));
+    }
     (*env)->CallVoidMethod(env, obj, MID_Structure_read);
     return obj;
   }
@@ -1527,7 +1529,7 @@ newJavaCallback(JNIEnv* env, void* fptr, jclass type)
 
 int
 get_conversion_flag(JNIEnv* env, jclass cls) {
-  char type = get_jtype(env, cls);
+  int type = get_jtype(env, cls);
   if (type == 's') {
     return CVT_STRUCTURE_BYVAL;
   }
@@ -1548,7 +1550,7 @@ get_conversion_flag(JNIEnv* env, jclass cls) {
   return CVT_DEFAULT;
 }
 
-char
+int
 get_jtype(JNIEnv* env, jclass cls) {
 
   if ((*env)->IsSameObject(env, classVoid, cls)
@@ -1578,21 +1580,31 @@ get_jtype(JNIEnv* env, jclass cls) {
   if ((*env)->IsSameObject(env, classDouble, cls)
       || (*env)->IsSameObject(env, classPrimitiveDouble, cls))
     return 'D';
-  if ((*env)->IsAssignableFrom(env, cls, classStructure)
-      && (*env)->IsAssignableFrom(env, cls, classStructureByValue))
-    return 's';
-  if ((*env)->IsAssignableFrom(env, cls, classPointer))
+  if ((*env)->IsAssignableFrom(env, cls, classStructure)) {
+    if ((*env)->IsAssignableFrom(env, cls, classStructureByValue))
+      return 's';
     return '*';
-  return 0;
+  }
+  if ((*env)->IsAssignableFrom(env, cls, classPointer)
+      || (*env)->IsAssignableFrom(env, cls, classCallback))
+    return '*';
+  return -1;
 }
 
-static void *
+void *
 getStructureAddress(JNIEnv *env, jobject obj) {
   if (obj != NULL) {
     jobject ptr = (*env)->GetObjectField(env, obj, FID_Structure_memory);
     return getNativeAddress(env, ptr);
   }
   return NULL;
+}
+
+void
+writeStructure(JNIEnv *env, jobject s) {
+  if (s != NULL) {
+    (*env)->CallVoidMethod(env, s, MID_Structure_write);
+  }
 }
 
 static void *
@@ -1749,6 +1761,11 @@ Java_com_sun_jna_Native_initIDs(JNIEnv *env, jclass cls) {
                                          "newInstance", "(Ljava/lang/Class;)Lcom/sun/jna/Structure;"))) {
     throwByName(env, EUnsatisfiedLink,
                 "Can't obtain static newInstance method for class com.sun.jna.Structure");
+  }
+  else if (!LOAD_MID(env, MID_Structure_useMemory, classStructure,
+                     "useMemory", "(Lcom/sun/jna/Pointer;)V")) {
+    throwByName(env, EUnsatisfiedLink,
+                "Can't obtain useMemory method for class com.sun.jna.Structure");
   }
   else if (!LOAD_MID(env, MID_Structure_read, classStructure,
                      "read", "()V")) {
@@ -2290,12 +2307,12 @@ method_handler(ffi_cif* cif, void* resp, void** argp, void *cdata) {
           break;
         case CVT_STRUCTURE:
           objects[i] = *(void **)args[i];
-          (*env)->CallVoidMethod(env, *(void **)args[i], MID_Structure_write);
+          writeStructure(env, *(void **)args[i]);
           *(void **)args[i] = getStructureAddress(env, *(void **)args[i]);
           break;
         case CVT_STRUCTURE_BYVAL:
           objects[i] = *(void **)args[i];
-          (*env)->CallVoidMethod(env, objects[i], MID_Structure_write);
+          writeStructure(env, objects[i]);
           args[i] = getStructureAddress(env, objects[i]);
           break;
         case CVT_STRING:
@@ -2367,11 +2384,10 @@ method_handler(ffi_cif* cif, void* resp, void** argp, void *cdata) {
     *(void **)resp = newJavaString(env, *(void **)resp, JNI_FALSE);
     break;
   case CVT_STRUCTURE:
-    *(void **)resp = newJavaStructure(env, *(void **)resp, data->rclass);
+    *(void **)resp = newJavaStructure(env, *(void **)resp, data->rclass, JNI_FALSE);
     break;
   case CVT_STRUCTURE_BYVAL:
-    // TODO: don't hold onto this memory! it's not valid after the call
-    *(void **)oldresp = newJavaStructure(env, resp, data->rclass);
+    *(void **)oldresp = newJavaStructure(env, resp, data->rclass, JNI_TRUE);
     break;
   case CVT_CALLBACK:
     *(void **)resp = newJavaCallback(env, *(void **)resp, data->rclass);

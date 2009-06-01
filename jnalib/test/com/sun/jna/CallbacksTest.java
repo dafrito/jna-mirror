@@ -267,7 +267,7 @@ public class CallbacksTest extends TestCase {
         };
         SmallTestStructure value = lib.callStructureCallback(cb, s);
         assertTrue("Callback not called", called[0]);
-        assertEquals("Wrong callback argument", s, cbarg[0]);
+        assertEquals("Wrong argument passed to callback", s, cbarg[0]);
         assertEquals("Wrong structure return", s, value);
     }
     

@@ -47,7 +47,7 @@ public class RawCallbacksTest extends CallbacksTest {
     }
 
     protected void setUp() {
-        System.out.println(getName());
+        //System.out.println(getName());
         lib = new RawTestLibrary();
     }
     
@@ -58,7 +58,6 @@ public class RawCallbacksTest extends CallbacksTest {
     public void testCallCallbackWithByReferenceArgument() { }
 
     // crashing
-    //public void testCallStructureCallback() { }
     public void testCallStringCallback() { }
     public void testStringCallbackMemoryReclamation() { }
     public void testCallCallbackWithStructByValue() { }

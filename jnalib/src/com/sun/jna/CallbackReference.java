@@ -98,6 +98,9 @@ class CallbackReference extends WeakReference {
             method = getCallbackMethod(callback);
             nativeParamTypes = method.getParameterTypes();
             returnType = method.getReturnType();
+            cbstruct = createNativeCallback(callback, method,
+                                            nativeParamTypes, returnType,
+                                            callingConvention, true);
         }
         else {
             if (callback instanceof CallbackProxy) {
@@ -108,43 +111,36 @@ class CallbackReference extends WeakReference {
             }
             nativeParamTypes = proxy.getParameterTypes();
             returnType = proxy.getReturnType();
-        }
 
-        // Generate a list of parameter types that the native code can 
-        // handle.  Let the CallbackProxy do any further conversion
-        // to match the true Java callback method signature
-        if (mapper != null) {
-            for (int i=0;i < nativeParamTypes.length;i++) {
-                FromNativeConverter rc = mapper.getFromNativeConverter(nativeParamTypes[i]);
-                if (rc != null) {
-                    nativeParamTypes[i] = rc.nativeType();
+            // Generate a list of parameter types that the native code can 
+            // handle.  Let the CallbackProxy do any further conversion
+            // to match the true Java callback method signature
+            if (mapper != null) {
+                for (int i=0;i < nativeParamTypes.length;i++) {
+                    FromNativeConverter rc = mapper.getFromNativeConverter(nativeParamTypes[i]);
+                    if (rc != null) {
+                        nativeParamTypes[i] = rc.nativeType();
+                    }
+                }
+                ToNativeConverter tn = mapper.getToNativeConverter(returnType);
+                if (tn != null) {
+                    returnType = tn.nativeType();
                 }
             }
-            ToNativeConverter tn = mapper.getToNativeConverter(returnType);
-            if (tn != null) {
-                returnType = tn.nativeType();
+            for (int i=0;i < nativeParamTypes.length;i++) {
+                nativeParamTypes[i] = getNativeType(nativeParamTypes[i]);
+                if (!isAllowableNativeType(nativeParamTypes[i])) {
+                    String msg = "Callback argument " + nativeParamTypes[i] 
+                        + " requires custom type conversion";
+                    throw new IllegalArgumentException(msg);
+                }
             }
-        }
-        for (int i=0;i < nativeParamTypes.length;i++) {
-            nativeParamTypes[i] = getNativeType(nativeParamTypes[i]);
-            if (!isAllowableNativeType(nativeParamTypes[i])) {
-                String msg = "Callback argument " + nativeParamTypes[i] 
+            returnType = getNativeType(returnType);
+            if (!isAllowableNativeType(returnType)) {
+                String msg = "Callback return type " + returnType
                     + " requires custom type conversion";
                 throw new IllegalArgumentException(msg);
             }
-        }
-        returnType = getNativeType(returnType);
-        if (!isAllowableNativeType(returnType)) {
-            String msg = "Callback return type " + returnType
-                + " requires custom type conversion";
-            throw new IllegalArgumentException(msg);
-        }
-        if (direct) {
-            cbstruct = createNativeCallback(callback, method,
-                                            nativeParamTypes, returnType,
-                                            callingConvention, true);
-        }
-        else {
             cbstruct = createNativeCallback(proxy, PROXY_CALLBACK_METHOD,  
                                             nativeParamTypes, returnType,
                                             callingConvention, false);

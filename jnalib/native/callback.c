@@ -238,14 +238,13 @@ callback_invoke(JNIEnv* env, callback *cb, ffi_cif* cif, void *resp, void **cbar
           *((void **)args[i+3]) = newJavaString(env, *(void **)args[i+3], JNI_FALSE);
           break;
         case CVT_STRUCTURE:
-          *((void **)args[i+3]) = newJavaStructure(env, *(void **)args[i+3], cb->arg_classes[i]);
+          *((void **)args[i+3]) = newJavaStructure(env, *(void **)args[i+3], cb->arg_classes[i], JNI_FALSE);
           break;
         case CVT_STRUCTURE_BYVAL:
-          // TODO: copy, don't keep the original memory
           { 
             void *ptr = args[i+3];
             args[i+3] = alloca(sizeof(void *));
-            *((void **)args[i+3]) = newJavaStructure(env, ptr, cb->arg_classes[i]);
+            *((void **)args[i+3]) = newJavaStructure(env, ptr, cb->arg_classes[i], JNI_TRUE);
           }
           break;
         case CVT_CALLBACK:
@@ -270,12 +269,17 @@ callback_invoke(JNIEnv* env, callback *cb, ffi_cif* cif, void *resp, void **cbar
       // TODO: NativeString hacking required
     case CVT_STRING: break;
       // TODO: write java to native memory, return struct address
-    case CVT_STRUCTURE: break;
+    case CVT_STRUCTURE:
+      writeStructure(env, *(void **)resp);
+      *(void **)resp = getStructureAddress(env, *(void **)resp);
+      break;
+    case CVT_STRUCTURE_BYVAL:
       // TODO: write java to native memory, memcpy struct memory to
       // return-allocated space
-    case CVT_STRUCTURE_BYVAL: break;
+      break;
+    case CVT_CALLBACK: 
       // TODO: get callback address
-    case CVT_CALLBACK: break;
+      break;
     default: break;
     }
     if (cb->flags) {
