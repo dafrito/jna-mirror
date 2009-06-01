@@ -80,6 +80,20 @@ public class RawTest extends TestCase {
         int strlen(String s);
     }
 
+    static interface TestInterface extends Library {
+        interface Int32Callback extends Callback {
+            int invoke(int arg1, int arg2);
+        }
+        int callInt32CallbackRepeatedly(Int32Callback cb, int arg1, int arg2, int count);
+    }
+
+    static class TestLibrary implements TestInterface {
+        public native int callInt32CallbackRepeatedly(Int32Callback cb, int arg1, int arg2, int count);
+        static {
+            Native.register("testlib");
+        }
+    }
+
     private static class TestLoader extends URLClassLoader {
         public TestLoader() throws MalformedURLException {
             super(new URL[] {
@@ -140,7 +154,8 @@ public class RawTest extends TestCase {
 
     // Requires java.library.path include testlib
     public static void checkPerformance() {
-        System.out.println("Checking performance of different access methods");
+        final int COUNT = 100000;
+        System.out.println("Checking performance of different access methods (" + COUNT + " iterations)");
         final int SIZE = 8*1024;
         ByteBuffer b = ByteBuffer.allocateDirect(SIZE);
         // Native order is faster
@@ -151,7 +166,6 @@ public class RawTest extends TestCase {
         MathInterface mlib = (MathInterface)
             Native.loadLibrary(mname, MathInterface.class);
         Function f = NativeLibrary.getInstance(mname).getFunction("cos");
-        final int COUNT = 1000000;
 
         ///////////////////////////////////////////
         // cos
@@ -372,6 +386,25 @@ public class RawTest extends TestCase {
         }
         delta = System.currentTimeMillis() - start;
         System.out.println("Memory write (bulk): " + delta + "ms");
+
+        ///////////////////////////////////////////
+        // Callbacks
+        TestInterface tlib = (TestInterface)Native.loadLibrary("testlib", TestInterface.class);
+        start = System.currentTimeMillis();
+        TestInterface.Int32Callback cb = new TestInterface.Int32Callback() {
+            public int invoke(int arg1, int arg2) {
+                return arg1 + arg2;
+            }
+        };
+        tlib.callInt32CallbackRepeatedly(cb, 1, 2, COUNT);
+        delta = System.currentTimeMillis() - start;
+        System.out.println("callback (JNA interface): " + delta + "ms");
+
+        tlib = new TestLibrary();
+        start = System.currentTimeMillis();
+        tlib.callInt32CallbackRepeatedly(cb, 1, 2, COUNT);
+        delta = System.currentTimeMillis() - start;
+        System.out.println("callback (JNA raw): " + delta + "ms");
     }
 }
 

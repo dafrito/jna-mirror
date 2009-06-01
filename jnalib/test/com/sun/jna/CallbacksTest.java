@@ -14,6 +14,7 @@ package com.sun.jna;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.WeakHashMap;
 import java.lang.ref.WeakReference;
 
 import com.sun.jna.CallbacksTest.TestLibrary.CbCallback;
@@ -142,9 +143,12 @@ public class CallbacksTest extends TestCase {
         lib.callVoidCallback(cb);
         assertTrue("Callback not called", called[0]);
         
-        Map refs = CallbackReference.callbackMap;
+        Map refs = new WeakHashMap(CallbackReference.callbackMap);
+        refs.putAll(CallbackReference.directCallbackMap);
         assertTrue("Callback not cached", refs.containsKey(cb));
         CallbackReference ref = (CallbackReference)refs.get(cb);
+        refs = ref.proxy != null ? CallbackReference.callbackMap
+            : CallbackReference.directCallbackMap;
         Pointer cbstruct = ref.cbstruct;
         
         cb = null;
@@ -159,7 +163,7 @@ public class CallbacksTest extends TestCase {
         
         ref = null;
         System.gc();
-        for (int i = 0; i < 100 && cbstruct.peer != 0; ++i) {
+        for (int i = 0; i < 100 && (cbstruct.peer != 0 || refs.size() > 0); ++i) {
             try {
                 Thread.sleep(1); // Give the GC a chance to run
             } finally {}

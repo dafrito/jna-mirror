@@ -15,6 +15,7 @@
 
 #include "ffi.h"
 #include "com_sun_jna_Function.h"
+#include "com_sun_jna_Native.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,16 +32,43 @@ typedef enum _callconv {
 /* Maximum number of allowed arguments in libffi. */
 #define MAX_NARGS com_sun_jna_Function_MAX_NARGS
 
+enum {
+  CVT_DEFAULT = com_sun_jna_Native_CVT_DEFAULT,
+  CVT_POINTER = com_sun_jna_Native_CVT_POINTER,
+  CVT_STRING = com_sun_jna_Native_CVT_STRING,
+  CVT_STRUCTURE = com_sun_jna_Native_CVT_STRUCTURE,
+  CVT_STRUCTURE_BYVAL = com_sun_jna_Native_CVT_STRUCTURE_BYVAL,
+  CVT_BUFFER = com_sun_jna_Native_CVT_BUFFER,
+  CVT_ARRAY_BYTE = com_sun_jna_Native_CVT_ARRAY_BYTE,
+  CVT_ARRAY_SHORT = com_sun_jna_Native_CVT_ARRAY_SHORT,
+  CVT_ARRAY_CHAR = com_sun_jna_Native_CVT_ARRAY_CHAR,
+  CVT_ARRAY_INT = com_sun_jna_Native_CVT_ARRAY_INT,
+  CVT_ARRAY_LONG = com_sun_jna_Native_CVT_ARRAY_LONG,
+  CVT_ARRAY_FLOAT = com_sun_jna_Native_CVT_ARRAY_FLOAT,
+  CVT_ARRAY_DOUBLE = com_sun_jna_Native_CVT_ARRAY_DOUBLE,
+  CVT_ARRAY_BOOLEAN = com_sun_jna_Native_CVT_ARRAY_BOOLEAN,
+  CVT_BOOLEAN = com_sun_jna_Native_CVT_BOOLEAN,
+  CVT_CALLBACK = com_sun_jna_Native_CVT_CALLBACK,
+  CVT_FLOAT = com_sun_jna_Native_CVT_FLOAT,
+};
+
 typedef struct _callback {
   // Location of this field must agree with CallbackReference.getTrampoline()
   void* x_closure;
-  ffi_closure* ffi_closure;
-  ffi_cif ffi_cif;
-  ffi_type** ffi_args;
+  ffi_closure* closure;
+  ffi_cif cif;
+  ffi_cif java_cif;
+  ffi_type** arg_types;
+  ffi_type** java_arg_types;
+  jobject* arg_classes;
+  int* flags;
+  int rflag;
   JavaVM* vm;
   jobject object;
   jmethodID methodID;
-  char* param_jtypes;
+  char* arg_jtypes;
+  jboolean direct;
+  void* fptr;
 } callback;
 
 // Size of a register
@@ -97,11 +125,17 @@ extern const char* jnidispatch_callback_init(JNIEnv*);
 extern void jnidispatch_callback_dispose(JNIEnv*);
 extern callback* create_callback(JNIEnv*, jobject, jobject,
                                  jobjectArray, jclass, 
-                                 callconv_t);
+                                 callconv_t, jboolean);
 extern void free_callback(JNIEnv*, callback*);
 extern void extract_value(JNIEnv*, jobject, void*, size_t size);
 extern jobject new_object(JNIEnv*, char, void*);
 extern jboolean is_protected();
+extern int get_conversion_flag(JNIEnv*, jclass);
+
+extern jobject newJavaPointer(JNIEnv*, void*);
+extern jstring newJavaString(JNIEnv*, const char*, jboolean);
+extern jobject newJavaStructure(JNIEnv*, void*, jclass);
+extern jobject newJavaCallback(JNIEnv*, void*, jclass);
 
 /* Native memory fault protection */
 #ifdef HAVE_PROTECTION

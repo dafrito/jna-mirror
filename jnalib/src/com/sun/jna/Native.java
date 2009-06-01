@@ -1006,6 +1006,7 @@ public final class Native {
     private static final int CVT_ARRAY_BOOLEAN = 13;
     private static final int CVT_BOOLEAN = 14;
     private static final int CVT_CALLBACK = 15;
+    private static final int CVT_FLOAT = 16;
 
     private static int getConversion(Class type) {
         if (Pointer.class.isAssignableFrom(type)) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2007 Timothy Wall, All Rights Reserved
+/* Copyright (c) 2007-2009 Timothy Wall, All Rights Reserved
  * 
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -13,7 +13,6 @@
 package com.sun.jna;
 
 import java.awt.Frame;
-import java.awt.Toolkit;
 import java.awt.GraphicsEnvironment;
 import java.io.File;
 import java.io.FileInputStream;
@@ -24,9 +23,11 @@ import junit.framework.TestCase;
 
 public class LibraryLoadTest extends TestCase {
     
-    private static final String BUILDDIR =
-        System.getProperty("jna.builddir", "build"
-                           + (Native.POINTER_SIZE == 8 ? "-d64" : ""));
+    public static interface CLibrary extends Library {
+        int wcslen(WString wstr);
+        int strlen(String str);
+        int atol(String str);
+    }
 
     public void testLoadJNALibrary() {
         assertTrue("Point size should never be zero", Pointer.SIZE > 0);
@@ -44,20 +45,6 @@ public class LibraryLoadTest extends TestCase {
         }
         finally {
             f.dispose();
-        }
-    }
-    
-    public static interface CLibrary extends Library {
-        int wcslen(WString wstr);
-        int strlen(String str);
-        int atol(String str);
-    }
-
-    public void testLoadAWTAfterJNA() {
-        if (GraphicsEnvironment.isHeadless()) return;
-
-        if (Pointer.SIZE > 0) {
-            Toolkit.getDefaultToolkit();
         }
     }
     
@@ -88,6 +75,10 @@ public class LibraryLoadTest extends TestCase {
     }
 
     public void testLoadLibraryWithUnicodeName() throws Exception {
+        final String BUILDDIR =
+            System.getProperty("jna.builddir", "build"
+                               + (Native.POINTER_SIZE == 8 ? "-d64" : ""));
+
         String tmp = System.getProperty("java.io.tmpdir");
         String libName = System.mapLibraryName("jnidispatch");
         File src = new File(BUILDDIR + "/native", libName);

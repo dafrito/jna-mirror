@@ -32,7 +32,7 @@ import java.util.WeakHashMap;
 class CallbackReference extends WeakReference {
     
     static final Map callbackMap = new WeakHashMap();
-    static final Map altCallbackMap = new WeakHashMap();
+    static final Map directCallbackMap = new WeakHashMap();
     static final Map allocations = new WeakHashMap();
     private static final Method PROXY_CALLBACK_METHOD;
     
@@ -51,13 +51,16 @@ class CallbackReference extends WeakReference {
      * Java Callback.  Otherwise, return a proxy to the native function pointer.
      */
     public static Callback getCallback(Class type, Pointer p) {
+        return getCallback(type, p, false);
+    }
+
+    private static Callback getCallback(Class type, Pointer p, boolean direct) {
         if (p == null) 
             return null;
 
         if (!type.isInterface())
             throw new IllegalArgumentException("Callback type must be an interface");
-        Map map = AltCallingConvention.class.isAssignableFrom(type)
-            ? altCallbackMap : callbackMap;
+        Map map = direct ? directCallbackMap : callbackMap;
         synchronized(map) {
             for (Iterator i=map.keySet().iterator();i.hasNext();) {
                 Callback cb = (Callback)i.next();
@@ -82,23 +85,34 @@ class CallbackReference extends WeakReference {
     }
     
     Pointer cbstruct;
-    // Keep a reference to avoid premature GC
+    // Keep a reference to the proxy to avoid premature GC of it
     CallbackProxy proxy;
-    private CallbackReference(Callback callback, int callingConvention) {
+    Method method;
+    private CallbackReference(Callback callback, int callingConvention, boolean direct) {
         super(callback);
         TypeMapper mapper = Native.getTypeMapper(Native.findCallbackClass(callback.getClass()));
-        if (callback instanceof CallbackProxy) {
-            proxy = (CallbackProxy)callback;
+        Class[] nativeParamTypes;
+        Class returnType;
+
+        if (direct) {
+            method = getCallbackMethod(callback);
+            nativeParamTypes = method.getParameterTypes();
+            returnType = method.getReturnType();
         }
         else {
-            proxy = new DefaultCallbackProxy(getCallbackMethod(callback), mapper);
+            if (callback instanceof CallbackProxy) {
+                proxy = (CallbackProxy)callback;
+            }
+            else {
+                proxy = new DefaultCallbackProxy(getCallbackMethod(callback), mapper);
+            }
+            nativeParamTypes = proxy.getParameterTypes();
+            returnType = proxy.getReturnType();
         }
 
         // Generate a list of parameter types that the native code can 
         // handle.  Let the CallbackProxy do any further conversion
         // to match the true Java callback method signature
-        Class[] nativeParamTypes = proxy.getParameterTypes();
-        Class returnType = proxy.getReturnType();
         if (mapper != null) {
             for (int i=0;i < nativeParamTypes.length;i++) {
                 FromNativeConverter rc = mapper.getFromNativeConverter(nativeParamTypes[i]);
@@ -125,9 +139,16 @@ class CallbackReference extends WeakReference {
                 + " requires custom type conversion";
             throw new IllegalArgumentException(msg);
         }
-        cbstruct = createNativeCallback(proxy, PROXY_CALLBACK_METHOD,  
-                                        nativeParamTypes, returnType,
-                                        callingConvention);
+        if (direct) {
+            cbstruct = createNativeCallback(callback, method,
+                                            nativeParamTypes, returnType,
+                                            callingConvention, true);
+        }
+        else {
+            cbstruct = createNativeCallback(proxy, PROXY_CALLBACK_METHOD,  
+                                            nativeParamTypes, returnType,
+                                            callingConvention, false);
+        }
     }
     
     private Class getNativeType(Class cls) {
@@ -218,6 +239,10 @@ class CallbackReference extends WeakReference {
      * given callback. 
      */
     public static Pointer getFunctionPointer(Callback cb) {
+        return getFunctionPointer(cb, false);
+    }
+
+    private static Pointer getFunctionPointer(Callback cb, boolean direct) {
         Pointer fp = null;
         if (cb == null) return null;
         if ((fp = getNativeFunctionPointer(cb)) != null) {
@@ -225,12 +250,11 @@ class CallbackReference extends WeakReference {
         }
         int callingConvention = cb instanceof AltCallingConvention
             ? Function.ALT_CONVENTION : Function.C_CONVENTION;
-        Map map = callingConvention == Function.ALT_CONVENTION
-            ? altCallbackMap : callbackMap;
+        Map map = direct ? directCallbackMap : callbackMap;
         synchronized(map) {
             CallbackReference cbref = (CallbackReference)map.get(cb);
             if (cbref == null) {
-                cbref = new CallbackReference(cb, callingConvention);
+                cbref = new CallbackReference(cb, callingConvention, direct);
                 map.put(cb, cbref);
             }
             return cbref.getTrampoline();
@@ -477,11 +501,11 @@ class CallbackReference extends WeakReference {
     
     /** Create a native trampoline to delegate execution to the Java callback. 
      */
-    private static synchronized native Pointer createNativeCallback(CallbackProxy callback, 
+    private static synchronized native Pointer createNativeCallback(Callback callback, 
                                                                     Method method, 
                                                                     Class[] parameterTypes,
                                                                     Class returnType,
-                                                                    int callingConvention);
+                                                                    int callingConvention, boolean direct);
     /** Free the given callback trampoline. */
     private static synchronized native void freeNativeCallback(long ptr);
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2007 Timothy Wall, All Rights Reserved
+/* Copyright (c) 2007-2009 Timothy Wall, All Rights Reserved
  * 
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -12,11 +12,14 @@
  */
 package com.sun.jna;
 
-import java.lang.ref.WeakReference;
+import java.awt.GraphicsEnvironment;
+import java.awt.Toolkit;
 import java.io.File;
+import java.lang.ref.WeakReference;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+
 import junit.framework.TestCase;
 
 public class JNAUnloadTest extends TestCase {
@@ -33,9 +36,7 @@ public class JNAUnloadTest extends TestCase {
         }
     }
 
-    // TODO: test auto-dispose of callback memory
-
-    public void testUnload() throws Exception {
+    public void testUnloadJNA() throws Exception {
         ClassLoader loader = new TestLoader();
         Class cls = Class.forName("com.sun.jna.Native", true, loader);
         assertEquals("Wrong class loader", loader, cls.getClassLoader());
@@ -49,6 +50,15 @@ public class JNAUnloadTest extends TestCase {
         assertNull("ClassLoader not GC'd: " + clref.get(), clref.get());
     }
 
+    // Ensure AWT loaded with the proper class loader
+    public void testLoadAWTAfterJNA() {
+        if (GraphicsEnvironment.isHeadless()) return;
+
+        if (Pointer.SIZE > 0) {
+            Toolkit.getDefaultToolkit();
+        }
+    }
+    
     public static void main(String[] args) {
         junit.textui.TestRunner.run(JNAUnloadTest.class);
     }

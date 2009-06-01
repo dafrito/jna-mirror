@@ -47,6 +47,7 @@ public class RawCallbacksTest extends CallbacksTest {
     }
 
     protected void setUp() {
+        System.out.println(getName());
         lib = new RawTestLibrary();
     }
     
@@ -55,6 +56,15 @@ public class RawCallbacksTest extends CallbacksTest {
     public void testCallWideStringCallback() { }
     public void testCallStringArrayCallback() { }
     public void testCallCallbackWithByReferenceArgument() { }
+
+    // crashing
+    //public void testCallStructureCallback() { }
+    public void testCallStringCallback() { }
+    public void testStringCallbackMemoryReclamation() { }
+    public void testCallCallbackWithStructByValue() { }
+    public void testCallCallbackWithCallbackArgumentAndResult() { }
+    public void testCallbackExceptionHandler() { }
+    public void testCallbackExceptionHandlerWithCallbackProxy() { }
 
     public static void main(java.lang.String[] argList) {
         junit.textui.TestRunner.run(RawCallbacksTest.class);

@@ -136,6 +136,7 @@ static jclass classPointer;
 static jclass classNative;
 static jclass classStructure;
 static jclass classStructureByValue;
+static jclass classCallback;
 static jclass classCallbackReference;
 
 static jmethodID MID_Class_getComponentType;
@@ -198,8 +199,6 @@ static const char* newCString(JNIEnv *env, jstring jstr);
 static const char* newCStringUTF8(JNIEnv *env, jstring jstr);
 static const char* newCStringEncoding(JNIEnv *env, jstring jstr, const char* encoding);
 static const wchar_t* newWideCString(JNIEnv *env, jstring jstr);
-static jobject newJavaPointer(JNIEnv *, void *);
-static jstring newJavaString(JNIEnv *env, const char *str, jboolean wide);
 
 static void* getBufferArray(JNIEnv* env, jobject buf,
                             jobject* arrayp, char* typep, void** elemp);
@@ -638,9 +637,10 @@ Java_com_sun_jna_CallbackReference_createNativeCallback(JNIEnv *env,
                                                         jobject method,
                                                         jobjectArray param_types,
                                                         jclass return_type,
-                                                        jint call_conv) {
+                                                        jint call_conv,
+                                                        jboolean direct) {
   callback* cb =
-    create_callback(env, obj, method, param_types, return_type, call_conv);
+    create_callback(env, obj, method, param_types, return_type, call_conv, direct);
   return cb == NULL ? NULL : newJavaPointer(env, cb);
 }
 
@@ -1447,7 +1447,7 @@ update_last_error(JNIEnv* env, int err) {
  * constructor, which uses default local encoding) or a short array (using the
  * String(char[]) ctor, which uses the character values unmodified).  
  */
-static jstring
+jstring
 newJavaString(JNIEnv *env, const char *ptr, jboolean wide) 
 {
     jstring result = 0;
@@ -1487,7 +1487,7 @@ newJavaString(JNIEnv *env, const char *ptr, jboolean wide)
     return result;
 }
 
-static jobject 
+jobject 
 newJavaPointer(JNIEnv *env, void *p)
 {
     jobject obj = NULL;
@@ -1497,7 +1497,7 @@ newJavaPointer(JNIEnv *env, void *p)
     return obj;
 }
 
-static jobject
+jobject
 newJavaStructure(JNIEnv *env, void *data, jclass type) 
 {
   if (data != NULL) {
@@ -1513,16 +1513,39 @@ newJavaStructure(JNIEnv *env, void *data, jclass type)
   return NULL;
 }
 
-static jobject
+jobject
 newJavaCallback(JNIEnv* env, void* fptr, jclass type)
 {
   if (fptr != NULL) {
     jobject ptr = newJavaPointer(env, fptr);
     return (*env)->CallStaticObjectMethod(env, classCallbackReference,
                                           MID_CallbackReference_getCallback,
-                                          type, ptr);
+                                          type, ptr, JNI_TRUE);
   }
   return NULL;
+}
+
+int
+get_conversion_flag(JNIEnv* env, jclass cls) {
+  char type = get_jtype(env, cls);
+  if (type == 's') {
+    return CVT_STRUCTURE_BYVAL;
+  }
+  else if (type == '*') {
+    if ((*env)->IsAssignableFrom(env, cls, classPointer)) {
+      return CVT_POINTER;
+    }
+    if ((*env)->IsAssignableFrom(env, cls, classStructure)) {
+      return CVT_STRUCTURE;
+    }    
+    if ((*env)->IsAssignableFrom(env, cls, classString)) {
+      return CVT_STRING;
+    }
+    if ((*env)->IsAssignableFrom(env, cls, classCallback)) {
+      return CVT_CALLBACK;
+    }
+  }
+  return CVT_DEFAULT;
 }
 
 char
@@ -1575,7 +1598,7 @@ getStructureAddress(JNIEnv *env, jobject obj) {
 static void *
 getCallbackAddress(JNIEnv *env, jobject obj) {
   if (obj != NULL) {
-    jobject ptr = (*env)->CallStaticObjectMethod(env, classCallbackReference, MID_CallbackReference_getFunctionPointer, obj);
+    jobject ptr = (*env)->CallStaticObjectMethod(env, classCallbackReference, MID_CallbackReference_getFunctionPointer, obj, JNI_TRUE);
     return getNativeAddress(env, ptr);
   }
   return NULL;
@@ -1749,19 +1772,23 @@ Java_com_sun_jna_Native_initIDs(JNIEnv *env, jclass cls) {
     throwByName(env, EUnsatisfiedLink,
                 "Can't obtain class com.sun.jna.Structure.ByValue");
   }
+  else if (!LOAD_CREF(env, Callback, "com/sun/jna/Callback")) {
+    throwByName(env, EUnsatisfiedLink,
+                "Can't obtain class com.sun.jna.Callback");
+  }
   else if (!LOAD_CREF(env, CallbackReference, "com/sun/jna/CallbackReference")) {
     throwByName(env, EUnsatisfiedLink,
                 "Can't obtain class com.sun.jna.CallbackReference");
   }
   else if (!(MID_CallbackReference_getCallback
              = (*env)->GetStaticMethodID(env, classCallbackReference,
-                                         "getCallback", "(Ljava/lang/Class;Lcom/sun/jna/Pointer;)Lcom/sun/jna/Callback;"))) {
+                                         "getCallback", "(Ljava/lang/Class;Lcom/sun/jna/Pointer;Z)Lcom/sun/jna/Callback;"))) {
     throwByName(env, EUnsatisfiedLink,
                 "Can't obtain static method getCallback from class com.sun.jna.CallbackReference");
   }
   else if (!(MID_CallbackReference_getFunctionPointer
              = (*env)->GetStaticMethodID(env, classCallbackReference,
-                                         "getFunctionPointer", "(Lcom/sun/jna/Callback;)Lcom/sun/jna/Pointer;"))) {
+                                         "getFunctionPointer", "(Lcom/sun/jna/Callback;Z)Lcom/sun/jna/Pointer;"))) {
     throwByName(env, EUnsatisfiedLink,
                 "Can't obtain static method getFunctionPointer from class com.sun.jna.CallbackReference");
   }
@@ -2237,25 +2264,6 @@ typedef struct _method_data {
   jclass  rclass;
 } method_data;
 
-enum {
-  CVT_DEFAULT = com_sun_jna_Native_CVT_DEFAULT,
-  CVT_POINTER = com_sun_jna_Native_CVT_POINTER,
-  CVT_STRING = com_sun_jna_Native_CVT_STRING,
-  CVT_STRUCTURE = com_sun_jna_Native_CVT_STRUCTURE,
-  CVT_STRUCTURE_BYVAL = com_sun_jna_Native_CVT_STRUCTURE_BYVAL,
-  CVT_BUFFER = com_sun_jna_Native_CVT_BUFFER,
-  CVT_ARRAY_BYTE = com_sun_jna_Native_CVT_ARRAY_BYTE,
-  CVT_ARRAY_SHORT = com_sun_jna_Native_CVT_ARRAY_SHORT,
-  CVT_ARRAY_CHAR = com_sun_jna_Native_CVT_ARRAY_CHAR,
-  CVT_ARRAY_INT = com_sun_jna_Native_CVT_ARRAY_INT,
-  CVT_ARRAY_LONG = com_sun_jna_Native_CVT_ARRAY_LONG,
-  CVT_ARRAY_FLOAT = com_sun_jna_Native_CVT_ARRAY_FLOAT,
-  CVT_ARRAY_DOUBLE = com_sun_jna_Native_CVT_ARRAY_DOUBLE,
-  CVT_ARRAY_BOOLEAN = com_sun_jna_Native_CVT_ARRAY_BOOLEAN,
-  CVT_BOOLEAN = com_sun_jna_Native_CVT_BOOLEAN,
-  CVT_CALLBACK = com_sun_jna_Native_CVT_CALLBACK,
-};
-
 // VM vectors to this callback, which calls native code
 static void
 method_handler(ffi_cif* cif, void* resp, void** argp, void *cdata) {
@@ -2362,6 +2370,7 @@ method_handler(ffi_cif* cif, void* resp, void** argp, void *cdata) {
     *(void **)resp = newJavaStructure(env, *(void **)resp, data->rclass);
     break;
   case CVT_STRUCTURE_BYVAL:
+    // TODO: don't hold onto this memory! it's not valid after the call
     *(void **)oldresp = newJavaStructure(env, resp, data->rclass);
     break;
   case CVT_CALLBACK:
