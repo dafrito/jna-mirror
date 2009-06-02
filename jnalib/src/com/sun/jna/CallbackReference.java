@@ -399,10 +399,7 @@ class CallbackReference extends WeakReference {
                     Function.INTEGER_TRUE : Function.INTEGER_FALSE;
             }
             else if (cls == String.class || cls == WString.class) {
-                NativeString ns = new NativeString(value.toString(), cls == WString.class);
-                // Delay GC until string itself is GC'd.
-                allocations.put(value, ns);
-                return ns.getPointer();
+                return getNativeString(value, cls == WString.class);
             }
             else if (cls == String[].class || cls == WString.class) {
                 StringArray sa = cls == String[].class
@@ -495,6 +492,16 @@ class CallbackReference extends WeakReference {
             || Pointer.class.isAssignableFrom(cls);
     }
     
+    private static Pointer getNativeString(Object value, boolean wide) {
+        if (value != null) {
+            NativeString ns = new NativeString(value.toString(), wide);
+            // Delay GC until string itself is GC'd.
+            allocations.put(value, ns);
+            return ns.getPointer();
+        }
+        return null;
+    }
+
     /** Create a native trampoline to delegate execution to the Java callback. 
      */
     private static synchronized native Pointer createNativeCallback(Callback callback, 

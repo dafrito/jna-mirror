@@ -1165,7 +1165,22 @@ public abstract class Structure {
                     value = ((Structure)value).toString(indent + 1);
                 }
             }
-            contents += "=" + String.valueOf(value).trim();
+            contents += "=";
+            if (value instanceof Long) {
+                contents += Long.toHexString(((Long)value).longValue());
+            }
+            else if (value instanceof Integer) {
+                contents += Integer.toHexString(((Integer)value).intValue());
+            }
+            else if (value instanceof Short) {
+                contents += Integer.toHexString(((Short)value).shortValue());
+            }
+            else if (value instanceof Byte) {
+                contents += Integer.toHexString(((Byte)value).byteValue());
+            }
+            else {
+                contents += String.valueOf(value).trim();
+            }
             contents += LS;
             if (!i.hasNext())
                 contents += prefix + "}";

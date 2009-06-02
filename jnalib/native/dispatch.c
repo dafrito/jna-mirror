@@ -178,6 +178,7 @@ static jmethodID MID_Structure_read;
 static jmethodID MID_Structure_write;
 static jmethodID MID_CallbackReference_getCallback;
 static jmethodID MID_CallbackReference_getFunctionPointer;
+static jmethodID MID_CallbackReference_getNativeString;
 
 static jfieldID FID_Boolean_value;
 static jfieldID FID_Byte_value;
@@ -1527,6 +1528,17 @@ newJavaCallback(JNIEnv* env, void* fptr, jclass type)
   return NULL;
 }
 
+void*
+getNativeString(JNIEnv* env, jstring s, jboolean wide) {
+  if (s != NULL) {
+    jobject ptr = (*env)->CallStaticObjectMethod(env, classCallbackReference,
+                                                 MID_CallbackReference_getNativeString,
+                                                 s, wide);
+    return getNativeAddress(env, ptr);
+  }
+  return NULL;
+}
+
 int
 get_conversion_flag(JNIEnv* env, jclass cls) {
   int type = get_jtype(env, cls);
@@ -1586,7 +1598,8 @@ get_jtype(JNIEnv* env, jclass cls) {
     return '*';
   }
   if ((*env)->IsAssignableFrom(env, cls, classPointer)
-      || (*env)->IsAssignableFrom(env, cls, classCallback))
+      || (*env)->IsAssignableFrom(env, cls, classCallback)
+      || (*env)->IsAssignableFrom(env, cls, classString))
     return '*';
   return -1;
 }
@@ -1607,7 +1620,7 @@ writeStructure(JNIEnv *env, jobject s) {
   }
 }
 
-static void *
+void *
 getCallbackAddress(JNIEnv *env, jobject obj) {
   if (obj != NULL) {
     jobject ptr = (*env)->CallStaticObjectMethod(env, classCallbackReference, MID_CallbackReference_getFunctionPointer, obj, JNI_TRUE);
@@ -1808,6 +1821,12 @@ Java_com_sun_jna_Native_initIDs(JNIEnv *env, jclass cls) {
                                          "getFunctionPointer", "(Lcom/sun/jna/Callback;Z)Lcom/sun/jna/Pointer;"))) {
     throwByName(env, EUnsatisfiedLink,
                 "Can't obtain static method getFunctionPointer from class com.sun.jna.CallbackReference");
+  }
+  else if (!(MID_CallbackReference_getNativeString
+             = (*env)->GetStaticMethodID(env, classCallbackReference,
+                                         "getNativeString", "(Ljava/lang/Object;Z)Lcom/sun/jna/Pointer;"))) {
+    throwByName(env, EUnsatisfiedLink,
+                "Can't obtain static method getNativeString from class com.sun.jna.CallbackReference");
   }
 
   // Initialize type fields within Structure.FFIType

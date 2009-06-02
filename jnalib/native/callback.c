@@ -85,6 +85,7 @@ create_callback(JNIEnv* env, jobject obj, jobject method,
       cvt = 1;
     }
     else if (cb->java_arg_types[i+3]->type == FFI_TYPE_STRUCT) {
+      // All callback structure arguments are passed as a jobject
       cb->java_arg_types[i+3] = &ffi_type_pointer;
     }
     if (!cb->arg_jtypes[i]) {
@@ -131,6 +132,10 @@ create_callback(JNIEnv* env, jobject obj, jobject method,
     case 'F': cb->fptr = (*env)->CallFloatMethod; break;
     case 'D': cb->fptr = (*env)->CallDoubleMethod; break;
     default: cb->fptr = (*env)->CallObjectMethod; break;
+    }
+    if (cb->rflag == CVT_STRUCTURE_BYVAL) {
+      // Java method returns a jobject, not a struct
+      ffi_rtype = &ffi_type_pointer;
     }
     status = ffi_prep_cif(&cb->java_cif, java_abi, argc+3, ffi_rtype, cb->java_arg_types);
   }
@@ -213,6 +218,7 @@ handle_exception(JNIEnv* env, jobject cb, jthrowable throwable) {
 static void
 callback_invoke(JNIEnv* env, callback *cb, ffi_cif* cif, void *resp, void **cbargs) {
   jobject self;
+  void *oldresp = resp;
 
   self = (*env)->NewLocalRef(env, cb->object);
   // Avoid calling back to a GC'd object
@@ -261,31 +267,34 @@ callback_invoke(JNIEnv* env, callback *cb, ffi_cif* cif, void *resp, void **cbar
       }
     }
 
+    if (cb->rflag == CVT_STRUCTURE_BYVAL) {
+      resp = alloca(sizeof(jobject));
+    }
     ffi_call(&cb->java_cif, FFI_FN(cb->fptr), resp, args);
 
     switch(cb->rflag) {
     case CVT_POINTER:
       break;
-      // TODO: NativeString hacking required
-    case CVT_STRING: break;
-      // TODO: write java to native memory, return struct address
+    case CVT_STRING: 
+      *(void **)resp = getNativeString(env, *(void **)resp, JNI_FALSE);
+      break;
     case CVT_STRUCTURE:
       writeStructure(env, *(void **)resp);
       *(void **)resp = getStructureAddress(env, *(void **)resp);
       break;
     case CVT_STRUCTURE_BYVAL:
-      // TODO: write java to native memory, memcpy struct memory to
-      // return-allocated space
+      writeStructure(env, *(void **)resp);
+      memcpy(oldresp, getStructureAddress(env, *(void **)resp), cb->cif.rtype->size);
       break;
     case CVT_CALLBACK: 
-      // TODO: get callback address
+      *(void **)resp = getCallbackAddress(env, *(void **)resp);
       break;
     default: break;
     }
     if (cb->flags) {
       for (i=0;i < cif->nargs;i++) {
         if (cb->flags[i] == CVT_STRUCTURE) {
-          // TODO: synch structure
+          writeStructure(env, *(void **)args[i+3]);
         }
       }
     }
