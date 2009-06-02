@@ -40,8 +40,8 @@ public class RawReturnTypesTest extends ReturnTypesTest {
         public native int returnInt32Magic();
         public native long returnInt64Zero();
         public native long returnInt64Magic();
-        public NativeLong returnLongZero() {throw new UnsupportedOperationException();}
-        public NativeLong returnLongMagic() {throw new UnsupportedOperationException();}
+        public native NativeLong returnLongZero();
+        public native NativeLong returnLongMagic();
         public native float returnFloatZero();
         public native float returnFloatMagic();
         public native double returnDoubleZero();
@@ -67,7 +67,6 @@ public class RawReturnTypesTest extends ReturnTypesTest {
     }
     
     // Override not-yet-supported tests
-    public void testInvokeNativeLong() { }
     public void testInvokeWString() { }
     public void testReturnPointerArray() { }
     public void testReturnStringArray() { }

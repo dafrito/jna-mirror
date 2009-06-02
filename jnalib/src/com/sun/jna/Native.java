@@ -1007,8 +1007,19 @@ public final class Native {
     private static final int CVT_BOOLEAN = 14;
     private static final int CVT_CALLBACK = 15;
     private static final int CVT_FLOAT = 16;
+    private static final int CVT_NATIVE_MAPPED = 256;
 
     private static int getConversion(Class type) {
+        if (type == Boolean.class) type = boolean.class;
+        else if (type == Byte.class) type = byte.class;
+        else if (type == Short.class) type = short.class;
+        else if (type == Character.class) type = char.class;
+        else if (type == Integer.class) type = int.class;
+        else if (type == Long.class) type = long.class;
+        else if (type == Float.class) type = float.class;
+        else if (type == Double.class) type = double.class;
+        else if (type == Void.class) type = void.class;
+            
         if (Pointer.class.isAssignableFrom(type)) {
             return CVT_POINTER;
         }
@@ -1043,7 +1054,11 @@ public final class Native {
         if (Callback.class.isAssignableFrom(type)) {
             return CVT_CALLBACK;
         }
-        return -1;
+        if (NativeMapped.class.isAssignableFrom(type)) {
+            Class nt = NativeMappedConverter.getInstance(type).nativeType();
+            return getConversion(nt) | CVT_NATIVE_MAPPED;
+        }
+        return CVT_UNSUPPORTED;
     }
 
     /** When called from a class static initializer, maps all native methods
@@ -1051,9 +1066,7 @@ public final class Native {
      * interface.
      * @param lib library to which functions should be bound
      */
-    // TODO: Pointer, NativeLong                                            
-    // TODO: structure by value                                             
-    // TODO: byref, primitive arrays                                        
+    // TODO: NativeMapped (NativeLong, byref)
     // TODO: stdcall name mapping                                           
     // TODO: derive library, etc. from annotations (per-class or per-method)
     // TODO: get function name from annotation
@@ -1131,6 +1144,16 @@ public final class Native {
                                               long fptr,
                                               int callingConvention);
     
+
+    // Called from native code
+    private static NativeMapped fromNative(Class cls, Object value) {
+        return (NativeMapped)NativeMappedConverter.getInstance(cls).fromNative(value, null);
+    }
+    // Called from native code
+    private static Class nativeType(Class cls) {
+        return NativeMappedConverter.getInstance(cls).nativeType();
+    }
+
     static native long ffi_prep_cif(int abi, int nargs, long ffi_return_type, long ffi_types);
     static native void ffi_call(long cif, long fptr, long resp, long args);
     static native long ffi_prep_closure();

@@ -50,6 +50,7 @@ enum {
   CVT_BOOLEAN = com_sun_jna_Native_CVT_BOOLEAN,
   CVT_CALLBACK = com_sun_jna_Native_CVT_CALLBACK,
   CVT_FLOAT = com_sun_jna_Native_CVT_FLOAT,
+  CVT_NATIVE_MAPPED = com_sun_jna_Native_CVT_NATIVE_MAPPED,
 };
 
 typedef struct _callback {
@@ -70,9 +71,6 @@ typedef struct _callback {
   jboolean direct;
   void* fptr;
 } callback;
-
-// Size of a register
-typedef long word_t;
 
 #if defined(SOLARIS2) || defined(__GNUC__)
 #if defined(_WIN64)

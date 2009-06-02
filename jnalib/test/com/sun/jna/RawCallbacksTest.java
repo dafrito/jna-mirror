@@ -56,8 +56,6 @@ public class RawCallbacksTest extends CallbacksTest {
     public void testCallWideStringCallback() { }
     public void testCallStringArrayCallback() { }
     public void testCallCallbackWithByReferenceArgument() { }
-
-    // crashing
     public void testCallbackExceptionHandler() { }
     public void testCallbackExceptionHandlerWithCallbackProxy() { }
 
