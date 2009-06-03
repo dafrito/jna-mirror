@@ -70,15 +70,37 @@ create_callback(JNIEnv* env, jobject obj, jobject method,
  
   cb->direct = direct;
   cb->java_arg_types[0] = cb->java_arg_types[1] = cb->java_arg_types[2] = &ffi_type_pointer;
+
   for (i=0;i < argc;i++) {
+    int jtype;
     jclass cls = (*env)->GetObjectArrayElement(env, param_types, i);
-    cb->arg_jtypes[i] = get_jtype(env, cls);
-    cb->arg_types[i] = get_ffi_type(env, cls, cb->arg_jtypes[i]);
     if ((cb->flags[i] = get_conversion_flag(env, cls)) != CVT_DEFAULT) {
       cb->arg_classes[i] = (*env)->NewWeakGlobalRef(env, cls);
       cvt = 1;
     }
-    if ((cb->java_arg_types[i+3] = cb->arg_types[i])->type == FFI_TYPE_FLOAT) {
+
+    cb->arg_jtypes[i] = jtype = get_jtype(env, cls);
+    if (jtype == -1) {
+      snprintf(msg, sizeof(msg), "Unsupported argument at index %d", i);
+      throwByName(env, EIllegalArgument, msg);
+      goto failure_cleanup;
+    }
+
+    cb->java_arg_types[i+3] = cb->arg_types[i] = get_ffi_type(env, cls, cb->arg_jtypes[i]);
+    if (cb->flags[i] == CVT_NATIVE_MAPPED) {
+      jclass ncls;
+      ncls = getNativeType(env, cls);
+      cb->arg_jtypes[i] = jtype = get_jtype(env, ncls);
+      if (jtype == -1) {
+        snprintf(msg, sizeof(msg), "Unsupported NativeMapped argument native type at index %d", i);
+        throwByName(env, EIllegalArgument, msg);
+        goto failure_cleanup;
+      }
+      cb->java_arg_types[i+3] = &ffi_type_pointer;
+      cb->arg_types[i] = get_ffi_type(env, ncls, cb->arg_jtypes[i]);
+    }
+
+    if (cb->arg_types[i]->type == FFI_TYPE_FLOAT) {
       // Java method is varargs, so promote floats to double
       cb->java_arg_types[i+3] = &ffi_type_double;
       cb->flags[i] = CVT_FLOAT;
@@ -88,11 +110,6 @@ create_callback(JNIEnv* env, jobject obj, jobject method,
       // All callback structure arguments are passed as a jobject
       cb->java_arg_types[i+3] = &ffi_type_pointer;
     }
-    if (!cb->arg_jtypes[i]) {
-      snprintf(msg, sizeof(msg), "Unsupported type at parameter %d", i);
-      throwByName(env, EIllegalArgument, msg);
-      goto failure_cleanup;
-    }
   }
   if (!cvt) {
     free(cb->flags);
@@ -101,6 +118,9 @@ create_callback(JNIEnv* env, jobject obj, jobject method,
     cb->arg_classes = NULL;
   }
   cb->rflag = get_conversion_flag(env, return_type);
+  if (cb->rflag == CVT_NATIVE_MAPPED) {
+    return_type = getNativeType(env, return_type);
+  }
 
 #if defined(_WIN32) && !defined(_WIN64)
   if (calling_convention == CALLCONV_STDCALL) {
@@ -133,7 +153,8 @@ create_callback(JNIEnv* env, jobject obj, jobject method,
     case 'D': cb->fptr = (*env)->CallDoubleMethod; break;
     default: cb->fptr = (*env)->CallObjectMethod; break;
     }
-    if (cb->rflag == CVT_STRUCTURE_BYVAL) {
+    if (cb->rflag == CVT_STRUCTURE_BYVAL
+        || cb->rflag == CVT_NATIVE_MAPPED) {
       // Java method returns a jobject, not a struct
       ffi_rtype = &ffi_type_pointer;
     }
@@ -237,6 +258,9 @@ callback_invoke(JNIEnv* env, callback *cb, ffi_cif* cif, void *resp, void **cbar
     if (cb->flags) {
       for (i=0;i < cif->nargs;i++) {
         switch(cb->flags[i]) {
+        case CVT_NATIVE_MAPPED:
+          *((void **)args[i+3]) = fromNative(env, cb->arg_classes[i], getNativeType(env, cb->arg_classes[i]), args[i+3]);
+          break;
         case CVT_POINTER:
           *((void **)args[i+3]) = newJavaPointer(env, *(void **)args[i+3]);
           break;
@@ -273,7 +297,11 @@ callback_invoke(JNIEnv* env, callback *cb, ffi_cif* cif, void *resp, void **cbar
     ffi_call(&cb->java_cif, FFI_FN(cb->fptr), resp, args);
 
     switch(cb->rflag) {
+    case CVT_NATIVE_MAPPED:
+      toNative(env, *(void **)resp, oldresp, cb->cif.rtype->size);
+      break;
     case CVT_POINTER:
+      *(void **)resp = getNativeAddress(env, *(void **)resp);
       break;
     case CVT_STRING: 
       *(void **)resp = getNativeString(env, *(void **)resp, JNI_FALSE);

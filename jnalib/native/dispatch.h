@@ -135,9 +135,13 @@ extern jstring newJavaString(JNIEnv*, const char*, jboolean);
 extern jobject newJavaStructure(JNIEnv*, void*, jclass, jboolean);
 extern jobject newJavaCallback(JNIEnv*, void*, jclass);
 extern void* getNativeString(JNIEnv*, jstring, jboolean);
+extern void* getNativeAddress(JNIEnv*, jobject);
 extern void* getStructureAddress(JNIEnv*, jobject);
 extern void* getCallbackAddress(JNIEnv*, jobject);
 extern void writeStructure(JNIEnv*, jobject);
+extern jclass getNativeType(JNIEnv*, jclass);
+extern void toNative(JNIEnv*, jobject, void*, size_t);
+extern jclass fromNative(JNIEnv*, jclass, jclass, void*);
 
 /* Native memory fault protection */
 #ifdef HAVE_PROTECTION

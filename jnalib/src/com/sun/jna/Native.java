@@ -1007,7 +1007,7 @@ public final class Native {
     private static final int CVT_BOOLEAN = 14;
     private static final int CVT_CALLBACK = 15;
     private static final int CVT_FLOAT = 16;
-    private static final int CVT_NATIVE_MAPPED = 256;
+    private static final int CVT_NATIVE_MAPPED = 17;
 
     private static int getConversion(Class type) {
         if (type == Boolean.class) type = boolean.class;
@@ -1055,8 +1055,7 @@ public final class Native {
             return CVT_CALLBACK;
         }
         if (NativeMapped.class.isAssignableFrom(type)) {
-            Class nt = NativeMappedConverter.getInstance(type).nativeType();
-            return getConversion(nt) | CVT_NATIVE_MAPPED;
+            return CVT_NATIVE_MAPPED;
         }
         return CVT_UNSUPPORTED;
     }
@@ -1098,10 +1097,14 @@ public final class Native {
                 if (cvt[t] == CVT_UNSUPPORTED) {
                     throw new IllegalArgumentException(type + " is not a supported argument type (in method " + method.getName() + " in " + cls + ")");
                 }
+                if (cvt[t] == CVT_NATIVE_MAPPED) {
+                    type = NativeMappedConverter.getInstance(type).nativeType();
+                }
                 // All conversions other than struct by value and primitives
                 // result in a pointer passed to the native function
                 if (cvt[t] == CVT_STRUCTURE_BYVAL
-                    || cvt[t] == CVT_DEFAULT) {
+                    || cvt[t] == CVT_DEFAULT
+                    || cvt[t] == CVT_NATIVE_MAPPED) {
                     atypes[t] = FFIType.get(type).peer;
                 }
                 else {

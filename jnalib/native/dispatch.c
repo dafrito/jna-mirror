@@ -209,7 +209,6 @@ static const wchar_t* newWideCString(JNIEnv *env, jstring jstr);
 static void* getBufferArray(JNIEnv* env, jobject buf,
                             jobject* arrayp, char* typep, void** elemp);
 static char getArrayComponentType(JNIEnv *, jobject);
-static void *getNativeAddress(JNIEnv *, jobject);
 static ffi_type* getStructureType(JNIEnv *, jobject);
 static void update_last_error(JNIEnv*, int);
 
@@ -1562,6 +1561,9 @@ get_conversion_flag(JNIEnv* env, jclass cls) {
     if ((*env)->IsAssignableFrom(env, cls, classCallback)) {
       return CVT_CALLBACK;
     }
+    if ((*env)->IsAssignableFrom(env, cls, classNativeMapped)) {
+      return CVT_NATIVE_MAPPED;
+    }
   }
   return CVT_DEFAULT;
 }
@@ -1603,6 +1605,7 @@ get_jtype(JNIEnv* env, jclass cls) {
   }
   if ((*env)->IsAssignableFrom(env, cls, classPointer)
       || (*env)->IsAssignableFrom(env, cls, classCallback)
+      || (*env)->IsAssignableFrom(env, cls, classNativeMapped)
       || (*env)->IsAssignableFrom(env, cls, classString))
     return '*';
   return -1;
@@ -1633,17 +1636,30 @@ getCallbackAddress(JNIEnv *env, jobject obj) {
   return NULL;
 }
 
-static jclass
-getNativeClass(JNIEnv* env, jclass cls) {
+jclass
+getNativeType(JNIEnv* env, jclass cls) {
   return (*env)->CallStaticObjectMethod(env, classNative,
                                         MID_Native_nativeType, cls);
 }
 
-static jobject
-fromNative(JNIEnv* env, jclass cls, jobject value) {
+void
+toNative(JNIEnv* env, jobject obj, void* valuep, size_t size) {
+  if (obj != NULL) {
+    jobject arg = (*env)->CallObjectMethod(env, obj, MID_NativeMapped_toNative);
+    extract_value(env, arg, valuep, size);
+  }
+  else {
+    MEMSET(valuep, 0, size);
+  }
+}
+
+jobject
+fromNative(JNIEnv* env, jclass javaClass, jclass nativeClass, void* resp) {
+  int jtype = get_jtype(env, nativeClass);
+  jobject value = new_object(env, jtype, resp);
   return (*env)->CallStaticObjectMethod(env, classNative,
                                         MID_Native_fromNative,
-                                        cls, value);
+                                        javaClass, value);
 }
 
 
@@ -1657,7 +1673,7 @@ getStructureType(JNIEnv *env, jobject obj) {
   return (ffi_type*)L2A(typeInfo);
 }
 
-static void *
+void *
 getNativeAddress(JNIEnv *env, jobject obj) {
   if (obj != NULL)
     return L2A((*env)->GetLongField(env, obj, FID_Pointer_peer));
@@ -2171,19 +2187,19 @@ new_object(JNIEnv* env, char jtype, void* valuep) {
                                *(double *)valuep);
     case 'Z':
       return (*env)->NewObject(env, classBoolean, MID_Boolean_init,
-                              (*(int *)valuep ? JNI_TRUE : JNI_FALSE));
+                               (*(ffi_arg *)valuep ? JNI_TRUE : JNI_FALSE));
     case 'B':
       return (*env)->NewObject(env, classByte, MID_Byte_init,
-                               *(char *)valuep & 0xFF);
+                               (char)(*(ffi_arg *)valuep));
     case 'C':
       return (*env)->NewObject(env, classCharacter, MID_Character_init,
-                              *(wchar_t *)valuep & 0xFFFF);
+                               (wchar_t)(*(ffi_arg *)valuep) & 0xFFFF);
     case 'S':
       return (*env)->NewObject(env, classShort, MID_Short_init,
-                              *(short *)valuep & 0xFFFF);
+                               (short)(*(ffi_arg *)valuep));
     case 'I':
       return (*env)->NewObject(env, classInteger, MID_Integer_init,
-                               *(int *)valuep);
+                               *(ffi_arg *)valuep);
     default:
       return NULL;
     }
@@ -2355,16 +2371,16 @@ method_handler(ffi_cif* cif, void* resp, void** argp, void *cdata) {
     objects = alloca(data->cif.nargs * sizeof(void*));
     array_types = alloca(data->cif.nargs * sizeof(char));
     for (i=0;i < data->cif.nargs;i++) {
-      int flag = data->flags[i] & 0xFF;
-      if ((data->flags[i] & CVT_NATIVE_MAPPED) != 0) {
-        jobject arg = (*env)->CallObjectMethod(env, *(void **)args[i],
-                                               MID_NativeMapped_toNative);
-        extract_value(env, arg, args[i], data->cif.arg_types[i]->size);
-      }
-      if (flag != CVT_DEFAULT) {
+      if (data->flags[i] != CVT_DEFAULT) {
         if (data->arg_types[i]->type == FFI_TYPE_POINTER
             && *(void **)args[i] == NULL) continue;
-        switch(flag) {
+        switch(data->flags[i]) {
+        case CVT_NATIVE_MAPPED:
+          if (cif->arg_types[i+2]->size != data->cif.arg_types[i]->size) {
+            args[i] = alloca(data->cif.arg_types[i]->size);
+          }
+          toNative(env, *(void **)args[i], args[i], data->cif.arg_types[i]->size);
+          break;
         case CVT_POINTER:
           *(void **)args[i] = getNativeAddress(env, *(void **)args[i]);
           break;
@@ -2423,7 +2439,7 @@ method_handler(ffi_cif* cif, void* resp, void** argp, void *cdata) {
     }
   }
 
-  if (data->rflag & CVT_NATIVE_MAPPED) {
+  if (data->rflag == CVT_NATIVE_MAPPED) {
     resp = alloca(sizeof(jobject));
   }
   if (data->rflag == CVT_STRUCTURE_BYVAL) {
@@ -2442,11 +2458,10 @@ method_handler(ffi_cif* cif, void* resp, void** argp, void *cdata) {
     PEND();
   }
 
-  if (data->rflag & CVT_NATIVE_MAPPED) {
-    jobject retval = new_object(env, get_jtype(env, data->rclass), resp);
-    *(void **)oldresp = fromNative(env, data->closure_rclass, retval);
-  }
-  else switch(data->rflag & 0xFF) {
+  switch(data->rflag) {
+  case CVT_NATIVE_MAPPED:
+    *(void **)oldresp = fromNative(env, data->closure_rclass, data->rclass, resp);
+    break;
   case CVT_POINTER:
     *(void **)resp = newJavaPointer(env, *(void **)resp);
     break;
@@ -2508,7 +2523,6 @@ Java_com_sun_jna_Native_unregister(JNIEnv *env, jclass ncls, jclass cls, jlongAr
 
   while (count-- > 0) {
     method_data* md = (method_data*)L2A(data[count]);
-
     if (md->closure_rclass) (*env)->DeleteWeakGlobalRef(env, md->closure_rclass);
     if (md->rclass) (*env)->DeleteWeakGlobalRef(env, md->rclass);
     free(md->arg_types);
@@ -2554,14 +2568,19 @@ Java_com_sun_jna_Native_registerMethod(JNIEnv *env, jclass ncls,
   data->closure_arg_types = malloc(sizeof(ffi_type*) * (argc + 2));
   data->closure_arg_types[0] = &ffi_type_pointer;
   data->closure_arg_types[1] = &ffi_type_pointer;
+  data->closure_rclass = NULL;
   data->flags = cvts ? malloc(sizeof(jint)*argc) : NULL;
   data->rflag = rconversion;
+  data->rclass = NULL;
   for (i=0;i < argc;i++) {
     data->closure_arg_types[i+2] = data->arg_types[i] = (ffi_type*)L2A(types[i]);
     if (cvts) {
       data->flags[i] = cvts[i];
+      if (cvts[i] == CVT_NATIVE_MAPPED) {
+        data->closure_arg_types[i+2] = &ffi_type_pointer;
+      }
       // By value struct arguments are passed to the closure as a Java object
-      if (cvts[i] == CVT_STRUCTURE_BYVAL) {
+      else if (cvts[i] == CVT_STRUCTURE_BYVAL) {
 	data->closure_arg_types[i+2] = &ffi_type_pointer;
       }
     }
@@ -2570,10 +2589,11 @@ Java_com_sun_jna_Native_registerMethod(JNIEnv *env, jclass ncls,
   if (cvts) (*env)->ReleaseIntArrayElements(env, conversions, cvts, 0);
   data->fptr = L2A(function);
 
-  if (rconversion & CVT_NATIVE_MAPPED) {
-    rtype = &ffi_type_pointer;
+  if (rconversion == CVT_NATIVE_MAPPED) {
     data->closure_rclass = (*env)->NewWeakGlobalRef(env, rclass);
-    data->rclass = (*env)->NewWeakGlobalRef(env, getNativeClass(env, rclass));
+    data->rclass = (*env)->NewWeakGlobalRef(env, getNativeType(env, rclass));
+    rtype = get_ffi_rtype(env, data->rclass, get_jtype(env, data->rclass));
+    closure_rtype = &ffi_type_pointer;
   }
   // Structure returns to the Java layer actually return a jobject
   else if (rtype->type == FFI_TYPE_STRUCT) {
@@ -2586,9 +2606,6 @@ Java_com_sun_jna_Native_registerMethod(JNIEnv *env, jclass ncls,
   }
   else if (rconversion == CVT_CALLBACK) {
     data->closure_rclass = (*env)->NewWeakGlobalRef(env, rclass);
-  }
-  else {
-    data->closure_rclass = NULL;
   }
   status = ffi_prep_cif(closure_cif, abi, argc+2, closure_rtype, data->closure_arg_types);  
   if (status != FFI_OK) {

@@ -84,11 +84,16 @@ public class RawTest extends TestCase {
         interface Int32Callback extends Callback {
             int invoke(int arg1, int arg2);
         }
+        interface NativeLongCallback extends Callback {
+            NativeLong invoke(NativeLong arg1, NativeLong arg2);
+        }
         int callInt32CallbackRepeatedly(Int32Callback cb, int arg1, int arg2, int count);
+        NativeLong callLongCallbackRepeatedly(NativeLongCallback cb, NativeLong arg1, NativeLong arg2, int count);
     }
 
     static class TestLibrary implements TestInterface {
         public native int callInt32CallbackRepeatedly(Int32Callback cb, int arg1, int arg2, int count);
+        public native NativeLong callLongCallbackRepeatedly(NativeLongCallback cb, NativeLong arg1, NativeLong arg2, int count);
         static {
             Native.register("testlib");
         }
@@ -405,6 +410,22 @@ public class RawTest extends TestCase {
         tlib.callInt32CallbackRepeatedly(cb, 1, 2, COUNT);
         delta = System.currentTimeMillis() - start;
         System.out.println("callback (JNA raw): " + delta + "ms");
+
+        start = System.currentTimeMillis();
+        TestInterface.NativeLongCallback nlcb = new TestInterface.NativeLongCallback() {
+            public NativeLong invoke(NativeLong arg1, NativeLong arg2) {
+                return new NativeLong(arg1.longValue() + arg2.longValue());
+            }
+        };
+        tlib.callLongCallbackRepeatedly(nlcb, new NativeLong(1), new NativeLong(2), COUNT);
+        delta = System.currentTimeMillis() - start;
+        System.out.println("callback w/NativeMapped (JNA interface): " + delta + "ms");
+
+        tlib = new TestLibrary();
+        start = System.currentTimeMillis();
+        tlib.callLongCallbackRepeatedly(nlcb, new NativeLong(1), new NativeLong(2), COUNT);
+        delta = System.currentTimeMillis() - start;
+        System.out.println("callback w/NativeMapped (JNA raw): " + delta + "ms");
     }
 }
 
