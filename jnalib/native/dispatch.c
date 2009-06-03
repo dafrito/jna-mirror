@@ -2190,16 +2190,16 @@ new_object(JNIEnv* env, char jtype, void* valuep) {
                                (*(ffi_arg *)valuep ? JNI_TRUE : JNI_FALSE));
     case 'B':
       return (*env)->NewObject(env, classByte, MID_Byte_init,
-                               (char)(*(ffi_arg *)valuep));
+                               (*(char *)valuep));
     case 'C':
       return (*env)->NewObject(env, classCharacter, MID_Character_init,
-                               (wchar_t)(*(ffi_arg *)valuep) & 0xFFFF);
+                               (*(wchar_t *)valuep) & 0xFFFF);
     case 'S':
       return (*env)->NewObject(env, classShort, MID_Short_init,
-                               (short)(*(ffi_arg *)valuep));
+                               (*(short *)valuep));
     case 'I':
       return (*env)->NewObject(env, classInteger, MID_Integer_init,
-                               *(ffi_arg *)valuep);
+                               *(int *)valuep);
     default:
       return NULL;
     }
