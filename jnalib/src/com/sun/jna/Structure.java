@@ -1248,11 +1248,17 @@ public abstract class Structure {
             if (o.getClass().isAssignableFrom(getClass())
                 || getClass().isAssignableFrom(o.getClass())) {
                 Structure s = (Structure)o;
-                Pointer p1 = getPointer();
-                Pointer p2 = s.getPointer();
-                for (int i=0;i < size();i++) {
-                    if (p1.getByte(i) != p2.getByte(i)) {
-                        return false;
+                for (Iterator i=fields().keySet().iterator();i.hasNext();) {
+                    String name = (String)i.next();
+                    Object f1 = readField(name);
+                    Object f2 = s.readField(name);
+                    if (f1 != null) {
+                        if (!f1.equals(f2))
+                            return false;
+                    }
+                    else if (f2 != null) {
+                        if (!f2.equals(f1))
+                            return false;
                     }
                 }
                 return true;
