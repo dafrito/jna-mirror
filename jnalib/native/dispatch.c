@@ -71,9 +71,6 @@ w32_format_error(char* buf, int len) {
 #endif
 
 #include <stdlib.h>
-#ifdef sun
-#  include <alloca.h>
-#endif
 #include <string.h>
 #include <wchar.h>
 #include <jni.h>

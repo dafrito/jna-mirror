@@ -16,6 +16,9 @@
 #include "ffi.h"
 #include "com_sun_jna_Function.h"
 #include "com_sun_jna_Native.h"
+#ifdef sun
+#  include <alloca.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
