@@ -2166,6 +2166,7 @@ extract_value(JNIEnv* env, jobject value, void* resp, size_t size) {
   }
 }
 
+/** Construct a new Java object from a native value.  */
 jobject
 new_object(JNIEnv* env, char jtype, void* valuep) {
     switch(jtype) {
@@ -2183,20 +2184,21 @@ new_object(JNIEnv* env, char jtype, void* valuep) {
       return (*env)->NewObject(env, classDouble, MID_Double_init,
                                *(double *)valuep);
     case 'Z':
+      // Default mapping for boolean is int32_t
       return (*env)->NewObject(env, classBoolean, MID_Boolean_init,
-                               (*(ffi_arg *)valuep ? JNI_TRUE : JNI_FALSE));
+                               (*(jint *)valuep ? JNI_TRUE : JNI_FALSE));
     case 'B':
       return (*env)->NewObject(env, classByte, MID_Byte_init,
-                               (*(char *)valuep));
+                               (*(jbyte *)valuep));
     case 'C':
       return (*env)->NewObject(env, classCharacter, MID_Character_init,
-                               (*(wchar_t *)valuep) & 0xFFFF);
+                               (jchar)(*(wchar_t *)valuep));
     case 'S':
       return (*env)->NewObject(env, classShort, MID_Short_init,
-                               (*(short *)valuep));
+                               (*(jshort *)valuep));
     case 'I':
       return (*env)->NewObject(env, classInteger, MID_Integer_init,
-                               *(int *)valuep);
+                               *(jint *)valuep);
     default:
       return NULL;
     }
