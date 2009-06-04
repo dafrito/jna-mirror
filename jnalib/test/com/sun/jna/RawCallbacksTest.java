@@ -47,7 +47,6 @@ public class RawCallbacksTest extends CallbacksTest {
     }
 
     protected void setUp() {
-        //System.out.println(getName());
         lib = new RawTestLibrary();
     }
     

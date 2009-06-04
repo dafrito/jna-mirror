@@ -222,15 +222,20 @@ public class CallbacksTest extends TestCase {
     
     public void testCallFloatCallback() {
         final boolean[] called = { false };
+        final float[] args = { 0, 0 };
         TestLibrary.FloatCallback cb = new TestLibrary.FloatCallback() {
             public float callback(float arg, float arg2) {
                 called[0] = true;
+                args[0] = arg;
+                args[1] = arg2;
                 return arg + arg2;
             }
         };
         final float EXPECTED = FLOAT_MAGIC*3;
         float value = lib.callFloatCallback(cb, FLOAT_MAGIC, FLOAT_MAGIC*2);
         assertTrue("Callback not called", called[0]);
+        assertEquals("Wrong first argument", FLOAT_MAGIC, args[0], 0);
+        assertEquals("Wrong second argument", FLOAT_MAGIC*2, args[1], 0);
         assertEquals("Wrong callback value", EXPECTED, value, 0);
         
         value = lib.callFloatCallback(cb, -1f, -2f);
@@ -239,15 +244,20 @@ public class CallbacksTest extends TestCase {
     
     public void testCallDoubleCallback() {
         final boolean[] called = { false };
+        final double[] args = { 0, 0 };
         TestLibrary.DoubleCallback cb = new TestLibrary.DoubleCallback() {
             public double callback(double arg, double arg2) {
                 called[0] = true;
+                args[0] = arg;
+                args[1] = arg2;
                 return arg + arg2;
             }
         };
         final double EXPECTED = DOUBLE_MAGIC*3;
         double value = lib.callDoubleCallback(cb, DOUBLE_MAGIC, DOUBLE_MAGIC*2);
         assertTrue("Callback not called", called[0]);
+        assertEquals("Wrong first argument", DOUBLE_MAGIC, args[0], 0);
+        assertEquals("Wrong second argument", DOUBLE_MAGIC*2, args[1], 0);
         assertEquals("Wrong callback value", EXPECTED, value, 0); 
         
         value = lib.callDoubleCallback(cb, -1d, -2d);

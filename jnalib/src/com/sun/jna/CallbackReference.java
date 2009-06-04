@@ -55,8 +55,9 @@ class CallbackReference extends WeakReference {
     }
 
     private static Callback getCallback(Class type, Pointer p, boolean direct) {
-        if (p == null) 
+        if (p == null) {
             return null;
+        }
 
         if (!type.isInterface())
             throw new IllegalArgumentException("Callback type must be an interface");
@@ -93,6 +94,19 @@ class CallbackReference extends WeakReference {
         TypeMapper mapper = Native.getTypeMapper(Native.findCallbackClass(callback.getClass()));
         Class[] nativeParamTypes;
         Class returnType;
+
+        String arch = System.getProperty("os.arch");
+        if (direct && "ppc".equals(arch)) {
+            Method m = getCallbackMethod(callback);
+            Class[] ptypes = m.getParameterTypes();
+            for (int i=0;i < ptypes.length;i++) {
+                if (ptypes[i] == float.class 
+                    || ptypes[i] == double.class) {
+                    direct = false;
+                    break;
+                }
+            }
+        }
 
         if (direct) {
             method = getCallbackMethod(callback);
@@ -145,6 +159,7 @@ class CallbackReference extends WeakReference {
                                             nativeParamTypes, returnType,
                                             callingConvention, false);
         }
+
     }
     
     private Class getNativeType(Class cls) {
@@ -240,7 +255,9 @@ class CallbackReference extends WeakReference {
 
     private static Pointer getFunctionPointer(Callback cb, boolean direct) {
         Pointer fp = null;
-        if (cb == null) return null;
+        if (cb == null) {
+            return null;
+        }
         if ((fp = getNativeFunctionPointer(cb)) != null) {
             return fp;
         }
