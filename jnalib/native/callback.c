@@ -300,8 +300,15 @@ callback_invoke(JNIEnv* env, callback *cb, ffi_cif* cif, void *resp, void **cbar
       resp = alloca(sizeof(jobject));
     }
     ffi_call(&cb->java_cif, FFI_FN(cb->fptr), resp, args);
-
-    switch(cb->rflag) {
+    if ((*env)->ExceptionCheck(env)) {
+      jthrowable throwable = (*env)->ExceptionOccurred(env);
+      (*env)->ExceptionClear(env);
+      if (!handle_exception(env, self, throwable)) {
+        fprintf(stderr, "JNA: error handling callback exception, continuing\n");
+      }
+      memset(resp, 0, cif->rtype->size);
+    }
+    else switch(cb->rflag) {
     case CVT_NATIVE_MAPPED:
       toNative(env, *(void **)resp, oldresp, cb->cif.rtype->size);
       break;

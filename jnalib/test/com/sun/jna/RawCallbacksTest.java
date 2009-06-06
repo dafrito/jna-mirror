@@ -52,7 +52,6 @@ public class RawCallbacksTest extends CallbacksTest {
     
     // Currently unsupported tests
     public void testCallStringArrayCallback() { }
-    public void testCallbackExceptionHandler() { }
     public void testCallbackExceptionHandlerWithCallbackProxy() { }
 
     public static void main(java.lang.String[] argList) {
