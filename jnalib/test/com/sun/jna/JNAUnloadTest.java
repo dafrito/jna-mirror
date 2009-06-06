@@ -26,7 +26,7 @@ public class JNAUnloadTest extends TestCase {
     
     private static final String BUILDDIR =
         System.getProperty("jna.builddir", "build"
-                           + (Native.POINTER_SIZE == 8 ? "-d64" : ""));
+                           + (Platform.is64Bit() ? "-d64" : ""));
 
     private static class TestLoader extends URLClassLoader {
         public TestLoader() throws MalformedURLException {

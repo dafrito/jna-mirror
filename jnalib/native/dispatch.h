@@ -54,6 +54,7 @@ enum {
   CVT_CALLBACK = com_sun_jna_Native_CVT_CALLBACK,
   CVT_FLOAT = com_sun_jna_Native_CVT_FLOAT,
   CVT_NATIVE_MAPPED = com_sun_jna_Native_CVT_NATIVE_MAPPED,
+  CVT_WSTRING = com_sun_jna_Native_CVT_WSTRING,
 };
 
 typedef struct _callback {
@@ -135,6 +136,7 @@ extern int get_conversion_flag(JNIEnv*, jclass);
 
 extern jobject newJavaPointer(JNIEnv*, void*);
 extern jstring newJavaString(JNIEnv*, const char*, jboolean);
+extern jobject newJavaWString(JNIEnv*, const wchar_t*);
 extern jobject newJavaStructure(JNIEnv*, void*, jclass, jboolean);
 extern jobject newJavaCallback(JNIEnv*, void*, jclass);
 extern void* getNativeString(JNIEnv*, jstring, jboolean);

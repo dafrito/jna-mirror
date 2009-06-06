@@ -111,15 +111,17 @@ create_callback(JNIEnv* env, jobject obj, jobject method,
       cb->java_arg_types[i+3] = &ffi_type_pointer;
     }
   }
-  if (!cvt) {
+  if (!direct || !cvt) {
     free(cb->flags);
     cb->flags = NULL;
     free(cb->arg_classes);
     cb->arg_classes = NULL;
   }
-  cb->rflag = get_conversion_flag(env, return_type);
-  if (cb->rflag == CVT_NATIVE_MAPPED) {
-    return_type = getNativeType(env, return_type);
+  if (direct) {
+    cb->rflag = get_conversion_flag(env, return_type);
+    if (cb->rflag == CVT_NATIVE_MAPPED) {
+      return_type = getNativeType(env, return_type);
+    }
   }
 
 #if defined(_WIN32) && !defined(_WIN64)
@@ -267,6 +269,9 @@ callback_invoke(JNIEnv* env, callback *cb, ffi_cif* cif, void *resp, void **cbar
         case CVT_STRING:
           *((void **)args[i+3]) = newJavaString(env, *(void **)args[i+3], JNI_FALSE);
           break;
+        case CVT_WSTRING:
+          *((void **)args[i+3]) = newJavaWString(env, *(void **)args[i+3]);
+          break;
         case CVT_STRUCTURE:
           *((void **)args[i+3]) = newJavaStructure(env, *(void **)args[i+3], cb->arg_classes[i], JNI_FALSE);
           break;
@@ -305,6 +310,9 @@ callback_invoke(JNIEnv* env, callback *cb, ffi_cif* cif, void *resp, void **cbar
       break;
     case CVT_STRING: 
       *(void **)resp = getNativeString(env, *(void **)resp, JNI_FALSE);
+      break;
+    case CVT_WSTRING: 
+      *(void **)resp = getNativeString(env, *(void **)resp, JNI_TRUE);
       break;
     case CVT_STRUCTURE:
       writeStructure(env, *(void **)resp);

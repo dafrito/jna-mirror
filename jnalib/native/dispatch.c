@@ -119,7 +119,7 @@ static jclass classInteger, classPrimitiveInteger;
 static jclass classLong, classPrimitiveLong;
 static jclass classFloat, classPrimitiveFloat;
 static jclass classDouble, classPrimitiveDouble;
-static jclass classString;
+static jclass classString, classWString;
 static jclass classBuffer;
 static jclass classByteBuffer;
 static jclass classCharBuffer;
@@ -138,6 +138,7 @@ static jclass classCallbackReference;
 static jclass classNativeMapped;
 
 static jmethodID MID_Class_getComponentType;
+static jmethodID MID_Object_toString;
 static jmethodID MID_String_getBytes;
 static jmethodID MID_String_getBytes2;
 static jmethodID MID_String_toCharArray;
@@ -180,6 +181,7 @@ static jmethodID MID_CallbackReference_getCallback;
 static jmethodID MID_CallbackReference_getFunctionPointer;
 static jmethodID MID_CallbackReference_getNativeString;
 static jmethodID MID_NativeMapped_toNative;
+static jmethodID MID_WString_init;
 
 static jfieldID FID_Boolean_value;
 static jfieldID FID_Byte_value;
@@ -198,10 +200,10 @@ static jfieldID FID_Structure_typeInfo;
 static const char* jna_encoding = NULL;
 
 /* Forward declarations */
-static const char* newCString(JNIEnv *env, jstring jstr);
-static const char* newCStringUTF8(JNIEnv *env, jstring jstr);
-static const char* newCStringEncoding(JNIEnv *env, jstring jstr, const char* encoding);
-static const wchar_t* newWideCString(JNIEnv *env, jstring jstr);
+static char* newCString(JNIEnv *env, jstring jstr);
+static char* newCStringUTF8(JNIEnv *env, jstring jstr);
+static char* newCStringEncoding(JNIEnv *env, jstring jstr, const char* encoding);
+static wchar_t* newWideCString(JNIEnv *env, jstring jstr);
 
 static void* getBufferArray(JNIEnv* env, jobject buf,
                             jobject* arrayp, char* typep, void** elemp);
@@ -785,7 +787,10 @@ jnidispatch_init(JNIEnv* env) {
     return "java.lang.Double<init>(D)V";
   if (!LOAD_MID(env, MID_Class_getComponentType, classClass,
                 "getComponentType", "()Ljava/lang/Class;"))
-    return "Class.getComponentType(Class)";
+    return "Class.getComponentType()";
+  if (!LOAD_MID(env, MID_Object_toString, classObject,
+                "toString", "()Ljava/lang/String;"))
+    return "Object.toString()";
   if (!LOAD_MID(env, MID_String_getBytes, classString,
                 "getBytes", "()[B"))
     return "String.getBytes()";
@@ -1354,7 +1359,7 @@ throwByName(JNIEnv *env, const char *name, const char *msg)
 /* Translates a Java string to a C string using the String.getBytes 
  * method, which uses default platform encoding.
  */
-static const char *
+static char *
 newCString(JNIEnv *env, jstring jstr)
 {
     jbyteArray bytes = 0;
@@ -1379,13 +1384,13 @@ newCString(JNIEnv *env, jstring jstr)
 /* Translates a Java string to a C string using the String.getBytes("UTF8") 
  * method, which uses UTF8 encoding.
  */
-static const char *
+static char *
 newCStringUTF8(JNIEnv *env, jstring jstr)
 {
   return newCStringEncoding(env, jstr, "UTF8");
 }
 
-static const char*
+static char*
 newCStringEncoding(JNIEnv *env, jstring jstr, const char* encoding)
 {
     jbyteArray bytes = 0;
@@ -1414,7 +1419,7 @@ newCStringEncoding(JNIEnv *env, jstring jstr, const char* encoding)
  * method.
  */
 // TODO: are any encoding changes required?
-static const wchar_t *
+static wchar_t *
 newWideCString(JNIEnv *env, jstring str)
 {
     jcharArray chars = 0;
@@ -1444,6 +1449,12 @@ update_last_error(JNIEnv* env, int err) {
                                MID_Native_updateLastError, err);
 }
 
+jobject
+newJavaWString(JNIEnv *env, const wchar_t* ptr) {
+  jstring s = newJavaString(env, (const char*)ptr, JNI_TRUE);
+  return (*env)->NewObject(env, classWString, MID_WString_init, s);
+}
+
 /* Constructs a Java string from a char array (using the String(byte [])
  * constructor, which uses default local encoding) or a short array (using the
  * String(char[]) ctor, which uses the character values unmodified).  
@@ -1456,7 +1467,7 @@ newJavaString(JNIEnv *env, const char *ptr, jboolean wide)
 
     if (ptr) {
       if (wide) {
-        // TODO: proper conversion from native wchar_t to jchar
+        // TODO: proper conversion from native wchar_t to jchar, if any
         int len = (int)wcslen((const wchar_t*)ptr);
         if (sizeof(jchar) != sizeof(wchar_t)) {
           jchar* buf = (jchar*)alloca(len * sizeof(jchar));
@@ -1545,7 +1556,7 @@ get_conversion_flag(JNIEnv* env, jclass cls) {
   if (type == 's') {
     return CVT_STRUCTURE_BYVAL;
   }
-  else if (type == '*') {
+  if (type == '*') {
     if ((*env)->IsAssignableFrom(env, cls, classPointer)) {
       return CVT_POINTER;
     }
@@ -1554,6 +1565,9 @@ get_conversion_flag(JNIEnv* env, jclass cls) {
     }    
     if ((*env)->IsAssignableFrom(env, cls, classString)) {
       return CVT_STRING;
+    }
+    if ((*env)->IsAssignableFrom(env, cls, classWString)) {
+      return CVT_WSTRING;
     }
     if ((*env)->IsAssignableFrom(env, cls, classCallback)) {
       return CVT_CALLBACK;
@@ -1603,6 +1617,7 @@ get_jtype(JNIEnv* env, jclass cls) {
   if ((*env)->IsAssignableFrom(env, cls, classPointer)
       || (*env)->IsAssignableFrom(env, cls, classCallback)
       || (*env)->IsAssignableFrom(env, cls, classNativeMapped)
+      || (*env)->IsAssignableFrom(env, cls, classWString)
       || (*env)->IsAssignableFrom(env, cls, classString))
     return '*';
   return -1;
@@ -1871,6 +1886,10 @@ Java_com_sun_jna_Native_initIDs(JNIEnv *env, jclass cls) {
     throwByName(env, EUnsatisfiedLink,
                 "Can't obtain static method getNativeString from class com.sun.jna.CallbackReference");
   }
+  else if (!LOAD_CREF(env, WString, "com/sun/jna/WString")) {
+    throwByName(env, EUnsatisfiedLink,
+                "Can't obtain class com.sun.jna.WString");
+  }
   else if (!LOAD_CREF(env, NativeMapped, "com/sun/jna/NativeMapped")) {
     throwByName(env, EUnsatisfiedLink,
                 "Can't obtain class com.sun.jna.NativeMapped");
@@ -1879,6 +1898,11 @@ Java_com_sun_jna_Native_initIDs(JNIEnv *env, jclass cls) {
                      "toNative", "()Ljava/lang/Object;")) {
     throwByName(env, EUnsatisfiedLink,
                 "Can't obtain toNative method for class com.sun.jna.NativeMapped");
+  }
+  else if (!LOAD_MID(env, MID_WString_init, classWString,
+                     "<init>", "(Ljava/lang/String;)V")) {
+    throwByName(env, EUnsatisfiedLink,
+                "Can't obtain constructor for class com.sun.jna.WString");
   }
   // Initialize type fields within Structure.FFIType
   else {
@@ -2238,7 +2262,7 @@ JNIEXPORT void JNICALL
 JNI_OnUnload(JavaVM *vm, void *reserved) {
   jobject* refs[] = {
     &classObject, &classClass, &classMethod,
-    &classString,
+    &classString, &classWString,
     &classBuffer, &classByteBuffer, &classCharBuffer,
     &classShortBuffer, &classIntBuffer, &classLongBuffer,
     &classFloatBuffer, &classDoubleBuffer,
@@ -2291,19 +2315,21 @@ JNI_OnUnload(JavaVM *vm, void *reserved) {
   }
 }
 
+/** Get the FFI type for the native type which will be converted to the given
+    Java class. */
 ffi_type*
 get_ffi_type(JNIEnv* env, jclass cls, char jtype) {
   switch (jtype) {
   case 'Z': 
-    return &ffi_type_sint;
+    return &ffi_type_sint32;
   case 'B':
     return &ffi_type_sint8;
   case 'C':
-    return &ffi_type_sint;
+    return sizeof(wchar_t) == 2 ? &ffi_type_uint16 : &ffi_type_uint32;
   case 'S':
-    return &ffi_type_sshort;
+    return &ffi_type_sint16;
   case 'I':
-    return &ffi_type_sint;
+    return &ffi_type_sint32;
   case 'J':
     return &ffi_type_sint64;
   case 'F':
@@ -2323,6 +2349,8 @@ get_ffi_type(JNIEnv* env, jclass cls, char jtype) {
   }
 }
 
+/** Return the FFI type corresponding to the native equivalent of a
+    callback function's return value. */
 ffi_type*
 get_ffi_rtype(JNIEnv* env, jclass cls, char jtype) {
   switch (jtype) {
@@ -2394,10 +2422,12 @@ method_handler(ffi_cif* cif, void* resp, void** argp, void *cdata) {
           args[i] = getStructureAddress(env, objects[i]);
           break;
         case CVT_STRING:
+          *(void **)args[i] = newCStringEncoding(env, (jstring)*(void **)args[i], jna_encoding);
+          break;
+        case CVT_WSTRING:
           {
-            const char* tmp = newCStringEncoding(env, (jstring)*(void **)args[i], jna_encoding);
-            *(void **)args[i] = strcpy(alloca(strlen(tmp)+1), tmp);
-            free((void *)tmp);
+            jstring s = (*env)->CallObjectMethod(env, *(void **)args[i], MID_Object_toString);
+            *(void **)args[i] = newWideCString(env, s);
           }
           break;
         case CVT_CALLBACK:
@@ -2467,6 +2497,9 @@ method_handler(ffi_cif* cif, void* resp, void** argp, void *cdata) {
   case CVT_STRING:
     *(void **)resp = newJavaString(env, *(void **)resp, JNI_FALSE);
     break;
+  case CVT_WSTRING:
+    *(void **)resp = newJavaWString(env, *(void **)resp);
+    break;
   case CVT_STRUCTURE:
     *(void **)resp = newJavaStructure(env, *(void **)resp, data->closure_rclass, JNI_FALSE);
     break;
@@ -2488,6 +2521,11 @@ method_handler(ffi_cif* cif, void* resp, void** argp, void *cdata) {
         if (objects[i]) {
           (*env)->CallVoidMethod(env, objects[i], MID_Structure_read);
         }
+        break;
+      case CVT_STRING:
+      case CVT_WSTRING:
+        // Free allocated native strings
+        free(*(void **)args[i]);
         break;
       case CVT_BUFFER:
       case CVT_ARRAY_BYTE:
@@ -2663,11 +2701,26 @@ Java_com_sun_jna_Native_ffi_1prep_1cif(JNIEnv *env, jclass cls, jint abi, jint n
   return A2L(cif);
 }
 
+static void
+closure_handler(ffi_cif* cif, void* resp, void** argp, void *cdata)
+{
+  // TODO: call back into Java version of this same handler
+}
+
 JNIEXPORT jlong JNICALL
-Java_com_sun_jna_Native_ffi_1prep_1closure(JNIEnv *env, jclass cls) 
+Java_com_sun_jna_Native_ffi_1prep_1closure(JNIEnv *env, jclass cls, jlong cif, jobject callback) 
 {
   void *code;
-  ffi_closure* closure = ffi_closure_alloc(sizeof(ffi_closure), &code);
+  ffi_closure* closure = ffi_closure_alloc(sizeof(ffi_closure), L2A(&code));
+  // TODO: encapsulate callback object in a data structure?
+  ffi_status s = ffi_prep_closure_loc(closure, L2A(cif), &closure_handler, 
+                                      callback, &code);
+  if (s != FFI_OK) {
+    char msg[1024];
+    sprintf(msg, "ffi_prep_cif failed with %d", s);
+    throwByName(env, EError, msg);
+    return 0;
+  }
   return A2L(closure);
 }
 

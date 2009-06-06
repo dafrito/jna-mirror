@@ -71,6 +71,7 @@ import com.sun.jna.Structure.FFIType;
  */
 public final class Native {
 
+    private static String nativeLibraryPath = null;
     private static Map typeMappers = new WeakHashMap();
     private static Map alignments = new WeakHashMap();
     private static Map options = new WeakHashMap();
@@ -114,6 +115,46 @@ public final class Native {
         }
     }
     
+    /** Ensure our unpacked native library gets cleaned up if this class gets
+        garbage-collected.
+    */
+    private static final Object finalizer = new Object() {
+        protected void finalize() {
+            unloadNativeLibrary(nativeLibraryPath);
+        }
+    };
+
+    private static boolean unloadNativeLibrary(String path) {
+        if (path == null || !new File(path).exists()) return true;
+        // Reach into the bowels of ClassLoader to force the native
+        // library to unload
+        try {
+            ClassLoader cl = Native.class.getClassLoader();
+            Field f = ClassLoader.class.getDeclaredField("nativeLibraries");
+            f.setAccessible(true);
+            List libs = (List)f.get(cl);
+            for (Iterator i = libs.iterator();i.hasNext();) {
+                Object lib = i.next();
+                f = lib.getClass().getDeclaredField("name");
+                f.setAccessible(true);
+                String name = (String)f.get(lib);
+                if (name.equals(path)) {
+                    Method m = lib.getClass().getDeclaredMethod("finalize", new Class[0]);
+                    m.setAccessible(true);
+                    m.invoke(lib, new Object[0]);
+                    File file = new File(path);
+                    if (file.exists()) {
+                        return file.delete();
+                    }
+                    return true;
+                }
+            }
+        }
+        catch(Exception e) {
+        }
+        return false;
+    }
+
     private Native() { }
     
     private static native void initIDs();
@@ -632,6 +673,7 @@ public final class Native {
                     try { fos.close(); } catch(IOException e) { }
                 }
             }
+            nativeLibraryPath = lib.getAbsolutePath();
         }
         System.load(lib.getAbsolutePath());
     }
@@ -762,33 +804,8 @@ public final class Native {
         public DeleteNativeLibrary(File file) {
             this.file = file;
         }
-        private boolean unload(String path) {
-            // Reach into the bowels of ClassLoader to force the native
-            // library to unload
-            try {
-                ClassLoader cl = getClass().getClassLoader();
-                Field f = ClassLoader.class.getDeclaredField("nativeLibraries");
-                f.setAccessible(true);
-                List libs = (List)f.get(cl);
-                for (Iterator i = libs.iterator();i.hasNext();) {
-                    Object lib = i.next();
-                    f = lib.getClass().getDeclaredField("name");
-                    f.setAccessible(true);
-                    String name = (String)f.get(lib);
-                    if (name.equals(path)) {
-                        Method m = lib.getClass().getDeclaredMethod("finalize", new Class[0]);
-                        m.setAccessible(true);
-                        m.invoke(lib, new Object[0]);
-                        return true;
-                    }
-                }
-            }
-            catch(Exception e) {
-            }
-            return false;
-        }
         public void run() {
-            if (!unload(file.getAbsolutePath()) || !file.delete()) {
+            if (!unloadNativeLibrary(file.getAbsolutePath())) {
                 try {
                     Runtime.getRuntime().exec(new String[] {
                         System.getProperty("java.home") + "/bin/java",
@@ -1008,6 +1025,7 @@ public final class Native {
     private static final int CVT_CALLBACK = 15;
     private static final int CVT_FLOAT = 16;
     private static final int CVT_NATIVE_MAPPED = 17;
+    private static final int CVT_WSTRING = 18;
 
     private static int getConversion(Class type) {
         if (type == Boolean.class) type = boolean.class;
@@ -1025,6 +1043,9 @@ public final class Native {
         }
         if (String.class == type) {
             return CVT_STRING;
+        }
+        if (WString.class.isAssignableFrom(type)) {
+            return CVT_WSTRING;
         }
         if (Buffer.class.isAssignableFrom(type)) {
             return CVT_BUFFER;
@@ -1159,7 +1180,7 @@ public final class Native {
 
     static native long ffi_prep_cif(int abi, int nargs, long ffi_return_type, long ffi_types);
     static native void ffi_call(long cif, long fptr, long resp, long args);
-    static native long ffi_prep_closure();
+    static native long ffi_prep_closure(long cif, Object cb);
 
     /** Prints JNA library details to the console. */
     public static void main(String[] args) {

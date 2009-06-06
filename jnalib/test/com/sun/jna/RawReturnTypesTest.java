@@ -47,7 +47,7 @@ public class RawReturnTypesTest extends ReturnTypesTest {
         public native double returnDoubleZero();
         public native double returnDoubleMagic();
         public native String returnStringMagic();
-        public WString returnWStringMagic() {throw new UnsupportedOperationException();}
+        public native WString returnWStringMagic();
         public native SimpleStructure returnStaticTestStructure();
         public native SimpleStructure returnNullTestStructure();
         public native TestSmallStructure.ByValue returnSmallStructureByValue();
@@ -67,7 +67,6 @@ public class RawReturnTypesTest extends ReturnTypesTest {
     }
     
     // Override not-yet-supported tests
-    public void testInvokeWString() { }
     public void testReturnPointerArray() { }
     public void testReturnStringArray() { }
     public void testReturnWStringArray() { }
