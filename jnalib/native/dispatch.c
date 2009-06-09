@@ -136,6 +136,7 @@ static jclass classStructureByValue;
 static jclass classCallback;
 static jclass classCallbackReference;
 static jclass classNativeMapped;
+static jclass class_ffi_callback;
 
 static jmethodID MID_Class_getComponentType;
 static jmethodID MID_Object_toString;
@@ -182,6 +183,7 @@ static jmethodID MID_CallbackReference_getFunctionPointer;
 static jmethodID MID_CallbackReference_getNativeString;
 static jmethodID MID_NativeMapped_toNative;
 static jmethodID MID_WString_init;
+static jmethodID MID_ffi_callback_invoke;
 
 static jfieldID FID_Boolean_value;
 static jfieldID FID_Byte_value;
@@ -1904,6 +1906,15 @@ Java_com_sun_jna_Native_initIDs(JNIEnv *env, jclass cls) {
     throwByName(env, EUnsatisfiedLink,
                 "Can't obtain constructor for class com.sun.jna.WString");
   }
+  else if (!LOAD_CREF(env, _ffi_callback, "com/sun/jna/Native$ffi_callback")) {
+    throwByName(env, EUnsatisfiedLink,
+                "Can't obtain class com.sun.jna.Native$ffi_callback");
+  }
+  else if (!LOAD_MID(env, MID_ffi_callback_invoke, class_ffi_callback,
+                     "invoke", "(JJJ)V")) {
+    throwByName(env, EUnsatisfiedLink,
+                "Can't obtain invoke method from class com.sun.jna.Native$ffi_callback");
+  }
   // Initialize type fields within Structure.FFIType
   else {
 #define CFFITYPE "com/sun/jna/Structure$FFIType$FFITypes"
@@ -2704,24 +2715,77 @@ Java_com_sun_jna_Native_ffi_1prep_1cif(JNIEnv *env, jclass cls, jint abi, jint n
 static void
 closure_handler(ffi_cif* cif, void* resp, void** argp, void *cdata)
 {
-  // TODO: call back into Java version of this same handler
+  callback* cb = (callback *)cdata;
+  JavaVM* jvm = cb->vm;
+  JNIEnv* env;
+  jobject obj;
+  int attached;
+
+  attached = (*jvm)->GetEnv(jvm, (void *)&env, JNI_VERSION_1_4) == JNI_OK;
+  if (!attached) {
+    if ((*jvm)->AttachCurrentThread(jvm, (void *)&env, NULL) != JNI_OK) {
+      fprintf(stderr, "JNA: Can't attach to current thread\n");
+      return;
+    }
+  }
+
+  // Give the callback its own local frame to ensure all local references
+  // are properly disposed
+  if ((*env)->PushLocalFrame(env, 16) < 0) {
+    fprintf(stderr, "JNA: Out of memory: Can't allocate local frame");
+  }
+  else {
+    obj = (*env)->NewLocalRef(env, cb->object);
+    if ((*env)->IsSameObject(env, obj, NULL)) {
+      fprintf(stderr, "JNA: callback object has been garbage collected\n");
+      if (cif->rtype->type != FFI_TYPE_VOID)
+        memset(resp, 0, cif->rtype->size);
+    }
+    else {
+      (*env)->CallVoidMethod(env, obj, MID_ffi_callback_invoke,
+                             A2L(cif), A2L(resp), A2L(argp));
+    }    
+    
+    (*env)->PopLocalFrame(env, NULL);
+  }
+
+  if (!attached) {
+    (*jvm)->DetachCurrentThread(jvm);
+  }
 }
 
 JNIEXPORT jlong JNICALL
-Java_com_sun_jna_Native_ffi_1prep_1closure(JNIEnv *env, jclass cls, jlong cif, jobject callback) 
+Java_com_sun_jna_Native_ffi_1prep_1closure(JNIEnv *env, jclass cls, jlong cif, jobject obj) 
 {
-  void *code;
-  ffi_closure* closure = ffi_closure_alloc(sizeof(ffi_closure), L2A(&code));
-  // TODO: encapsulate callback object in a data structure?
-  ffi_status s = ffi_prep_closure_loc(closure, L2A(cif), &closure_handler, 
-                                      callback, &code);
+  callback* cb = (callback *)malloc(sizeof(callback));
+  ffi_status s;
+
+  if ((*env)->GetJavaVM(env, &cb->vm) != JNI_OK) {
+    throwByName(env, EUnsatisfiedLink, "Can't get Java VM");
+    return 0;
+  }
+
+  cb->object = (*env)->NewWeakGlobalRef(env, obj);
+  cb->closure = ffi_closure_alloc(sizeof(ffi_closure), L2A(&cb->x_closure));
+
+  s = ffi_prep_closure_loc(cb->closure, L2A(cif), &closure_handler, 
+                           cb, cb->x_closure);
   if (s != FFI_OK) {
     char msg[1024];
     sprintf(msg, "ffi_prep_cif failed with %d", s);
     throwByName(env, EError, msg);
     return 0;
   }
-  return A2L(closure);
+  return A2L(cb);
+}
+
+JNIEXPORT void JNICALL
+Java_com_sun_jna_Native_ffi_1free_1closure(JNIEnv *env, jclass cls, jlong closure) {
+  callback* cb = (callback *)L2A(closure);
+
+  (*env)->DeleteWeakGlobalRef(env, cb->object);
+  ffi_closure_free(cb->closure);
+  free(cb);
 }
 
 #ifdef __cplusplus

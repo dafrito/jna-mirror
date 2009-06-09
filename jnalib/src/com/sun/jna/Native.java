@@ -1178,9 +1178,14 @@ public final class Native {
         return NativeMappedConverter.getInstance(cls).nativeType();
     }
 
-    static native long ffi_prep_cif(int abi, int nargs, long ffi_return_type, long ffi_types);
-    static native void ffi_call(long cif, long fptr, long resp, long args);
-    static native long ffi_prep_closure(long cif, Object cb);
+    public static native long ffi_prep_cif(int abi, int nargs, long ffi_return_type, long ffi_types);
+    public static native void ffi_call(long cif, long fptr, long resp, long args);
+    public static native long ffi_prep_closure(long cif, ffi_callback cb);
+    public static native void ffi_free_closure(long closure);
+    
+    public interface ffi_callback {
+        void invoke(long cif, long resp, long argp);
+    }
 
     /** Prints JNA library details to the console. */
     public static void main(String[] args) {

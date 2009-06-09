@@ -247,7 +247,8 @@ callback_invoke(JNIEnv* env, callback *cb, ffi_cif* cif, void *resp, void **cbar
   // Avoid calling back to a GC'd object
   if ((*env)->IsSameObject(env, self, NULL)) {
     fprintf(stderr, "JNA: callback object has been garbage collected\n");
-    memset(resp, 0, cif->rtype->size); 
+    if (cif->rtype->type != FFI_TYPE_VOID)
+      memset(resp, 0, cif->rtype->size); 
   }
   else if (cb->direct) {
     unsigned int i;
@@ -306,7 +307,8 @@ callback_invoke(JNIEnv* env, callback *cb, ffi_cif* cif, void *resp, void **cbar
       if (!handle_exception(env, self, throwable)) {
         fprintf(stderr, "JNA: error handling callback exception, continuing\n");
       }
-      memset(resp, 0, cif->rtype->size);
+      if (cif->rtype->type != FFI_TYPE_VOID)
+        memset(resp, 0, cif->rtype->size);
     }
     else switch(cb->rflag) {
     case CVT_NATIVE_MAPPED:
@@ -359,7 +361,8 @@ callback_invoke(JNIEnv* env, callback *cb, ffi_cif* cif, void *resp, void **cbar
       if (!handle_exception(env, self, throwable)) {
         fprintf(stderr, "JNA: error handling callback exception, continuing\n");
       }
-      memset(resp, 0, cif->rtype->size);
+      if (cif->rtype->type != FFI_TYPE_VOID)
+        memset(resp, 0, cif->rtype->size);
     }
     else {
       extract_value(env, result, resp, cif->rtype->size);
@@ -385,11 +388,12 @@ callback_dispatch(ffi_cif* cif, void* resp, void** cbargs, void* user_data) {
   // are properly disposed
   if ((*env)->PushLocalFrame(env, 16) < 0) {
     fprintf(stderr, "JNA: Out of memory: Can't allocate local frame");
-    return;
   }
-  callback_invoke(env, (callback *)user_data, cif, resp, cbargs);
-  (*env)->PopLocalFrame(env, NULL);
-
+  else {
+    callback_invoke(env, (callback *)user_data, cif, resp, cbargs);
+    (*env)->PopLocalFrame(env, NULL);
+  }
+  
   if (!attached) {
     (*jvm)->DetachCurrentThread(jvm);
   }
