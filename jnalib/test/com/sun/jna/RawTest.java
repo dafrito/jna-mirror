@@ -64,8 +64,20 @@ public class RawTest extends TestCase {
     }
 
     static class CLibrary {
+        public static class size_t extends IntegerType {
+            public size_t() {
+                super(Native.POINTER_SIZE);
+            }
+            public size_t(long value) {
+                super(Native.POINTER_SIZE, value);
+            }
+        }
+
+        public static native Pointer memset(Pointer p, int v, size_t len);
         public static native Pointer memset(Pointer p, int v, int len);
-        public static native void memset(byte[] b, int v, int len);
+        public static native Pointer memset(Pointer p, int v, long len);
+        public static native long memset(long p, int v, long len);
+        public static native int memset(int p, int v, int len);
         public static native int strlen(String s1);
         public static native int strlen(Pointer p);
         public static native int strlen(byte[] b);
@@ -211,7 +223,7 @@ public class RawTest extends TestCase {
             dresult = MathLibrary.cos(0d);
         }
         delta = System.currentTimeMillis() - start;
-        System.out.println("cos (JNA raw): " + delta + "ms");
+        System.out.println("cos (JNA direct): " + delta + "ms");
 
         long types = pb.peer;
         b.putInt(0, (int)Structure.FFIType.get(double.class).peer);
@@ -268,10 +280,38 @@ public class RawTest extends TestCase {
 
         start = System.currentTimeMillis();
         for (int i=0;i < COUNT;i++) {
-            presult = CLibrary.memset((Pointer)null, 0, 0);
+            presult = CLibrary.memset((Pointer)null, 0, new CLibrary.size_t(0));
         }
         delta = System.currentTimeMillis() - start;
-        System.out.println("memset (JNA raw): " + delta + "ms");
+        System.out.println("memset (JNA direct Pointer/size_t): " + delta + "ms");
+        start = System.currentTimeMillis();
+        if (Native.POINTER_SIZE == 4) {
+            for (int i=0;i < COUNT;i++) {
+                presult = CLibrary.memset((Pointer)null, 0, 0);
+            }
+        }
+        else {
+            for (int i=0;i < COUNT;i++) {
+                presult = CLibrary.memset((Pointer)null, 0, 0L);
+            }
+        }
+        delta = System.currentTimeMillis() - start;
+        System.out.println("memset (JNA direct Pointer/primitive): " + delta + "ms");
+        int iresult;
+        long jresult;
+        start = System.currentTimeMillis();
+        if (Native.POINTER_SIZE == 4) {
+            for (int i=0;i < COUNT;i++) {
+                iresult = CLibrary.memset(0, 0, 0);
+            }
+        }
+        else {
+            for (int i=0;i < COUNT;i++) {
+                jresult = CLibrary.memset(0L, 0, 0L);
+            }
+        }
+        delta = System.currentTimeMillis() - start;
+        System.out.println("memset (JNA direct primitives): " + delta + "ms");
 
         if (Native.POINTER_SIZE == 4) {
             types = pb.peer;
@@ -305,7 +345,6 @@ public class RawTest extends TestCase {
 
         ///////////////////////////////////////////
         // strlen
-        int iresult;
         String str = "performance test";
         start = System.currentTimeMillis();
         for (int i=0;i < COUNT;i++) {
@@ -328,21 +367,21 @@ public class RawTest extends TestCase {
             iresult = CLibrary.strlen(str);
         }
         delta = System.currentTimeMillis() - start;
-        System.out.println("strlen (JNA raw - String): " + delta + "ms");
+        System.out.println("strlen (JNA direct - String): " + delta + "ms");
 
         start = System.currentTimeMillis();
         for (int i=0;i < COUNT;i++) {
             iresult = CLibrary.strlen(new NativeString(str).getPointer());
         }
         delta = System.currentTimeMillis() - start;
-        System.out.println("strlen (JNA raw - Pointer): " + delta + "ms");
+        System.out.println("strlen (JNA direct - Pointer): " + delta + "ms");
 
         start = System.currentTimeMillis();
         for (int i=0;i < COUNT;i++) {
             iresult = CLibrary.strlen(Native.toByteArray(str));
         }
         delta = System.currentTimeMillis() - start;
-        System.out.println("strlen (JNA raw - byte[]): " + delta + "ms");
+        System.out.println("strlen (JNA direct - byte[]): " + delta + "ms");
 
         start = System.currentTimeMillis();
         for (int i=0;i < COUNT;i++) {
@@ -353,7 +392,7 @@ public class RawTest extends TestCase {
             iresult = CLibrary.strlen(b);
         }
         delta = System.currentTimeMillis() - start;
-        System.out.println("strlen (JNA raw - Buffer): " + delta + "ms");
+        System.out.println("strlen (JNA direct - Buffer): " + delta + "ms");
 
         if (Native.POINTER_SIZE == 4) {
             types = pb.peer;
@@ -425,7 +464,7 @@ public class RawTest extends TestCase {
         start = System.currentTimeMillis();
         tlib.callInt32CallbackRepeatedly(cb, 1, 2, COUNT);
         delta = System.currentTimeMillis() - start;
-        System.out.println("callback (JNA raw): " + delta + "ms");
+        System.out.println("callback (JNA direct): " + delta + "ms");
 
         start = System.currentTimeMillis();
         TestInterface.NativeLongCallback nlcb = new TestInterface.NativeLongCallback() {
@@ -441,7 +480,7 @@ public class RawTest extends TestCase {
         start = System.currentTimeMillis();
         tlib.callLongCallbackRepeatedly(nlcb, new NativeLong(1), new NativeLong(2), COUNT);
         delta = System.currentTimeMillis() - start;
-        System.out.println("callback w/NativeMapped (JNA raw): " + delta + "ms");
+        System.out.println("callback w/NativeMapped (JNA direct): " + delta + "ms");
     }
 }
 
