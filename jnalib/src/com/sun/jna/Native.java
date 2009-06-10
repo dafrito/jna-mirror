@@ -185,13 +185,14 @@ public final class Native {
     public static synchronized native boolean isProtected();
 
     /** Set whether the system last error result is captured after every
-     * native invocation.  Defaults to <code>true</code> (<code>false</code>
-     * for direct-mapped calls).
+     * native invocation.  Defaults to <code>true</code>.<p>
+     * For direct-mapped calls, add {@lnk LastErrorException} to the method
+     * exception signature instead.
      */
     public static synchronized native void setPreserveLastError(boolean enable);
     
     /** Indicates whether the system last error result is preserved
-     * after every invocation.  
+     * after every invocation.
      */
     public static synchronized native boolean getPreserveLastError();
     
@@ -698,7 +699,9 @@ public final class Native {
      * most other platforms.  The value is preserved per-thread, but whether 
      * the original value is per-thread depends on the underlying OS.  The 
      * result is undefined If {@link #getPreserveLastError} is 
-     * <code>false</code>.
+     * <code>false</code>.<p>
+     * For direct-mapped calls, add "throws LastErrorException" to the method
+     * signature instead.
      */
     public static int getLastError() {
         return ((Integer)lastError.get()).intValue();
