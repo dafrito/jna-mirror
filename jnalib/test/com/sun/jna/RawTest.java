@@ -14,6 +14,7 @@ package com.sun.jna;
 
 import junit.framework.*;
 import com.sun.jna.*;
+import com.sun.jna.ptr.PointerByReference;
 import java.lang.ref.*;
 import java.io.File;
 import java.net.MalformedURLException;
@@ -69,6 +70,7 @@ public class RawTest extends TestCase {
         public static native int strlen(Pointer p);
         public static native int strlen(byte[] b);
         public static native int strlen(Buffer b);
+        public static native float strtof(String s, PointerByReference pref) throws LastErrorException;
         
         static {
             Native.register(Platform.isWindows()?"msvcrt":"c");
@@ -155,6 +157,20 @@ public class RawTest extends TestCase {
         }
         assertEquals("Wrong native class found",
                      UnregisterLibrary.class, new UnregisterLibrary().getNativeClass());
+    }
+
+    public void testThrowLastError() throws LastErrorException {
+        CLibrary lib = new CLibrary();
+        float VALUE = 1.1f;
+        assertEquals("Wrong value returned", VALUE, lib.strtof("1.1", null));
+        try {
+            String HUGE_VALF = "1e10000";
+            lib.strtof(HUGE_VALF, null);
+            fail("Method declared with LastErrorException should throw on error");
+        }
+        catch(LastErrorException e) {
+            assertTrue("LastError code should be non-zero", e.errorCode != 0);
+        }
     }
 
     // Requires java.library.path include testlib

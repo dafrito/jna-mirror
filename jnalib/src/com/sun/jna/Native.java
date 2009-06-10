@@ -1108,6 +1108,7 @@ public final class Native {
             long[] atypes = new long[ptypes.length];
             int[] cvt = new int[ptypes.length];
             int rcvt = getConversion(rtype);
+            boolean throwLastError = false;
             if (rcvt == CVT_UNSUPPORTED) {
                 throw new IllegalArgumentException(rtype + " is not a supported return type (in method " + method.getName() + " in " + cls + ")");
             }
@@ -1135,6 +1136,14 @@ public final class Native {
             sig += ")";
             sig += getSignature(rtype);
             
+            Class[] etypes = method.getExceptionTypes();
+            for (int e=0;e < etypes.length;e++) {
+                if (LastErrorException.class.equals(etypes[e])) {
+                    throwLastError = true;
+                    break;
+                }
+            }
+
             String name = method.getName();
             FunctionMapper mapper = (FunctionMapper)lib.getOptions().get(Library.OPTION_FUNCTION_MAPPER);
             if (mapper != null) {
@@ -1145,7 +1154,8 @@ public final class Native {
                 handles[i] = registerMethod(cls, method.getName(),
                                             sig, cvt, atypes, rcvt,
                                             FFIType.get(rtype).peer, rtype, 
-                                            f.peer, f.callingConvention);
+                                            f.peer, f.callingConvention,
+                                            throwLastError);
             }
             catch(NoSuchMethodError e) {
                 throw new UnsatisfiedLinkError("No method " + method.getName() + " with signature " + sig + " in " + cls);
@@ -1166,7 +1176,8 @@ public final class Native {
                                               long rtype,
                                               Class rclass,
                                               long fptr,
-                                              int callingConvention);
+                                              int callingConvention,
+                                              boolean throwLastError);
     
 
     // Called from native code

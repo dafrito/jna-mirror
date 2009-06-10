@@ -97,7 +97,6 @@ extern "C"
 #endif
 
 static jboolean preserve_last_error;
-static jboolean preserve_last_error_direct;
 
 #define MEMCPY(D,S,L) do { \
   PSTART(); memcpy(D,S,L); PEND(); \
@@ -136,6 +135,7 @@ static jclass classStructureByValue;
 static jclass classCallback;
 static jclass classCallbackReference;
 static jclass classNativeMapped;
+static jclass classLastErrorException;
 static jclass class_ffi_callback;
 
 static jmethodID MID_Class_getComponentType;
@@ -183,6 +183,7 @@ static jmethodID MID_CallbackReference_getFunctionPointer;
 static jmethodID MID_CallbackReference_getNativeString;
 static jmethodID MID_NativeMapped_toNative;
 static jmethodID MID_WString_init;
+static jmethodID MID_LastErrorException_init;
 static jmethodID MID_ffi_callback_invoke;
 
 static jfieldID FID_Boolean_value;
@@ -1784,7 +1785,6 @@ Java_com_sun_jna_Native_sizeof(JNIEnv *env, jclass cls, jint type)
 JNIEXPORT void JNICALL 
 Java_com_sun_jna_Native_initIDs(JNIEnv *env, jclass cls) {
   preserve_last_error = JNI_TRUE;
-  preserve_last_error_direct = JNI_FALSE;
   if (!LOAD_CREF(env, Pointer, "com/sun/jna/Pointer")) {
     throwByName(env, EUnsatisfiedLink,
                 "Can't obtain class com.sun.jna.Pointer");
@@ -1905,6 +1905,15 @@ Java_com_sun_jna_Native_initIDs(JNIEnv *env, jclass cls) {
                      "<init>", "(Ljava/lang/String;)V")) {
     throwByName(env, EUnsatisfiedLink,
                 "Can't obtain constructor for class com.sun.jna.WString");
+  }
+  else if (!LOAD_CREF(env, LastErrorException, "com/sun/jna/LastErrorException")) {
+    throwByName(env, EUnsatisfiedLink,
+                "Can't obtain class com.sun.jna.LastErrorException");
+  }
+  else if (!LOAD_MID(env, MID_LastErrorException_init, classLastErrorException,
+                     "<init>", "(I)V")) {
+    throwByName(env, EUnsatisfiedLink,
+                "Can't obtain constructor for class com.sun.jna.LastErrorException");
   }
   else if (!LOAD_CREF(env, _ffi_callback, "com/sun/jna/Native$ffi_callback")) {
     throwByName(env, EUnsatisfiedLink,
@@ -2126,7 +2135,6 @@ Java_com_sun_jna_Native_isProtected(JNIEnv *env, jclass classp) {
 JNIEXPORT void JNICALL
 Java_com_sun_jna_Native_setPreserveLastError(JNIEnv *env, jclass classp, jboolean preserve) {
   preserve_last_error = preserve;
-  preserve_last_error_direct = preserve;
 }
 
 JNIEXPORT jboolean JNICALL
@@ -2273,7 +2281,7 @@ JNIEXPORT void JNICALL
 JNI_OnUnload(JavaVM *vm, void *reserved) {
   jobject* refs[] = {
     &classObject, &classClass, &classMethod,
-    &classString, &classWString,
+    &classString, 
     &classBuffer, &classByteBuffer, &classCharBuffer,
     &classShortBuffer, &classIntBuffer, &classLongBuffer,
     &classFloatBuffer, &classDoubleBuffer,
@@ -2286,9 +2294,10 @@ JNI_OnUnload(JavaVM *vm, void *reserved) {
     &classLong, &classPrimitiveLong,
     &classFloat, &classPrimitiveFloat,
     &classDouble, &classPrimitiveDouble,
-    &classPointer, &classNative,
+    &classPointer, &classNative, &classWString,
     &classStructure, &classStructureByValue,
     &classCallbackReference, &classNativeMapped,
+    &classLastErrorException,
   };
   unsigned i;
   JNIEnv* env;
@@ -2391,6 +2400,7 @@ typedef struct _method_data {
   int     rflag;
   jclass  closure_rclass;
   jclass  rclass;
+  jboolean throw_last_error;
 } method_data;
 
 // VM vectors to this callback, which calls native code
@@ -2491,9 +2501,17 @@ method_handler(ffi_cif* cif, void* resp, void** argp, void *cdata) {
 
   {
     PSTART();
+    if (data->throw_last_error) {
+      SET_LAST_ERROR(0);
+    }
     ffi_call(&data->cif, FFI_FN(data->fptr), resp, args);
-    if (preserve_last_error_direct) {
-      update_last_error(env, GET_LAST_ERROR());
+    if (data->throw_last_error) {
+      int error = GET_LAST_ERROR();
+      if (error) {
+        (*env)->Throw(env, (*env)->NewObject(env, classLastErrorException,
+                                             MID_LastErrorException_init,
+                                             error));
+      }
     }
     PEND();
   }
@@ -2591,7 +2609,9 @@ Java_com_sun_jna_Native_registerMethod(JNIEnv *env, jclass ncls,
                                        jint rconversion,
                                        jlong return_type,
                                        jclass rclass,
-                                       jlong function, jint cc)
+                                       jlong function,
+                                       jint cc,
+                                       jboolean throw_last_error)
 {
   int argc = atypes ? (*env)->GetArrayLength(env, atypes) : 0;
   const char* cname = newCStringUTF8(env, name);
@@ -2612,6 +2632,7 @@ Java_com_sun_jna_Native_registerMethod(JNIEnv *env, jclass ncls,
   if (cc == CALLCONV_STDCALL) abi = FFI_STDCALL;
 #endif
 
+  data->throw_last_error = throw_last_error;
   data->arg_types = malloc(sizeof(ffi_type*) * argc);
   data->closure_arg_types = malloc(sizeof(ffi_type*) * (argc + 2));
   data->closure_arg_types[0] = &ffi_type_pointer;
