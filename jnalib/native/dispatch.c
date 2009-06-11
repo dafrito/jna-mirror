@@ -2571,6 +2571,8 @@ method_handler(ffi_cif* cif, void* resp, void** argp, void *cdata) {
   }
 
   switch(data->rflag) {
+  case CVT_INTEGER_TYPE:
+  case CVT_POINTER_TYPE:
   case CVT_NATIVE_MAPPED:
     *(void **)oldresp = fromNative(env, data->closure_rclass, data->rclass, resp);
     break;
@@ -2699,7 +2701,9 @@ Java_com_sun_jna_Native_registerMethod(JNIEnv *env, jclass ncls,
     data->closure_arg_types[i+2] = data->arg_types[i] = (ffi_type*)L2A(types[i]);
     if (cvts) {
       data->flags[i] = cvts[i];
-      if (cvts[i] == CVT_NATIVE_MAPPED) {
+      if (cvts[i] == CVT_NATIVE_MAPPED
+          || cvts[i] == CVT_INTEGER_TYPE
+          || cvts[i] == CVT_POINTER_TYPE) {
         data->closure_arg_types[i+2] = &ffi_type_pointer;
       }
       // By value struct arguments are passed to the closure as a Java object
@@ -2712,7 +2716,9 @@ Java_com_sun_jna_Native_registerMethod(JNIEnv *env, jclass ncls,
   if (cvts) (*env)->ReleaseIntArrayElements(env, conversions, cvts, 0);
   data->fptr = L2A(function);
 
-  if (rconversion == CVT_NATIVE_MAPPED) {
+  if (rconversion == CVT_NATIVE_MAPPED
+      || rconversion == CVT_INTEGER_TYPE
+      || rconversion == CVT_POINTER_TYPE) {
     data->closure_rclass = (*env)->NewWeakGlobalRef(env, rclass);
     data->rclass = (*env)->NewWeakGlobalRef(env, getNativeType(env, rclass));
     rtype = get_ffi_rtype(env, data->rclass, get_jtype(env, data->rclass));
