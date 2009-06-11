@@ -226,21 +226,40 @@ public class RawTest extends TestCase {
         System.out.println("cos (JNA direct): " + delta + "ms");
 
         long types = pb.peer;
-        b.putInt(0, (int)Structure.FFIType.get(double.class).peer);
-        long cif = Native.ffi_prep_cif(0, 1, Structure.FFIType.get(double.class).peer, types);
-        long resp = pb.peer + 4;
-        long argv = pb.peer + 12;
+        long cif;
+        long resp;
+        long argv;
         if (Native.POINTER_SIZE == 4) {
+            b.putInt(0, (int)Structure.FFIType.get(double.class).peer);
+            cif = Native.ffi_prep_cif(0, 1, Structure.FFIType.get(double.class).peer, types);
+            resp = pb.peer + 4;
+            argv = pb.peer + 12;
+            double INPUT = 42;
             start = System.currentTimeMillis();
             for (int i=0;i < COUNT;i++) {
-                b.putInt(8, (int)pb.peer + 16);
-                b.putDouble(16, 0);
+                b.putInt(12, (int)pb.peer + 16);
+                b.putDouble(16, INPUT);
                 Native.ffi_call(cif, f.peer, resp, argv);
                 dresult = b.getDouble(4);
             }
             delta = System.currentTimeMillis() - start;
-            System.out.println("cos (JNI ffi): " + delta + "ms");
         }
+        else {
+            b.putLong(0, Structure.FFIType.get(double.class).peer);
+            cif = Native.ffi_prep_cif(0, 1, Structure.FFIType.get(double.class).peer, types);
+            resp = pb.peer + 8;
+            argv = pb.peer + 16;
+            double INPUT = 42;
+            start = System.currentTimeMillis();
+            for (int i=0;i < COUNT;i++) {
+                b.putLong(16, pb.peer + 24);
+                b.putDouble(24, INPUT);
+                Native.ffi_call(cif, f.peer, resp, argv);
+                dresult = b.getDouble(8);
+            }
+            delta = System.currentTimeMillis() - start;
+        }
+        System.out.println("cos (JNI ffi): " + delta + "ms");
 
         start = System.currentTimeMillis();
         for (int i=0;i < COUNT;i++) {
@@ -314,7 +333,6 @@ public class RawTest extends TestCase {
         System.out.println("memset (JNA direct primitives): " + delta + "ms");
 
         if (Native.POINTER_SIZE == 4) {
-            types = pb.peer;
             b.putInt(0, (int)Structure.FFIType.get(Pointer.class).peer);
             b.putInt(4, (int)Structure.FFIType.get(int.class).peer);
             b.putInt(8, (int)Structure.FFIType.get(int.class).peer);
@@ -330,11 +348,31 @@ public class RawTest extends TestCase {
                 b.putInt(32, 0);
                 b.putInt(36, 0);
                 Native.ffi_call(cif, f.peer, resp, argv);
-                b.getInt(4);
+                b.getInt(12);
             }
             delta = System.currentTimeMillis() - start;
-            System.out.println("memset (JNI ffi): " + delta + "ms");
         }
+        else {
+            b.putLong(0, Structure.FFIType.get(Pointer.class).peer);
+            b.putLong(8, Structure.FFIType.get(int.class).peer);
+            b.putLong(16, Structure.FFIType.get(long.class).peer);
+            cif = Native.ffi_prep_cif(0, 3, Structure.FFIType.get(Pointer.class).peer, types);
+            resp = pb.peer + 24;
+            argv = pb.peer + 32;
+            start = System.currentTimeMillis();
+            for (int i=0;i < COUNT;i++) {
+                b.putLong(32, pb.peer + 56);
+                b.putLong(40, pb.peer + 64);
+                b.putLong(48, pb.peer + 72);
+                b.putLong(56, 0);
+                b.putInt(64, 0);
+                b.putLong(72, 0);
+                Native.ffi_call(cif, f.peer, resp, argv);
+                b.getLong(24);
+            }
+            delta = System.currentTimeMillis() - start;
+        }
+        System.out.println("memset (JNI ffi): " + delta + "ms");
 
         start = System.currentTimeMillis();
         for (int i=0;i < COUNT;i++) {
@@ -395,7 +433,6 @@ public class RawTest extends TestCase {
         System.out.println("strlen (JNA direct - Buffer): " + delta + "ms");
 
         if (Native.POINTER_SIZE == 4) {
-            types = pb.peer;
             b.putInt(0, (int)Structure.FFIType.get(Pointer.class).peer);
             cif = Native.ffi_prep_cif(0, 1, Structure.FFIType.get(int.class).peer, types);
             resp = pb.peer + 4;
@@ -412,8 +449,27 @@ public class RawTest extends TestCase {
                 iresult = b.getInt(4);
             }
             delta = System.currentTimeMillis() - start;
-            System.out.println("strlen (JNI ffi): " + delta + "ms");
         }
+        else {
+            b.putLong(0, Structure.FFIType.get(Pointer.class).peer);
+            cif = Native.ffi_prep_cif(0, 1, Structure.FFIType.get(long.class).peer, types);
+            resp = pb.peer + 8;
+            argv = pb.peer + 16;
+            start = System.currentTimeMillis();
+            for (int i=0;i < COUNT;i++) {
+                b.putLong(16, pb.peer + 24);
+                b.putLong(24, pb.peer + 32);
+                b.position(32);
+                // This operation is very expensive!
+                b.put(str.getBytes());
+                b.put((byte)0);
+                Native.ffi_call(cif, f.peer, resp, argv);
+                jresult = b.getLong(8);
+            }
+            delta = System.currentTimeMillis() - start;
+        }
+        System.out.println("strlen (JNI ffi): " + delta + "ms");
+
         ///////////////////////////////////////////
         // Direct buffer vs. Pointer methods
         byte[] bulk = new byte[SIZE];
