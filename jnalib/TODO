@@ -25,7 +25,10 @@
 * make direct calls call back *once* to Java where conversion is required,
   and process all arguments from there (instead of potentially swapping back
   and forth multipel times).  This also makes it easer to perform conversions
-  (no native changes required).
+  (no native changes required).  
+
+  o NativeMapped
+  o Pointer (field lookup)
 
 * direct calls on ppc to varargs (callbacks) with FP args fail; avoid them for
   now 

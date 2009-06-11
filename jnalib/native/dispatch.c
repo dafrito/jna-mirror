@@ -135,6 +135,8 @@ static jclass classStructureByValue;
 static jclass classCallback;
 static jclass classCallbackReference;
 static jclass classNativeMapped;
+static jclass classIntegerType;
+static jclass classPointerType;
 static jclass classLastErrorException;
 static jclass class_ffi_callback;
 
@@ -198,6 +200,8 @@ static jfieldID FID_Double_value;
 static jfieldID FID_Pointer_peer;
 static jfieldID FID_Structure_memory;
 static jfieldID FID_Structure_typeInfo;
+static jfieldID FID_IntegerType_value;
+static jfieldID FID_PointerType_pointer;
 
 /* Value of System property jna.encoding. */
 static const char* jna_encoding = NULL;
@@ -1575,6 +1579,12 @@ get_conversion_flag(JNIEnv* env, jclass cls) {
     if ((*env)->IsAssignableFrom(env, cls, classCallback)) {
       return CVT_CALLBACK;
     }
+    if ((*env)->IsAssignableFrom(env, cls, classIntegerType)) {
+      return CVT_INTEGER_TYPE;
+    }
+    if ((*env)->IsAssignableFrom(env, cls, classPointerType)) {
+      return CVT_POINTER_TYPE;
+    }
     if ((*env)->IsAssignableFrom(env, cls, classNativeMapped)) {
       return CVT_NATIVE_MAPPED;
     }
@@ -1624,6 +1634,16 @@ get_jtype(JNIEnv* env, jclass cls) {
       || (*env)->IsAssignableFrom(env, cls, classString))
     return '*';
   return -1;
+}
+
+jlong
+getIntegerTypeValue(JNIEnv* env, jobject obj) {
+  return (*env)->GetLongField(env, obj, FID_IntegerType_value);
+}
+
+void*
+getPointerTypeAddress(JNIEnv* env, jobject obj) {
+  return getNativeAddress(env, (*env)->GetObjectField(env, obj, FID_PointerType_pointer));
 }
 
 void *
@@ -1900,6 +1920,22 @@ Java_com_sun_jna_Native_initIDs(JNIEnv *env, jclass cls) {
                      "toNative", "()Ljava/lang/Object;")) {
     throwByName(env, EUnsatisfiedLink,
                 "Can't obtain toNative method for class com.sun.jna.NativeMapped");
+  }
+  else if (!LOAD_CREF(env, IntegerType, "com/sun/jna/IntegerType")) {
+    throwByName(env, EUnsatisfiedLink,
+                "Can't obtain class com.sun.jna.IntegerType");
+  }
+  else if (!LOAD_FID(env, FID_IntegerType_value, classIntegerType, "value", "J")) {
+    throwByName(env, EUnsatisfiedLink,
+                "Can't obtain value field ID for class com.sun.jna.IntegerType");
+  }
+  else if (!LOAD_CREF(env, PointerType, "com/sun/jna/PointerType")) {
+    throwByName(env, EUnsatisfiedLink,
+                "Can't obtain class com.sun.jna.PointerType");
+  }
+  else if (!LOAD_FID(env, FID_PointerType_pointer, classPointerType, "pointer", "Lcom/sun/jna/Pointer;")) {
+    throwByName(env, EUnsatisfiedLink,
+                "Can't obtain typeInfo field ID for class com.sun.jna.Structure");
   }
   else if (!LOAD_MID(env, MID_WString_init, classWString,
                      "<init>", "(Ljava/lang/String;)V")) {
@@ -2297,6 +2333,7 @@ JNI_OnUnload(JavaVM *vm, void *reserved) {
     &classPointer, &classNative, &classWString,
     &classStructure, &classStructureByValue,
     &classCallbackReference, &classNativeMapped,
+    &classIntegerType, &classPointerType,
     &classLastErrorException,
   };
   unsigned i;
@@ -2423,8 +2460,25 @@ method_handler(ffi_cif* cif, void* resp, void** argp, void *cdata) {
         if (data->arg_types[i]->type == FFI_TYPE_POINTER
             && *(void **)args[i] == NULL) continue;
         switch(data->flags[i]) {
+        case CVT_INTEGER_TYPE:
+          {
+            jlong value = getIntegerTypeValue(env, *(void **)args[i]);
+            if (cif->arg_types[i+2]->size < data->cif.arg_types[i]->size) {
+              args[i] = alloca(data->cif.arg_types[i]->size);
+            }
+            if (data->cif.arg_types[i]->size > sizeof(ffi_arg)) {
+              *(jlong *)args[i] = value;
+            }
+            else {
+              *(ffi_arg *)args[i] = (ffi_arg)value;
+            }
+          }
+          break;
+        case CVT_POINTER_TYPE:
+          *(void **)args[i] = getPointerTypeAddress(env, *(void **)args[i]);
+          break;
         case CVT_NATIVE_MAPPED:
-          if (cif->arg_types[i+2]->size != data->cif.arg_types[i]->size) {
+          if (cif->arg_types[i+2]->size < data->cif.arg_types[i]->size) {
             args[i] = alloca(data->cif.arg_types[i]->size);
           }
           toNative(env, *(void **)args[i], args[i], data->cif.arg_types[i]->size);

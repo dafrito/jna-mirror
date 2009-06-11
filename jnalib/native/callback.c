@@ -87,7 +87,9 @@ create_callback(JNIEnv* env, jobject obj, jobject method,
     }
 
     cb->java_arg_types[i+3] = cb->arg_types[i] = get_ffi_type(env, cls, cb->arg_jtypes[i]);
-    if (cb->flags[i] == CVT_NATIVE_MAPPED) {
+    if (cb->flags[i] == CVT_NATIVE_MAPPED
+        || cb->flags[i] == CVT_POINTER_TYPE
+        || cb->flags[i] == CVT_INTEGER_TYPE) {
       jclass ncls;
       ncls = getNativeType(env, cls);
       cb->arg_jtypes[i] = jtype = get_jtype(env, ncls);
@@ -119,7 +121,9 @@ create_callback(JNIEnv* env, jobject obj, jobject method,
   }
   if (direct) {
     cb->rflag = get_conversion_flag(env, return_type);
-    if (cb->rflag == CVT_NATIVE_MAPPED) {
+    if (cb->rflag == CVT_NATIVE_MAPPED
+        || cb->rflag == CVT_INTEGER_TYPE
+        || cb->rflag == CVT_POINTER_TYPE) {
       return_type = getNativeType(env, return_type);
     }
   }
@@ -156,7 +160,9 @@ create_callback(JNIEnv* env, jobject obj, jobject method,
     default: cb->fptr = (*env)->CallObjectMethod; break;
     }
     if (cb->rflag == CVT_STRUCTURE_BYVAL
-        || cb->rflag == CVT_NATIVE_MAPPED) {
+        || cb->rflag == CVT_NATIVE_MAPPED
+        || cb->rflag == CVT_POINTER_TYPE
+        || cb->rflag == CVT_INTEGER_TYPE) {
       // Java method returns a jobject, not a struct
       ffi_rtype = &ffi_type_pointer;
     }
@@ -261,6 +267,8 @@ callback_invoke(JNIEnv* env, callback *cb, ffi_cif* cif, void *resp, void **cbar
     if (cb->flags) {
       for (i=0;i < cif->nargs;i++) {
         switch(cb->flags[i]) {
+        case CVT_INTEGER_TYPE:
+        case CVT_POINTER_TYPE:
         case CVT_NATIVE_MAPPED:
           *((void **)args[i+3]) = fromNative(env, cb->arg_classes[i], getNativeType(env, cb->arg_classes[i]), args[i+3]);
           break;
@@ -300,6 +308,9 @@ callback_invoke(JNIEnv* env, callback *cb, ffi_cif* cif, void *resp, void **cbar
     if (cb->rflag == CVT_STRUCTURE_BYVAL) {
       resp = alloca(sizeof(jobject));
     }
+    else if (cb->cif.rtype->size > cif->rtype->size) {
+      resp = alloca(cb->cif.rtype->size);
+    }
     ffi_call(&cb->java_cif, FFI_FN(cb->fptr), resp, args);
     if ((*env)->ExceptionCheck(env)) {
       jthrowable throwable = (*env)->ExceptionOccurred(env);
@@ -308,9 +319,20 @@ callback_invoke(JNIEnv* env, callback *cb, ffi_cif* cif, void *resp, void **cbar
         fprintf(stderr, "JNA: error handling callback exception, continuing\n");
       }
       if (cif->rtype->type != FFI_TYPE_VOID)
-        memset(resp, 0, cif->rtype->size);
+        memset(oldresp, 0, cif->rtype->size);
     }
     else switch(cb->rflag) {
+    case CVT_INTEGER_TYPE:
+      if (cb->cif.rtype->size > sizeof(ffi_arg)) {
+        *(jlong *)oldresp = getIntegerTypeValue(env, *(void **)resp);
+      }
+      else {
+        *(ffi_arg *)oldresp = (ffi_arg)getIntegerTypeValue(env, *(void **)resp);
+      }
+      break;
+    case CVT_POINTER_TYPE:
+      *(void **)resp = getPointerTypeAddress(env, *(void **)resp);
+      break;
     case CVT_NATIVE_MAPPED:
       toNative(env, *(void **)resp, oldresp, cb->cif.rtype->size);
       break;

@@ -1029,6 +1029,8 @@ public final class Native {
     private static final int CVT_FLOAT = 16;
     private static final int CVT_NATIVE_MAPPED = 17;
     private static final int CVT_WSTRING = 18;
+    private static final int CVT_INTEGER_TYPE = 19;
+    private static final int CVT_POINTER_TYPE = 20;
 
     private static int getConversion(Class type) {
         if (type == Boolean.class) type = boolean.class;
@@ -1078,6 +1080,12 @@ public final class Native {
         if (Callback.class.isAssignableFrom(type)) {
             return CVT_CALLBACK;
         }
+        if (IntegerType.class.isAssignableFrom(type)) {
+            return CVT_INTEGER_TYPE;
+        }
+        if (PointerType.class.isAssignableFrom(type)) {
+            return CVT_POINTER_TYPE;
+        }
         if (NativeMapped.class.isAssignableFrom(type)) {
             return CVT_NATIVE_MAPPED;
         }
@@ -1122,13 +1130,16 @@ public final class Native {
                 if (cvt[t] == CVT_UNSUPPORTED) {
                     throw new IllegalArgumentException(type + " is not a supported argument type (in method " + method.getName() + " in " + cls + ")");
                 }
-                if (cvt[t] == CVT_NATIVE_MAPPED) {
+                if (cvt[t] == CVT_NATIVE_MAPPED
+                    || cvt[t] == CVT_INTEGER_TYPE) {
                     type = NativeMappedConverter.getInstance(type).nativeType();
                 }
                 // All conversions other than struct by value and primitives
                 // result in a pointer passed to the native function
                 if (cvt[t] == CVT_STRUCTURE_BYVAL
                     || cvt[t] == CVT_DEFAULT
+                    || cvt[t] == CVT_INTEGER_TYPE
+                    || cvt[t] == CVT_POINTER_TYPE
                     || cvt[t] == CVT_NATIVE_MAPPED) {
                     atypes[t] = FFIType.get(type).peer;
                 }

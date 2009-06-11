@@ -55,6 +55,8 @@ enum {
   CVT_FLOAT = com_sun_jna_Native_CVT_FLOAT,
   CVT_NATIVE_MAPPED = com_sun_jna_Native_CVT_NATIVE_MAPPED,
   CVT_WSTRING = com_sun_jna_Native_CVT_WSTRING,
+  CVT_INTEGER_TYPE = com_sun_jna_Native_CVT_INTEGER_TYPE,
+  CVT_POINTER_TYPE = com_sun_jna_Native_CVT_POINTER_TYPE,
 };
 
 typedef struct _callback {
@@ -143,6 +145,8 @@ extern void* getNativeString(JNIEnv*, jstring, jboolean);
 extern void* getNativeAddress(JNIEnv*, jobject);
 extern void* getStructureAddress(JNIEnv*, jobject);
 extern void* getCallbackAddress(JNIEnv*, jobject);
+extern jlong getIntegerTypeValue(JNIEnv*, jobject);
+extern void* getPointerTypeAddress(JNIEnv*, jobject);
 extern void writeStructure(JNIEnv*, jobject);
 extern jclass getNativeType(JNIEnv*, jclass);
 extern void toNative(JNIEnv*, jobject, void*, size_t);
