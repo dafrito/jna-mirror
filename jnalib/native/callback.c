@@ -146,7 +146,7 @@ create_callback(JNIEnv* env, jobject obj, jobject method,
     goto failure_cleanup;
   }
   status = ffi_prep_cif(&cb->cif, abi, argc, ffi_rtype, cb->arg_types);
-  if (status == FFI_OK) {
+  if (!ffi_error(env, "callback setup", status)) {
     switch(rtype) {
     case 'V': cb->fptr = (*env)->CallVoidMethod; break;
     case 'Z': cb->fptr = (*env)->CallBooleanMethod; break;
@@ -167,29 +167,11 @@ create_callback(JNIEnv* env, jobject obj, jobject method,
       ffi_rtype = &ffi_type_pointer;
     }
     status = ffi_prep_cif(&cb->java_cif, java_abi, argc+3, ffi_rtype, cb->java_arg_types);
-  }
-
-  switch(status) {
-  case FFI_BAD_ABI:
-    snprintf(msg, sizeof(msg),
-             "Invalid calling convention: %d", (int)calling_convention);
-    throwByName(env, EIllegalArgument, msg);
-    break;
-  case FFI_BAD_TYPEDEF:
-    snprintf(msg, sizeof(msg),
-             "Invalid structure definition (native typedef error)");
-    throwByName(env, EIllegalArgument, msg);
-    break;
-  case FFI_OK: 
-    ffi_prep_closure_loc(cb->closure, &cb->cif, callback_dispatch, cb,
-                         cb->x_closure);
-
-    return cb;
-  default:
-    snprintf(msg, sizeof(msg),
-             "Native callback setup failure: error code %d", status);
-    throwByName(env, EIllegalArgument, msg);
-    break;
+    if (!ffi_error(env, "callback setup (2)", status)) {
+      ffi_prep_closure_loc(cb->closure, &cb->cif, callback_dispatch, cb,
+                           cb->x_closure);
+      return cb;
+    }
   }
 
  failure_cleanup:

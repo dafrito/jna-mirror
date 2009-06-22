@@ -57,6 +57,7 @@ enum {
   CVT_WSTRING = com_sun_jna_Native_CVT_WSTRING,
   CVT_INTEGER_TYPE = com_sun_jna_Native_CVT_INTEGER_TYPE,
   CVT_POINTER_TYPE = com_sun_jna_Native_CVT_POINTER_TYPE,
+  CVT_TYPE_MAPPER = com_sun_jna_Native_CVT_TYPE_MAPPER,
 };
 
 typedef struct _callback {
@@ -120,6 +121,7 @@ typedef struct _callback {
 #define EIllegalState "java/lang/IllegalStateException"
 #define EUnsupportedOperation "java/lang/UnsupportedOperationException"
 #define EError "java/lang/Error"
+#define ELastError "com/sun/jna/LastErrorException"
 
 extern void throwByName(JNIEnv *env, const char *name, const char *msg);
 extern int get_jtype(JNIEnv*, jclass);
@@ -135,6 +137,7 @@ extern void extract_value(JNIEnv*, jobject, void*, size_t size);
 extern jobject new_object(JNIEnv*, char, void*);
 extern jboolean is_protected();
 extern int get_conversion_flag(JNIEnv*, jclass);
+extern jboolean ffi_error(JNIEnv*,const char*,ffi_status);
 
 extern jobject newJavaPointer(JNIEnv*, void*);
 extern jstring newJavaString(JNIEnv*, const char*, jboolean);
@@ -150,7 +153,7 @@ extern void* getPointerTypeAddress(JNIEnv*, jobject);
 extern void writeStructure(JNIEnv*, jobject);
 extern jclass getNativeType(JNIEnv*, jclass);
 extern void toNative(JNIEnv*, jobject, void*, size_t);
-extern jclass fromNative(JNIEnv*, jclass, jclass, void*);
+extern jclass fromNative(JNIEnv*, jclass, ffi_type*, void*);
 
 /* Native memory fault protection */
 #ifdef HAVE_PROTECTION

@@ -493,7 +493,7 @@ public abstract class Structure {
                 Pointer oldbp = currentValue == null ? null
                     : Native.getDirectBufferPointer((Buffer)currentValue);
                 if (oldbp == null || !oldbp.equals(bp)) {
-                    throw new IllegalStateException("Can't autogenerate a direct buffers on Structure read");
+                    throw new IllegalStateException("Can't autogenerate a direct Buffer on Structure read");
                 }
             }
         }
@@ -731,7 +731,7 @@ public abstract class Structure {
         else if (Callback.class.isAssignableFrom(nativeType)) {
             memory.setPointer(offset, CallbackReference.getFunctionPointer((Callback)value));
         }
-        else if (nativeType == Buffer.class) {
+        else if (Buffer.class.isAssignableFrom(nativeType)) {
             Pointer p = value == null ? null
                 : Native.getDirectBufferPointer((Buffer)value);
             memory.setPointer(offset, p);
@@ -1418,8 +1418,8 @@ public abstract class Structure {
             typeInfoMap.put(Character.class, ctype);
             typeInfoMap.put(byte.class, FFITypes.ffi_type_sint8);
             typeInfoMap.put(Byte.class, FFITypes.ffi_type_sint8);
-            typeInfoMap.put(boolean.class, FFITypes.ffi_type_sint32);
-            typeInfoMap.put(Boolean.class, FFITypes.ffi_type_sint32);
+            typeInfoMap.put(boolean.class, FFITypes.ffi_type_uint32);
+            typeInfoMap.put(Boolean.class, FFITypes.ffi_type_uint32);
             typeInfoMap.put(Pointer.class, FFITypes.ffi_type_pointer);
             typeInfoMap.put(String.class, FFITypes.ffi_type_pointer);
             typeInfoMap.put(WString.class, FFITypes.ffi_type_pointer);
@@ -1508,7 +1508,7 @@ public abstract class Structure {
                     typeInfoMap.put(obj, type);
                     return type.getPointer();
                 }
-                throw new IllegalArgumentException("Unsupported structure field type " + cls);
+                throw new IllegalArgumentException("Unsupported type " + cls);
             }
         }
     }

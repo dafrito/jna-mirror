@@ -210,14 +210,16 @@ public class NativeLibrary {
             throw new NullPointerException("Library name may not be null");
 
         synchronized (libraries) {
-            WeakReference ref = (WeakReference)libraries.get(libraryName);
+            String key = options.toString();
+            WeakReference ref = (WeakReference)libraries.get(libraryName + key);
             NativeLibrary library = ref != null ? (NativeLibrary)ref.get() : null;
+
             if (library == null) {
                 library = loadLibrary(libraryName, options);
                 ref = new WeakReference(library);
-                libraries.put(library.getName(), ref);
-                libraries.put(library.getFile().getAbsolutePath(), ref);
-                libraries.put(library.getFile().getName(), ref);
+                libraries.put(library.getName() + key, ref);
+                libraries.put(library.getFile().getAbsolutePath() + key, ref);
+                libraries.put(library.getFile().getName() + key, ref);
             }
             return library;
         }
@@ -357,11 +359,11 @@ public class NativeLibrary {
 
     public void dispose() {
         synchronized(libraries) {
-            libraries.remove(getName());
+            libraries.remove(getName() + options);
             File path = getFile();
             if (path != null) {
-                libraries.remove(path.getAbsolutePath());
-                libraries.remove(path.getName());
+                libraries.remove(path.getAbsolutePath() + options);
+                libraries.remove(path.getName() + options);
             }
         }
         synchronized(this) {
