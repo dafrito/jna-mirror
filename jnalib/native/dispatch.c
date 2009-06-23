@@ -2,7 +2,7 @@
  * @(#)dispatch.c       1.9 98/03/22
  * 
  * Copyright (c) 1998 Sun Microsystems, Inc. All Rights Reserved.
- * Copyright (c) 2007 Timothy Wall. All Rights Reserved.
+ * Copyright (c) 2007-2009 Timothy Wall. All Rights Reserved.
  * Copyright (c) 2007 Wayne Meissner. All Rights Reserved.
  *
  * This library is free software; you can redistribute it and/or
@@ -1720,44 +1720,44 @@ getFFITypeTypeMapped(JNIEnv* env, jobject converter) {
 }
 
 void
-toNative(JNIEnv* env, jobject obj, void* valuep, size_t size) {
+toNative(JNIEnv* env, jobject obj, void* valuep, size_t size, jboolean promote) {
   if (obj != NULL) {
     jobject arg = (*env)->CallObjectMethod(env, obj, MID_NativeMapped_toNative);
-    extract_value(env, arg, valuep, size);
+    extract_value(env, arg, valuep, size, promote);
   }
   else {
     MEMSET(valuep, 0, size);
   }
 }
 
-void
+static void
 toNativeTypeMapped(JNIEnv* env, jobject obj, void* valuep, size_t size, jobject to_native) {
   if (obj != NULL) {
     jobject arg = (*env)->CallStaticObjectMethod(env, classNative, MID_Native_toNativeTypeMapped, to_native, obj);
-    extract_value(env, arg, valuep, size);
+    extract_value(env, arg, valuep, size, JNI_FALSE);
   }
   else {
     MEMSET(valuep, 0, size);
   }
 }
 
-void
-fromNativeTypeMapped(JNIEnv* env, jobject from_native, void* resp, ffi_type* rtype, jclass javaClass, void* result) {
-  char jtype = get_jtype_from_ffi_type(rtype);
-  jobject value = new_object(env, jtype, resp);
+static void
+fromNativeTypeMapped(JNIEnv* env, jobject from_native, void* resp, ffi_type* type, jclass javaClass, void* result) {
+  char jtype = get_jtype_from_ffi_type(type);
+  jobject value = new_object(env, jtype, resp, JNI_TRUE);
   jobject obj = (*env)->CallStaticObjectMethod(env, classNative,
                                                MID_Native_fromNativeTypeMapped,
                                                from_native, value, javaClass);
   // Must extract primitive types
-  if (rtype->type != FFI_TYPE_POINTER) {
-    extract_value(env, obj, result, rtype->size);
+  if (type->type != FFI_TYPE_POINTER) {
+    extract_value(env, obj, result, type->size, JNI_TRUE);
   }
 }
 
 jobject
-fromNative(JNIEnv* env, jclass javaClass, ffi_type* type, void* resp) {
+fromNative(JNIEnv* env, jclass javaClass, ffi_type* type, void* resp, jboolean promote) {
   int jtype = get_jtype_from_ffi_type(type);
-  jobject value = new_object(env, jtype, resp);
+  jobject value = new_object(env, jtype, resp, promote);
   return (*env)->CallStaticObjectMethod(env, classNative,
                                         MID_Native_fromNative,
                                         javaClass, value);
@@ -2270,7 +2270,7 @@ Java_com_sun_jna_Native_getAPIChecksum(JNIEnv *env, jclass classp) {
 }
 
 void
-extract_value(JNIEnv* env, jobject value, void* resp, size_t size) {
+extract_value(JNIEnv* env, jobject value, void* resp, size_t size, jboolean promote) {
   if (value == NULL) {
     *(void **)resp = NULL;
   }
@@ -2278,19 +2278,49 @@ extract_value(JNIEnv* env, jobject value, void* resp, size_t size) {
     // nothing to do
   }
   else if ((*env)->IsInstanceOf(env, value, classBoolean)) {
-    *(ffi_arg *)resp = (*env)->GetBooleanField(env, value, FID_Boolean_value);
+    jboolean b = (*env)->GetBooleanField(env, value, FID_Boolean_value);
+    if (promote) {
+      *(ffi_arg*)resp = b;
+    }
+    else {
+      *(jint*)resp = b;
+    }
   }
   else if ((*env)->IsInstanceOf(env, value, classByte)) {
-    *(ffi_arg *)resp = (*env)->GetByteField(env, value, FID_Byte_value);
+    jbyte b = (*env)->GetByteField(env, value, FID_Byte_value);
+    if (promote) {
+      *(ffi_arg*)resp = b;
+    }
+    else {
+      *(jbyte*)resp = b;
+    }
   }
   else if ((*env)->IsInstanceOf(env, value, classShort)) {
-    *(ffi_arg *)resp = (*env)->GetShortField(env, value, FID_Short_value);
+    jshort s = (*env)->GetShortField(env, value, FID_Short_value);
+    if (promote) {
+      *(ffi_arg*)resp = s;
+    }
+    else {
+      *(jshort*)resp = s;
+    }
   }
   else if ((*env)->IsInstanceOf(env, value, classCharacter)) {
-    *(ffi_arg *)resp = (*env)->GetCharField(env, value, FID_Character_value);
+    jchar c = (*env)->GetCharField(env, value, FID_Character_value);
+    if (promote) {
+      *(ffi_arg*)resp = c;
+    }
+    else {
+      *(wchar_t*)resp = c;
+    }
   }
   else if ((*env)->IsInstanceOf(env, value, classInteger)) {
-    *(ffi_arg *)resp = (*env)->GetIntField(env, value, FID_Integer_value);
+    jint i = (*env)->GetIntField(env, value, FID_Integer_value);
+    if (promote) {
+      *(ffi_arg*)resp = i;
+    }
+    else {
+      *(jint*)resp = i;
+    }
   }
   else if ((*env)->IsInstanceOf(env, value, classLong)) {
     *(jlong *)resp = (*env)->GetLongField(env, value, FID_Long_value);
@@ -2316,7 +2346,7 @@ extract_value(JNIEnv* env, jobject value, void* resp, size_t size) {
 
 /** Construct a new Java object from a native value.  */
 jobject
-new_object(JNIEnv* env, char jtype, void* valuep) {
+new_object(JNIEnv* env, char jtype, void* valuep, jboolean promote) {
     switch(jtype) {
     case 's':
       return newJavaPointer(env, valuep);
@@ -2334,19 +2364,29 @@ new_object(JNIEnv* env, char jtype, void* valuep) {
     case 'Z':
       // Default mapping for boolean is int32_t
       return (*env)->NewObject(env, classBoolean, MID_Boolean_init,
-                               (*(jint *)valuep ? JNI_TRUE : JNI_FALSE));
+                               (promote
+				? (jint)*(ffi_arg*)valuep
+				: (*(jint *)valuep)) ? JNI_TRUE : JNI_FALSE);
     case 'B':
       return (*env)->NewObject(env, classByte, MID_Byte_init,
-                               (*(jbyte *)valuep));
+                               promote
+			       ? (jbyte)*(ffi_arg*)valuep
+			       : (*(jbyte *)valuep));
     case 'C':
       return (*env)->NewObject(env, classCharacter, MID_Character_init,
-                               (jchar)(*(wchar_t *)valuep));
+                               promote
+			       ? (jchar)*(ffi_arg*)valuep
+			       : (jchar)(*(wchar_t *)valuep));
     case 'S':
       return (*env)->NewObject(env, classShort, MID_Short_init,
-                               (*(jshort *)valuep));
+                               promote
+			       ? (jshort)*(ffi_arg*)valuep
+			       : (*(jshort *)valuep));
     case 'I':
       return (*env)->NewObject(env, classInteger, MID_Integer_init,
-                               *(jint *)valuep);
+                               promote
+			       ? (jint)*(ffi_arg*)valuep
+			       : *(jint *)valuep);
     default:
       return NULL;
     }
@@ -2560,7 +2600,7 @@ method_handler(ffi_cif* cif, void* resp, void** argp, void *cdata) {
             void* valuep = args[i];
             char jtype = get_jtype_from_ffi_type(data->closure_cif.arg_types[i+2]);
             jobject obj = jtype == '*'
-              ? *(void **)valuep : new_object(env, jtype, valuep);
+              ? *(void **)valuep : new_object(env, jtype, valuep, JNI_FALSE);
             if (cif->arg_types[i+2]->size < data->cif.arg_types[i]->size) {
               args[i] = alloca(data->cif.arg_types[i]->size);
             }
@@ -2570,7 +2610,7 @@ method_handler(ffi_cif* cif, void* resp, void** argp, void *cdata) {
           }
           break;
         case CVT_NATIVE_MAPPED:
-          toNative(env, *(void **)args[i], args[i], data->cif.arg_types[i]->size);
+          toNative(env, *(void **)args[i], args[i], data->cif.arg_types[i]->size, JNI_FALSE);
           break;
         case CVT_POINTER:
           *(void **)args[i] = getNativeAddress(env, *(void **)args[i]);
@@ -2666,7 +2706,7 @@ method_handler(ffi_cif* cif, void* resp, void** argp, void *cdata) {
   case CVT_INTEGER_TYPE:
   case CVT_POINTER_TYPE:
   case CVT_NATIVE_MAPPED:
-    *(void **)oldresp = fromNative(env, data->closure_rclass, data->cif.rtype, resp);
+    *(void **)oldresp = fromNative(env, data->closure_rclass, data->cif.rtype, resp, JNI_TRUE);
     break;
   case CVT_POINTER:
     *(void **)resp = newJavaPointer(env, *(void **)resp);

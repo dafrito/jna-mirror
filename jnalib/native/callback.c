@@ -252,7 +252,7 @@ callback_invoke(JNIEnv* env, callback *cb, ffi_cif* cif, void *resp, void **cbar
         case CVT_INTEGER_TYPE:
         case CVT_POINTER_TYPE:
         case CVT_NATIVE_MAPPED:
-          *((void **)args[i+3]) = fromNative(env, cb->arg_classes[i], cif->arg_types[i], args[i+3]);
+          *((void **)args[i+3]) = fromNative(env, cb->arg_classes[i], cif->arg_types[i], args[i+3], JNI_FALSE);
           break;
         case CVT_POINTER:
           *((void **)args[i+3]) = newJavaPointer(env, *(void **)args[i+3]);
@@ -316,7 +316,7 @@ callback_invoke(JNIEnv* env, callback *cb, ffi_cif* cif, void *resp, void **cbar
       *(void **)resp = getPointerTypeAddress(env, *(void **)resp);
       break;
     case CVT_NATIVE_MAPPED:
-      toNative(env, *(void **)resp, oldresp, cb->cif.rtype->size);
+      toNative(env, *(void **)resp, oldresp, cb->cif.rtype->size, JNI_TRUE);
       break;
     case CVT_POINTER:
       *(void **)resp = getNativeAddress(env, *(void **)resp);
@@ -355,7 +355,7 @@ callback_invoke(JNIEnv* env, callback *cb, ffi_cif* cif, void *resp, void **cbar
     unsigned int i;
 
     for (i=0;i < cif->nargs;i++) {
-      jobject arg = new_object(env, cb->arg_jtypes[i], cbargs[i]);
+      jobject arg = new_object(env, cb->arg_jtypes[i], cbargs[i], JNI_FALSE);
       (*env)->SetObjectArrayElement(env, array, i, arg);
     }
     result = (*env)->CallObjectMethod(env, self, cb->methodID, array);
@@ -369,7 +369,7 @@ callback_invoke(JNIEnv* env, callback *cb, ffi_cif* cif, void *resp, void **cbar
         memset(resp, 0, cif->rtype->size);
     }
     else {
-      extract_value(env, result, resp, cif->rtype->size);
+      extract_value(env, result, resp, cif->rtype->size, JNI_TRUE);
     }
   }
 }

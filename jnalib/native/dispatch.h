@@ -134,8 +134,8 @@ extern callback* create_callback(JNIEnv*, jobject, jobject,
                                  jobjectArray, jclass, 
                                  callconv_t, jboolean);
 extern void free_callback(JNIEnv*, callback*);
-extern void extract_value(JNIEnv*, jobject, void*, size_t size);
-extern jobject new_object(JNIEnv*, char, void*);
+extern void extract_value(JNIEnv*, jobject, void*, size_t, jboolean);
+extern jobject new_object(JNIEnv*, char, void*, jboolean);
 extern jboolean is_protected();
 extern int get_conversion_flag(JNIEnv*, jclass);
 extern jboolean ffi_error(JNIEnv*,const char*,ffi_status);
@@ -153,8 +153,8 @@ extern jlong getIntegerTypeValue(JNIEnv*, jobject);
 extern void* getPointerTypeAddress(JNIEnv*, jobject);
 extern void writeStructure(JNIEnv*, jobject);
 extern jclass getNativeType(JNIEnv*, jclass);
-extern void toNative(JNIEnv*, jobject, void*, size_t);
-extern jclass fromNative(JNIEnv*, jclass, ffi_type*, void*);
+extern void toNative(JNIEnv*, jobject, void*, size_t, jboolean);
+extern jclass fromNative(JNIEnv*, jclass, ffi_type*, void*, jboolean);
 
 /* Native memory fault protection */
 #ifdef HAVE_PROTECTION
