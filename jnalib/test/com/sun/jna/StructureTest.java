@@ -14,6 +14,7 @@ package com.sun.jna;
 
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
+import java.nio.DoubleBuffer;
 import java.util.Map;
 
 import junit.framework.TestCase;
@@ -477,6 +478,33 @@ public class StructureTest extends TestCase {
         assertEquals("Structure memory should be expanded", 2, s.toArray(2).length);
     }
 
+    public void testByReferenceArraySync() {
+        PublicTestStructure.ByReference s = new PublicTestStructure.ByReference();
+        PublicTestStructure.ByReference[] array =
+            (PublicTestStructure.ByReference[])s.toArray(2);
+        class TestStructure extends Structure {
+            public PublicTestStructure.ByReference ref;
+        }
+        TestStructure ts = new TestStructure();
+        ts.ref = s;
+        final int VALUE = 42;
+        array[0].x = VALUE;
+        array[1].x = VALUE;
+        ts.write();
+
+        assertEquals("Array element not written: " + array[0],
+                     VALUE, array[0].getPointer().getInt(0));
+        assertEquals("Array element not written: " + array[1],
+                     VALUE, array[1].getPointer().getInt(0));
+
+        array[0].getPointer().setInt(4, VALUE);
+        array[1].getPointer().setInt(4, VALUE);
+        ts.read();
+
+        assertEquals("Array element not read: " + array[0], VALUE, array[0].y);
+        assertEquals("Array element not read: " + array[1], VALUE, array[1].y);
+    }
+
     static class CbStruct extends Structure {
         public Callback cb;
     }
@@ -507,6 +535,7 @@ public class StructureTest extends TestCase {
     public void testReadFunctionPointerAsCallback() {
         CbStruct2 s = new CbStruct2();
         CbTest lib = (CbTest)Native.loadLibrary("testlib", CbTest.class);
+        assertNull("Function pointer field should be null", s.cb);
         lib.setCallbackInStruct(s);
         assertNotNull("Callback field not set", s.cb);
     }
@@ -515,7 +544,7 @@ public class StructureTest extends TestCase {
         CbStruct2 s = new CbStruct2();
         CbTest lib = (CbTest)Native.loadLibrary("testlib", CbTest.class);
         lib.setCallbackInStruct(s);
-        assertEquals("Proxy to native function pointer failed",
+        assertEquals("Proxy to native function pointer failed: " + s.cb,
                      3, s.cb.callback(1, 2));
     }
 
@@ -564,6 +593,7 @@ public class StructureTest extends TestCase {
 
     class BufferStructure extends Structure {
         public Buffer buffer;
+        public DoubleBuffer dbuffer;
     }
     public void testBufferFieldWriteNULL() {
         BufferStructure bs = new BufferStructure();
@@ -572,11 +602,13 @@ public class StructureTest extends TestCase {
     public void testBufferFieldWriteNonNULL() {
         BufferStructure bs = new BufferStructure();
         bs.buffer = ByteBuffer.allocateDirect(16);
+        bs.dbuffer = ((ByteBuffer)bs.buffer).asDoubleBuffer();
         bs.write();
     }
     public void testBufferFieldReadUnchanged() {
         BufferStructure bs = new BufferStructure();
         bs.buffer = ByteBuffer.allocateDirect(16);
+        bs.dbuffer = ((ByteBuffer)bs.buffer).asDoubleBuffer();
         bs.write();
         bs.read();
     }
@@ -605,8 +637,10 @@ public class StructureTest extends TestCase {
     public void testBufferFieldReadChangedToNULL() {
         BufferStructure bs = new BufferStructure();
         bs.buffer = ByteBuffer.allocateDirect(16);
+        bs.dbuffer = ((ByteBuffer)bs.buffer).asDoubleBuffer();
         bs.read();
         assertNull("Structure Buffer field should be set null", bs.buffer);
+        assertNull("Structure DoubleBuffer field should be set null", bs.dbuffer);
     }
 
     public void testVolatileStructureField() {

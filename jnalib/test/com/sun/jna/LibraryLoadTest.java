@@ -14,6 +14,7 @@ package com.sun.jna;
 
 import java.awt.Frame;
 import java.awt.GraphicsEnvironment;
+import java.awt.Toolkit;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -23,11 +24,9 @@ import junit.framework.TestCase;
 
 public class LibraryLoadTest extends TestCase {
     
-    public static interface CLibrary extends Library {
-        int wcslen(WString wstr);
-        int strlen(String str);
-        int atol(String str);
-    }
+    private static final String BUILDDIR =
+        System.getProperty("jna.builddir", "build"
+                           + (Platform.is64Bit() ? "-d64" : ""));
 
     public void testLoadJNALibrary() {
         assertTrue("Point size should never be zero", Pointer.SIZE > 0);
@@ -45,6 +44,20 @@ public class LibraryLoadTest extends TestCase {
         }
         finally {
             f.dispose();
+        }
+    }
+    
+    public static interface CLibrary extends Library {
+        int wcslen(WString wstr);
+        int strlen(String str);
+        int atol(String str);
+    }
+
+    public void testLoadAWTAfterJNA() {
+        if (GraphicsEnvironment.isHeadless()) return;
+
+        if (Pointer.SIZE > 0) {
+            Toolkit.getDefaultToolkit();
         }
     }
     
@@ -75,13 +88,11 @@ public class LibraryLoadTest extends TestCase {
     }
 
     public void testLoadLibraryWithUnicodeName() throws Exception {
-        final String BUILDDIR =
-            System.getProperty("jna.builddir", "build"
-                               + (Native.POINTER_SIZE == 8 ? "-d64" : ""));
-
         String tmp = System.getProperty("java.io.tmpdir");
         String libName = System.mapLibraryName("jnidispatch");
         File src = new File(BUILDDIR + "/native", libName);
+        assertTrue("Expected JNA native library at " + src + " is missing", src.exists());
+
         String newLibName = UNICODE;
         if (libName.startsWith("lib"))
             newLibName = "lib" + newLibName;
@@ -98,7 +109,8 @@ public class LibraryLoadTest extends TestCase {
         dst.deleteOnExit();
         copy(src, dst);
         NativeLibrary.addSearchPath(UNICODE, tmp);
-        NativeLibrary.getInstance(UNICODE);
+        NativeLibrary nl = NativeLibrary.getInstance(UNICODE);
+        nl.dispose();
     }
     
     public void testHandleObjectMethods() {

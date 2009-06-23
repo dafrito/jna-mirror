@@ -14,6 +14,7 @@ package com.sun.jna;
 
 import java.lang.ref.WeakReference;
 import java.nio.Buffer;
+import java.nio.ByteBuffer;
 
 import junit.framework.TestCase;
 
@@ -33,9 +34,10 @@ public class MemoryTest extends TestCase {
         System.gc();
         long start = System.currentTimeMillis();
         assertFalse("Memory prematurely GC'd", flag[0]);
-        // This check fails on IBM's J9, on which the weak ref
-        // is cleared but the object not yet GC'd
-        //assertNotNull("Memory prematurely GC'd", ref.get());
+        assertNotNull("Base memory GC'd while shared memory extant", ref.get());
+        // Avoid having IBM J9 prematurely nullify "shared"
+        shared.setInt(0, 0);
+
         shared = null;
         System.gc();
         while (ref.get() != null) {
@@ -86,24 +88,27 @@ public class MemoryTest extends TestCase {
 
     public void testAvoidGCWithExtantBuffer() throws Exception {
         Memory m = new Memory(1024);
-        Buffer b = m.getByteBuffer(0, m.getSize());
+        ByteBuffer b = m.getByteBuffer(0, m.getSize());
         WeakReference ref = new WeakReference(m);
         WeakReference bref = new WeakReference(b);
         m = null;
         System.gc();
         Memory.purge();
         for (int i=0;i < 100 && ref.get() != null;i++) {
-            Thread.sleep(1);
+            Thread.sleep(10);
             System.gc();
             Memory.purge();
         }
         assertNotNull("Memory GC'd while NIO Buffer still extant", ref.get());
 
+        // Avoid IBM J9 optimization resulting in premature GC of buffer
+        b.put((byte)0);
+
         b = null;
         System.gc();
         Memory.purge();
         for (int i=0;i < 100 && (bref.get() != null || ref.get() != null);i++) {
-            Thread.sleep(1);
+            Thread.sleep(10);
             System.gc();
             Memory.purge();
         }

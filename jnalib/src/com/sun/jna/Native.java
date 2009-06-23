@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.lang.ref.WeakReference;
+import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -72,6 +73,7 @@ import com.sun.jna.Structure.FFIType;
 public final class Native {
 
     private static String nativeLibraryPath = null;
+    private static boolean unpacked;
     private static Map typeMappers = new WeakHashMap();
     private static Map alignments = new WeakHashMap();
     private static Map options = new WeakHashMap();
@@ -120,12 +122,26 @@ public final class Native {
     */
     private static final Object finalizer = new Object() {
         protected void finalize() {
-            unloadNativeLibrary(nativeLibraryPath);
+            deleteNativeLibrary();
         }
     };
 
-    private static boolean unloadNativeLibrary(String path) {
-        if (path == null || !new File(path).exists()) return true;
+    /** Remove any unpacked native library.  Forcing the class loader to
+        unload it first is required on Windows, since the temporary native
+        library can't be deleted until the native library is unloaded.  Any
+        deferred execution we might install at this point would prevent the
+        Native class and its class loader from being GC'd, so we instead force
+        the native library unload just a little bit prematurely.
+     */
+    private static boolean deleteNativeLibrary() {
+        String path = nativeLibraryPath;
+        if (path == null || !unpacked) return true;
+        File flib = new File(path);
+        if (flib.delete()) {
+            nativeLibraryPath = null;
+            unpacked = false;
+            return true;
+        }
         // Reach into the bowels of ClassLoader to force the native
         // library to unload
         try {
@@ -138,13 +154,19 @@ public final class Native {
                 f = lib.getClass().getDeclaredField("name");
                 f.setAccessible(true);
                 String name = (String)f.get(lib);
-                if (name.equals(path)) {
+                if (name.equals(path) || name.indexOf(path) != -1) {
                     Method m = lib.getClass().getDeclaredMethod("finalize", new Class[0]);
                     m.setAccessible(true);
                     m.invoke(lib, new Object[0]);
-                    File file = new File(path);
-                    if (file.exists()) {
-                        return file.delete();
+                    nativeLibraryPath = null;
+                    if (unpacked) {
+                        if (flib.exists()) {
+                            if (flib.delete()) {
+                                unpacked = false;
+                                return true;
+                            }
+                            return false;
+                        }
                     }
                     return true;
                 }
@@ -161,8 +183,9 @@ public final class Native {
 
     /** Set whether native memory accesses are protected from invalid
      * accesses.  This should only be set true when testing or debugging,
-     * and should not be considered reliable or robust for multithreaded
-     * applications.  Protected mode will be automatically set if the
+     * and should not be considered reliable or robust for applications
+     * where JNA native calls are occurring on multiple threads.
+     * Protected mode will be automatically set if the
      * system property <code>jna.protected</code> has a value of "true"
      * when the JNA library is first loaded.<p>
      * If not supported by the underlying platform, this setting will
@@ -185,14 +208,19 @@ public final class Native {
     public static synchronized native boolean isProtected();
 
     /** Set whether the system last error result is captured after every
-     * native invocation.  Defaults to <code>true</code>.<p>
-     * For direct-mapped calls, add {@lnk LastErrorException} to the method
-     * exception signature instead.
+     * native invocation.  Defaults to <code>true</code> (<code>false</code>
+     * for direct-mapped calls).<p>
+     * @deprecated The preferred method of obtaining the last error result is
+     * to declare your mapped method to throw {@link LastErrorException}
+     * instead. 
      */
     public static synchronized native void setPreserveLastError(boolean enable);
     
     /** Indicates whether the system last error result is preserved
-     * after every invocation.
+     * after every invocation.<p>
+     * @deprecated The preferred method of obtaining the last error result is
+     * to declare your mapped method to throw {@link LastErrorException}
+     * instead. 
      */
     public static synchronized native boolean getPreserveLastError();
     
@@ -256,14 +284,6 @@ public final class Native {
     
     private static native long getWindowHandle0(Component c);
 
-    /** Convert a direct {@link Buffer} into a {@link Pointer}. 
-     * @throws IllegalArgumentException if the buffer is not direct.
-     * @deprecated Use {@link #getDirectBufferPointer} instead. 
-     */
-    public static Pointer getByteBufferPointer(ByteBuffer b) {
-        return getDirectBufferPointer(b);
-    }
-    
     /** Convert a direct {@link Buffer} into a {@link Pointer}. 
      * @throws IllegalArgumentException if the buffer is not direct.
      */
@@ -365,30 +385,6 @@ public final class Native {
         }
     }
     
-    /** Find the first instance of an interface which implements the Callback
-     * interface or an interface derived from Callback.
-     */
-    static Class findCallbackClass(Class type) {
-        if (!Callback.class.isAssignableFrom(type)) {
-            throw new IllegalArgumentException(type.getName() + " is not derived from com.sun.jna.Callback");
-        }
-        if (type.isInterface()) {
-            return type;
-        }
-        Class[] ifaces = type.getInterfaces();
-        for (int i=0;i < ifaces.length;i++) {
-            if (Callback.class.isAssignableFrom(ifaces[i])) {
-                if (ifaces[i].getMethods().length == 1)
-                    return ifaces[i];
-                break;
-            }
-        }
-        if (Callback.class.isAssignableFrom(type.getSuperclass())) {
-            return findCallbackClass(type.getSuperclass());
-        }
-        return type;
-    }
-    
     /** Find the library interface corresponding to the given class.  Checks
      * all ancestor classes and interfaces for a declaring class which
      * implements {@link Library}.
@@ -401,7 +397,7 @@ public final class Native {
             return cls;
         }
         if (Callback.class.isAssignableFrom(cls)) {
-            cls = findCallbackClass(cls);
+            cls = CallbackReference.findCallbackClass(cls);
         }
         Class fromDeclaring = findEnclosingLibraryClass(cls.getDeclaringClass());
         if (fromDeclaring != null) {
@@ -592,6 +588,7 @@ public final class Native {
                 String path = new File(new File(dirs[i]), System.mapLibraryName(libName)).getAbsolutePath();
                 try {
                     System.load(path);
+                    nativeLibraryPath = path;
                     return;
                 } catch (UnsatisfiedLinkError ex) {
                 }
@@ -605,7 +602,9 @@ public final class Native {
                         ext = "dylib";
                     }
                     try {
-                        System.load(path.substring(0, path.lastIndexOf(orig)) + ext);
+                        path = path.substring(0, path.lastIndexOf(orig)) + ext;
+                        System.load(path);
+                        nativeLibraryPath = path;
                         return;
                     } catch (UnsatisfiedLinkError ex) {
                     }
@@ -614,6 +613,7 @@ public final class Native {
         }
         try {
             System.loadLibrary(libName);
+            nativeLibraryPath = libName;
         }
         catch(UnsatisfiedLinkError e) {
             loadNativeLibraryFromJar();
@@ -652,10 +652,14 @@ public final class Native {
             FileOutputStream fos = null;
             try {
                 // Suffix is required on windows, or library fails to load
-                // Let Java pick the suffix
-                lib = File.createTempFile("jna", null);
+                // Let Java pick the suffix, except on windows, to avoid
+                // problems with Web Start.
+                lib = File.createTempFile("jna", Platform.isWindows()?".dll":null);
                 lib.deleteOnExit();
-                if (Platform.deleteNativeLibraryAfterVMExit()) {
+                ClassLoader cl = Native.class.getClassLoader();
+                if (Platform.deleteNativeLibraryAfterVMExit()
+                    && (cl == null
+                        || cl.equals(ClassLoader.getSystemClassLoader()))) {
                     Runtime.getRuntime().addShutdownHook(new DeleteNativeLibrary(lib));
                 }
                 fos = new FileOutputStream(lib);
@@ -674,9 +678,10 @@ public final class Native {
                     try { fos.close(); } catch(IOException e) { }
                 }
             }
-            nativeLibraryPath = lib.getAbsolutePath();
+            unpacked = true;
         }
         System.load(lib.getAbsolutePath());
+        nativeLibraryPath = lib.getAbsolutePath();
     }
 
     /**
@@ -698,10 +703,11 @@ public final class Native {
      * <code>GetLastError()</code> on Windows, and <code>errno</code> on
      * most other platforms.  The value is preserved per-thread, but whether 
      * the original value is per-thread depends on the underlying OS.  The 
-     * result is undefined If {@link #getPreserveLastError} is 
+     * result is undefined if {@link #getPreserveLastError} is 
      * <code>false</code>.<p>
-     * For direct-mapped calls, add "throws LastErrorException" to the method
-     * signature instead.
+     * The preferred method of obtaining the last error result is
+     * to declare your mapped method to throw {@link LastErrorException}
+     * instead. 
      */
     public static int getLastError() {
         return ((Integer)lastError.get()).intValue();
@@ -795,20 +801,15 @@ public final class Native {
     }
 
     /** For internal use only. */
-    /* Windows won't allow file deletion while
-     * it is in use, and the VM doesn't provide for explicit unloading of 
-     * native libraries (and the implicit method requires GC of a custom class
-     * loader which loaded the class with native bits, which would require
-     * all native bits to be encapsulated in a private class).
-     * Instead, spawn a cleanup task to remove the file *after* the VM exits.
-     */
     public static class DeleteNativeLibrary extends Thread {
         private final File file;
         public DeleteNativeLibrary(File file) {
             this.file = file;
         }
         public void run() {
-            if (!unloadNativeLibrary(file.getAbsolutePath())) {
+            // If we can't force an unload/delete, spawn a new process
+            // to do so
+            if (!deleteNativeLibrary()) {
                 try {
                     Runtime.getRuntime().exec(new String[] {
                         System.getProperty("java.home") + "/bin/java",
@@ -837,6 +838,35 @@ public final class Native {
                 }
             }
             System.exit(0);
+        }
+    }
+
+    /** Returns the native size of the given class, in bytes. 
+     * For use with arrays.
+     */
+    public static int getNativeSize(Class type, Object value) {
+        if (type.isArray()) {
+            int len = Array.getLength(value);
+            if (len > 0) {
+                Object o = Array.get(value, 0);
+                return len * getNativeSize(type.getComponentType(), o);
+            }
+            // Don't process zero-length arrays
+            throw new IllegalArgumentException("Arrays of length zero not allowed in structure: " + type);
+        }
+        if (Structure.class.isAssignableFrom(type)
+            && !Structure.ByReference.class.isAssignableFrom(type)) {
+            if (value == null)
+                value = Structure.newInstance(type);
+            return ((Structure)value).size();
+        }
+        try {
+            return Native.getNativeSize(type);
+        }
+        catch(IllegalArgumentException e) {
+            throw new IllegalArgumentException("The type \"" + type.getName()
+                                               + "\" is not supported as a structure field: "
+                                               + e.getMessage());
         }
     }
 
@@ -1213,14 +1243,14 @@ public final class Native {
             if (fmapper != null) {
                 name = fmapper.getFunctionName(lib, method);
             }
-            Function f = lib.getFunction(name);
+            Function f = lib.getFunction(name, method);
             try {
                 handles[i] = registerMethod(cls, method.getName(),
                                             sig, cvt,
                                             closure_atypes, atypes, rcvt,
                                             closure_rtype, rtype, 
                                             rclass,
-                                            f.peer, f.callingConvention,
+                                            f.peer, f.getCallingConvention(),
                                             throwLastError,
                                             toNative, fromNative);
             }

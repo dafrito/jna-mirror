@@ -120,6 +120,7 @@ typedef struct _callback {
 #define EUnsatisfiedLink "java/lang/UnsatisfiedLinkError"
 #define EIllegalState "java/lang/IllegalStateException"
 #define EUnsupportedOperation "java/lang/UnsupportedOperationException"
+#define ERuntime "java/lang/RuntimeException"
 #define EError "java/lang/Error"
 #define ELastError "com/sun/jna/LastErrorException"
 

@@ -17,6 +17,7 @@ import com.sun.jna.ptr.DoubleByReference;
 import com.sun.jna.ptr.FloatByReference;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.LongByReference;
+import com.sun.jna.ptr.NativeLongByReference;
 import com.sun.jna.ptr.PointerByReference;
 import com.sun.jna.ptr.ShortByReference;
 
@@ -31,6 +32,7 @@ public class RawByReferenceArgumentsTest extends ByReferenceArgumentsTest {
         public native void incrementInt8ByReference(ByteByReference b);
         public native void incrementInt16ByReference(ShortByReference s);
         public native void incrementInt32ByReference(IntByReference i);
+        public native void incrementNativeLongByReference(NativeLongByReference i);
         public native void incrementInt64ByReference(LongByReference l);
         public native void complementFloatByReference(FloatByReference f);
         public native void complementDoubleByReference(DoubleByReference d);

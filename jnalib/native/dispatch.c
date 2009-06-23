@@ -105,6 +105,9 @@ static jboolean preserve_last_error;
   PSTART(); memset(D,C,L); PEND(); \
 } while(0)
 
+#define MASK_CC          com_sun_jna_Function_MASK_CC
+#define THROW_LAST_ERROR com_sun_jna_Function_THROW_LAST_ERROR
+
 /* Cached class, field and method IDs */
 static jclass classObject;
 static jclass classClass;
@@ -257,7 +260,7 @@ ffi_error(JNIEnv* env, const char* op, ffi_status status) {
 
 /* invoke the real native function */
 static void
-dispatch(JNIEnv *env, jobject self, jint callconv, jobjectArray arr, 
+dispatch(JNIEnv *env, jobject self, jint flags, jobjectArray arr, 
          ffi_type *ffi_return_type, void *resP)
 {
   int i, nargs;
@@ -276,6 +279,7 @@ dispatch(JNIEnv *env, jobject self, jint callconv, jobjectArray arr,
   ffi_abi abi;
   ffi_status status;
   char msg[128];
+  callconv_t callconv = flags & MASK_CC;
   
   nargs = (*env)->GetArrayLength(env, arr);
 
@@ -445,8 +449,15 @@ dispatch(JNIEnv *env, jobject self, jint callconv, jobjectArray arr,
   status = ffi_prep_cif(&cif, abi, nargs, ffi_return_type, ffi_types);
   if (!ffi_error(env, "Native call setup", status)) {
     PSTART();
+    if (flags & THROW_LAST_ERROR) {
+      SET_LAST_ERROR(0);
+    }
     ffi_call(&cif, FFI_FN(func), resP, ffi_values);
-    if (preserve_last_error) {
+    if (flags & THROW_LAST_ERROR) {
+      snprintf(msg, sizeof(msg), "%d", (int)GET_LAST_ERROR());
+      throwByName(env, ELastError, msg);
+    }
+    else if (preserve_last_error) {
       update_last_error(env, GET_LAST_ERROR());
     }
     PEND();
@@ -1363,11 +1374,12 @@ throwByName(JNIEnv *env, const char *name, const char *msg)
   
   jclass cls = (*env)->FindClass(env, name);
   
-  if (cls != 0) /* Otherwise an exception has already been thrown */
+  if (cls != NULL) { /* Otherwise an exception has already been thrown */
     (*env)->ThrowNew(env, cls, msg);
-  
-  /* It's a good practice to clean up the local references. */
-  (*env)->DeleteLocalRef(env, cls);
+    
+    /* It's a good practice to clean up the local references. */
+    (*env)->DeleteLocalRef(env, cls);
+  }
 }
 
 /* Translates a Java string to a C string using the String.getBytes 
@@ -1602,7 +1614,9 @@ get_conversion_flag(JNIEnv* env, jclass cls) {
 int
 get_jtype_from_ffi_type(ffi_type* type) {
   switch(type->type) {
-  case FFI_TYPE_UINT32: return 'Z';
+    // FIXME aliases 'C' on *nix; this will cause problems if anyone
+    // ever installs a type mapper for char/Character (not a common arg type)
+  case FFI_TYPE_UINT32: return 'Z'; 
   case FFI_TYPE_SINT8: return 'B';
   case FFI_TYPE_SINT16: return 'S';
   case FFI_TYPE_UINT16: return 'C';
@@ -1925,12 +1939,12 @@ Java_com_sun_jna_Native_initIDs(JNIEnv *env, jclass cls) {
                 "Can't obtain useMemory method for class com.sun.jna.Structure");
   }
   else if (!LOAD_MID(env, MID_Structure_read, classStructure,
-                     "read", "()V")) {
+                     "autoRead", "()V")) {
     throwByName(env, EUnsatisfiedLink,
                 "Can't obtain read method for class com.sun.jna.Structure");
   }
   else if (!LOAD_MID(env, MID_Structure_write, classStructure,
-                     "write", "()V")) {
+                     "autoWrite", "()V")) {
     throwByName(env, EUnsatisfiedLink,
                 "Can't obtain write method for class com.sun.jna.Structure");
   }
@@ -2432,7 +2446,7 @@ ffi_type*
 get_ffi_type(JNIEnv* env, jclass cls, char jtype) {
   switch (jtype) {
   case 'Z': 
-    return &ffi_type_sint32;
+    return &ffi_type_uint32;
   case 'B':
     return &ffi_type_sint8;
   case 'C':
@@ -2490,9 +2504,9 @@ typedef struct _method_data {
   int*    flags;
   int     rflag;
   jclass  closure_rclass;
-  jboolean throw_last_error;
   jobject* to_native;
   jobject  from_native;
+  jboolean throw_last_error;
 } method_data;
 
 // set cb/call types, cvt flags
@@ -2637,9 +2651,9 @@ method_handler(ffi_cif* cif, void* resp, void** argp, void *cdata) {
     if (data->throw_last_error) {
       int error = GET_LAST_ERROR();
       if (error) {
-        char err[32];
-        snprintf(err, sizeof(err), "%d", error);
-        throwByName(env, ELastError, err);
+        char msg[64];
+        snprintf(msg, sizeof(msg), "%d", error);
+        throwByName(env, ELastError, msg);
       }
     }
     PEND();
@@ -2752,8 +2766,7 @@ Java_com_sun_jna_Native_registerMethod(JNIEnv *env, jclass ncls,
                                        jlong closure_return_type,
                                        jlong return_type,
                                        jclass closure_rclass,
-                                       jlong function,
-                                       jint cc,
+                                       jlong function, jint cc,
                                        jboolean throw_last_error,
                                        jobjectArray to_native,
                                        jobject from_native)

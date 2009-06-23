@@ -17,6 +17,7 @@ package com.sun.jna;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.lang.ref.WeakReference;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -45,7 +46,7 @@ public class NativeLibrary {
     private final String libraryName;
     private final String libraryPath;
     private final Map functions = new HashMap();
-    final int callingConvention;
+    final int callFlags;
     final Map options;
 
     private static WeakReference currentProcess;
@@ -60,6 +61,10 @@ public class NativeLibrary {
             throw new Error("Native library not initialized");
     }
 
+    private static String functionKey(String name, int flags) {
+        return name + "|" + flags;
+    }
+
     private NativeLibrary(String libraryName, String libraryPath, long handle, Map options) {
         this.libraryName = getLibraryName(libraryName);
         this.libraryPath = libraryPath;
@@ -67,7 +72,7 @@ public class NativeLibrary {
         Object option = options.get(Library.OPTION_CALLING_CONVENTION);
         int callingConvention = option instanceof Integer
             ? ((Integer)option).intValue() : Function.C_CONVENTION;
-        this.callingConvention = callingConvention;
+        this.callFlags = callingConvention;
         this.options = options;
 
         // Special workaround for w32 kernel32.GetLastError
@@ -79,7 +84,7 @@ public class NativeLibrary {
                         return new Integer(Native.getLastError());
                     }
                 };
-                functions.put("GetLastError", f);
+                functions.put(functionKey("GetLastError", callFlags), f);
             }
         }
     }
@@ -269,41 +274,62 @@ public class NativeLibrary {
     }
     /**
      * Create a new {@link Function} that is linked with a native
-     * function that follows the standard "C" calling convention.
+     * function that follows the NativeLibrary's calling convention.
      *
      * <p>The allocated instance represents a pointer to the named native
-     * function from the library, called with the standard "C" calling
-     * convention.
+     * function from the library.
      *
      * @param	functionName
      *			Name of the native function to be linked with
      * @throws   UnsatisfiedLinkError if the function is not found
      */
     public Function getFunction(String functionName) {
-        return getFunction(functionName, callingConvention);
+        return getFunction(functionName, callFlags);
+    }
+
+    /**
+     * Create a new {@link Function} that is linked with a native
+     * function that follows the NativeLibrary's calling convention.
+     *
+     * <p>The allocated instance represents a pointer to the named native
+     * function from the library.
+     *
+     * @param	name
+     *			Name of the native function to be linked with
+     * @param	method
+     *			Method to which the native function is to be mapped
+     * @throws   UnsatisfiedLinkError if the function is not found
+     */
+    Function getFunction(String name, Method method) {
+        int flags = this.callFlags;
+        Class[] etypes = method.getExceptionTypes();
+        for (int i=0;i < etypes.length;i++) {
+            if (LastErrorException.class.isAssignableFrom(etypes[i])) {
+                flags |= Function.THROW_LAST_ERROR;
+            }
+        }
+        return getFunction(name, flags);
     }
 
     /**
      * Create a new  @{link Function} that is linked with a native
-     * function that follows a given calling convention.
-     *
-     * <p>The allocated instance represents a pointer to the named native
-     * function from the library, called with the named calling convention.
+     * function that follows a given calling flags.
      *
      * @param	functionName
      *			Name of the native function to be linked with
-     * @param	callingConvention
-     *			Calling convention used by the native function
+     * @param	callFlags
+     *			Flags affecting the function invocation
      * @throws   UnsatisfiedLinkError if the function is not found
      */
-    public Function getFunction(String functionName, int callingConvention) {
+    public Function getFunction(String functionName, int callFlags) {
         if (functionName == null)
             throw new NullPointerException("Function name may not be null");
         synchronized (functions) {
-            Function function = (Function) functions.get(functionName);
+            String key = functionKey(functionName, callFlags);
+            Function function = (Function) functions.get(key);
             if (function == null) {
-                function = new Function(this, functionName, callingConvention);
-                functions.put(functionName, function);
+                function = new Function(this, functionName, callFlags);
+                functions.put(key, function);
             }
             return function;
         }
