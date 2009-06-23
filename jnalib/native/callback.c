@@ -94,7 +94,7 @@ create_callback(JNIEnv* env, jobject obj, jobject method,
       ncls = getNativeType(env, cls);
       cb->arg_jtypes[i] = jtype = get_jtype(env, ncls);
       if (jtype == -1) {
-        snprintf(msg, sizeof(msg), "Unsupported NativeMapped argument native type at index %d", i);
+        snprintf(msg, sizeof(msg), "Unsupported NativeMapped argument native type at argument %d", i);
         throwByName(env, EIllegalArgument, msg);
         goto failure_cleanup;
       }
@@ -252,7 +252,7 @@ callback_invoke(JNIEnv* env, callback *cb, ffi_cif* cif, void *resp, void **cbar
         case CVT_INTEGER_TYPE:
         case CVT_POINTER_TYPE:
         case CVT_NATIVE_MAPPED:
-          *((void **)args[i+3]) = fromNative(env, cb->arg_classes[i], getNativeType(env, cb->arg_classes[i]), args[i+3]);
+          *((void **)args[i+3]) = fromNative(env, cb->arg_classes[i], cif->arg_types[i], args[i+3]);
           break;
         case CVT_POINTER:
           *((void **)args[i+3]) = newJavaPointer(env, *(void **)args[i+3]);

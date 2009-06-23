@@ -1741,8 +1741,8 @@ fromNativeTypeMapped(JNIEnv* env, jobject from_native, void* resp, ffi_type* rty
 }
 
 jobject
-fromNative(JNIEnv* env, jclass javaClass, ffi_type* rtype, void* resp) {
-  int jtype = get_jtype_from_ffi_type(rtype);
+fromNative(JNIEnv* env, jclass javaClass, ffi_type* type, void* resp) {
+  int jtype = get_jtype_from_ffi_type(type);
   jobject value = new_object(env, jtype, resp);
   return (*env)->CallStaticObjectMethod(env, classNative,
                                         MID_Native_fromNative,

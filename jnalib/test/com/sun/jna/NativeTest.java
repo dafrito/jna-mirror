@@ -194,9 +194,6 @@ public class NativeTest extends TestCase {
                      Native.getStructureAlignment(TestInterfaceWithAlignment.class));
     }
 
-    // TODO extract (alignment|typemapper) 
-    // from (variable|options)
-
     public static void main(String[] args) {
         junit.textui.TestRunner.run(NativeTest.class);
     }

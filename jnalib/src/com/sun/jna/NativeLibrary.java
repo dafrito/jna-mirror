@@ -206,20 +206,24 @@ public class NativeLibrary {
      * Library}).
      */
     public static final NativeLibrary getInstance(String libraryName, Map options) {
+        options = new HashMap(options);
+        if (options.get(Library.OPTION_CALLING_CONVENTION) == null) {
+            options.put(Library.OPTION_CALLING_CONVENTION, new Integer(Function.C_CONVENTION));
+        }
+
         if (libraryName == null)
             throw new NullPointerException("Library name may not be null");
 
         synchronized (libraries) {
-            String key = options.toString();
-            WeakReference ref = (WeakReference)libraries.get(libraryName + key);
+            WeakReference ref = (WeakReference)libraries.get(libraryName + options);
             NativeLibrary library = ref != null ? (NativeLibrary)ref.get() : null;
 
             if (library == null) {
                 library = loadLibrary(libraryName, options);
                 ref = new WeakReference(library);
-                libraries.put(library.getName() + key, ref);
-                libraries.put(library.getFile().getAbsolutePath() + key, ref);
-                libraries.put(library.getFile().getName() + key, ref);
+                libraries.put(library.getName() + options, ref);
+                libraries.put(library.getFile().getAbsolutePath() + options, ref);
+                libraries.put(library.getFile().getName() + options, ref);
             }
             return library;
         }

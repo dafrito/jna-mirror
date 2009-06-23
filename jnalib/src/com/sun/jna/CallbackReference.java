@@ -95,16 +95,30 @@ class CallbackReference extends WeakReference {
         Class[] nativeParamTypes;
         Class returnType;
 
-        String arch = System.getProperty("os.arch");
-        if (direct && "ppc".equals(arch)) {
+        // Check whether direct mapping may be used, or whether
+        // we need to fall back to conventional mapping
+        String arch = System.getProperty("os.arch").toLowerCase();
+        boolean ppc = "ppc".equals(arch) || "powerpc".equals(arch);
+        if (direct) {
             Method m = getCallbackMethod(callback);
             Class[] ptypes = m.getParameterTypes();
             for (int i=0;i < ptypes.length;i++) {
-                if (ptypes[i] == float.class 
-                    || ptypes[i] == double.class) {
+                // varargs w/FP args via ffi_call fails on ppc (darwin)
+                if (ppc && (ptypes[i] == float.class 
+                            || ptypes[i] == double.class)) {
                     direct = false;
                     break;
                 }
+                // No TypeMapper support in native callback code
+                if (mapper != null
+                    && mapper.getFromNativeConverter(ptypes[i]) != null) {
+                    direct = false;
+                    break;
+                }
+            }
+            if (mapper != null
+                && mapper.getToNativeConverter(m.getReturnType()) != null) {
+                direct = false;
             }
         }
 
@@ -318,9 +332,11 @@ class CallbackReference extends WeakReference {
                 if (fromNative[i] != null) {
                     FromNativeContext context = 
                         new CallbackParameterContext(type, callbackMethod, args, i);
-                    arg = fromNative[i].fromNative(arg, context);
+                    callbackArgs[i] = fromNative[i].fromNative(arg, context);
                 }
-                callbackArgs[i] = convertArgument(arg, type);
+                else {
+                    callbackArgs[i] = convertArgument(arg, type);
+                }
             }
             
             Object result = null;
